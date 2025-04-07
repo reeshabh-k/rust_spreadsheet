@@ -1,15 +1,20 @@
 use arrayvec::ArrayVec;
+use std::io::{self, BufRead, Error};
 
+
+#[derive(Debug)]
 struct Cell {
     row: u32,
     col: u32,
 }
 
+#[derive(Debug)]
 enum Value {
     Num(i32),
     Ref(Cell),
 }
 
+#[derive(Debug)]
 enum Formula {
     Add(Value, Value),
     Sub(Value, Value),
@@ -77,9 +82,14 @@ impl Col {
 }
 
 
-// fn get_formula () -> Formula {
+pub fn get_formula<R: BufRead>(reader: & mut R) -> Result<Formula, Error> {
+    let line = String::new();
+    let _bytes_read = reader.read_line(&mut line)?;
+    
+    
+}
 
-// }
+
 
 #[cfg(test)]
 mod col_tests {

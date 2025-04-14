@@ -1,21 +1,26 @@
 use arrayvec::ArrayVec;
-use std::io::{self, BufRead, Error};
+use std::{f32::consts::E, io::{self, BufRead, Error}, thread::sleep};
+use regex::Regex;
+use once_cell::sync::Lazy;
+
+
+
 
 
 #[derive(Debug)]
-struct Cell {
+pub struct Cell {
     row: u32,
     col: u32,
 }
 
 #[derive(Debug)]
-enum Value {
+pub enum Value {
     Num(i32),
     Ref(Cell),
 }
 
 #[derive(Debug)]
-enum Formula {
+enum Expression {
     Add(Value, Value),
     Sub(Value, Value),
     Mul(Value, Value),
@@ -28,27 +33,47 @@ enum Formula {
     Sleep(Value),
 }
 
+#[derive(Debug)]
+pub struct Formula {
+    inp_cell: Cell,
+    expression: Expression,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Col(ArrayVec<u8, 3>);
 
+fn parse_row (row_str: &str) -> Option<u32> {
+    let row_num = row_str.parse::<u32>().ok()?;
+    if row_num >= 1 && row_num <= 999 {
+        Some(row_num)
+    } else {
+        None
+    }
+}
+
+fn parse_int (int_str: &str) -> Option<i32> {
+    Some(int_str.parse::<i32>().ok()?)
+}
+
+
 impl Col {
-    fn from_str(col_str: &str) -> Col {
+    fn from_str(col_str: &str) -> Option<Col> {
         if col_str.len() > 3 {
-            panic!("Not a valid column string!");
+            None
         } else {
             for bt in col_str.as_bytes() {
                 if bt < &b'A' || bt > &b'Z' {
-                    panic!("Not an accepted character!");
+                    return None;
                 } 
             }
             let vec: ArrayVec<u8, 3> = ArrayVec::from_iter(col_str.bytes());
-            Col(vec)
+            Some(Col(vec))
         }
     }
 
-    fn from_num (mut num : u32) -> Col {
-        if (num <= 0 || num > 18278) {
-            panic!("Not a valid column number!");
+    fn from_num (mut num : u32) -> Option<Col> {
+        if num <= 0 || num > 18278 {
+            None
         } else {
             let mut col_out: ArrayVec<u8, 3> = ArrayVec::new();
 
@@ -66,7 +91,7 @@ impl Col {
                     num -= f * a;
                 }
             }
-            Col(col_out)
+            Some(Col(col_out))
         }
     }
 
@@ -81,15 +106,125 @@ impl Col {
     }
 }
 
+// static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"...").unwrap());
+// RE.is_match(haystack)
 
-pub fn get_formula<R: BufRead>(reader: & mut R) -> Result<Formula, Error> {
-    let line = String::new();
-    let _bytes_read = reader.read_line(&mut line)?;
-    
-    
+fn parse_cell (cell_str: &str) -> Option<Cell> {
+    let cell_re = Lazy::new(|| Regex::new(r"(?P<col>[A-Z]+)(?P<row>[0-9]+)").unwrap());
+    let caps = cell_re.captures(cell_str)?;
+
+    Some(
+        Cell {
+            col: Col::from_str(&caps["col"])?.num_of_col(),
+            row: parse_row(&caps["row"])?,
+        }
+    )
 }
 
+fn parse_val (val_str: &str) -> Option<Value> {
+    if let Some(cell_out) = parse_cell(val_str) {
+        return Some(Value::Ref(cell_out));
+    } 
+    if let Some(val_int) = parse_int(val_str) {
+        return Some(Value::Num(val_int));
+    }
+    None
+}
 
+// const CELL_RE: &str = r"[A-Z]+[0-9]+";
+// const VALUE_RE: &str = r"\d+|[A-Z]+[0-9]+";
+// const NUM_RE: &str = r"-?\d+";
+
+// const BINARY_OP_RE: &str = r"(?P<cell>[A-Z]+[0-9]+)";
+
+pub fn get_formula<R: BufRead>(reader: & mut R) -> Option<Formula> {
+    let mut line = String::new();
+    let _bytes_read = reader.read_line(&mut line);
+
+     
+    let binary_op_re = Lazy::new(|| Regex::new(r"(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<val1>-?\d+|[A-Z]+[0-9]+)\s*(?P<op>['*'|'/'|'-'|'+'])\s*(?P<val2>-?\d+|[A-Z]+[0-9]+)\s*").unwrap());
+    let range_op_re = Lazy::new(|| Regex::new(r"(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<op>MAX|MIN|STDEV|AVG|SUM)\s*['(']\s*(?P<cell1>[A-Z]+[0-9]+)\s*:\s*(?P<cell2>[A-Z]+[0-9]+)\s*[')']\s*").unwrap());
+    let sleep_op_re = Lazy::new(|| Regex::new(r"(?P<cell>[A-Z]+[0-9]+)\s*=\s*SLEEP\s*['(']\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*[')']\s*").unwrap());
+
+    if let Some(caps) = binary_op_re.captures(&line) {
+        let cell = parse_cell(&caps["cell"])?;
+        let val1 = parse_val(&caps["val1"])?;
+        let val2 = parse_val(&caps["val2"])?;
+
+        let op = &caps["op"];
+        
+        let form = match op {
+            "+" => Formula {
+                inp_cell: cell,
+                expression: Expression::Add(val1, val2)
+            },
+            "-" => Formula {
+                inp_cell: cell,
+                expression: Expression::Sub(val1, val2)
+            },
+            "/" => Formula {
+                inp_cell: cell,
+                expression: Expression::Div(val1, val2)
+            },
+            "*" => Formula {
+                inp_cell: cell,
+                expression: Expression::Mul(val1, val2)
+            },
+            _ => return None
+        };
+
+        println!("{:#?}", form);
+
+        return Some(form);
+    } 
+    if let Some(caps) = range_op_re.captures(&line) {
+        let cell = parse_cell(&caps["cell"])?;
+        let cell1 = parse_cell(&caps["cell1"])?;
+        let cell2 = parse_cell(&caps["cell2"])?;
+
+        let op = &caps["op"];
+        
+        let form = match op {
+            "MAX" => Formula {
+                inp_cell: cell,
+                expression: Expression::Max(cell1, cell2)
+            },
+            "MIN" => Formula {
+                inp_cell: cell,
+                expression: Expression::Min(cell1, cell2)
+            },
+            "AVG" => Formula {
+                inp_cell: cell,
+                expression: Expression::Avg(cell1, cell2)
+            },
+            "STDEV" => Formula {
+                inp_cell: cell,
+                expression: Expression::Stdev(cell1, cell2)
+            },
+            "SUM" => Formula {
+                inp_cell: cell,
+                expression: Expression::Sum(cell1, cell2)
+            },
+            _ => return None
+        };
+
+        println!("{:#?}", form);
+        return Some(form)
+    }
+    if let Some(caps) = sleep_op_re.captures(&line) {
+        let cell = parse_cell(&caps["cell"])?;
+        let val = parse_val(&caps["val"])?;
+        
+        let form = Formula {
+            inp_cell: cell,
+            expression: Expression::Sleep(val)
+        };
+
+        println!("{:#?}", form);
+        return Some(form)
+    }
+    None
+}
 
 #[cfg(test)]
 mod col_tests {
@@ -103,14 +238,14 @@ mod col_tests {
     }
 
     fn test_num_of_col(col_str: &str, num: u32) {
-        let col = Col::from_str(col_str);
+        let col = Col::from_str(col_str).expect("Column String Out of Range\n");
         let num_exp = col.num_of_col();
 
         assert_eq!(num_exp, num);
     }
 
     fn test_num_of_col_of_num(num : u32) {
-        let col = Col::from_num(num);
+        let col = Col::from_num(num).expect("Column Number out of Range\n");
         let num_out = col.num_of_col();
 
         assert_eq!(num, num_out);
@@ -119,7 +254,7 @@ mod col_tests {
     #[test]
     fn create_a() {
         let col_str = "A";
-        let col_out = Col::from_str(col_str);
+        let col_out = Col::from_str(col_str).expect("Invalid String");
         let mut col_exp: ArrayVec<u8, 3> = ArrayVec::<u8, 3>::new();
         col_exp.push(b'A');
         let col_exp = Col(col_exp);
@@ -130,7 +265,7 @@ mod col_tests {
     #[test]
     fn create_gf() {
         let col_str = "GF";
-        let col_out = Col::from_str(col_str);
+        let col_out = Col::from_str(col_str).expect("Invalid String");
         let mut col_exp: ArrayVec<u8, 3> = ArrayVec::new();
         col_exp.push(b'G');
         col_exp.push(b'F');
@@ -143,7 +278,7 @@ mod col_tests {
     #[test]
     fn create_zzz() {
         let col_str = "ZZZ";
-        let col_out = Col::from_str(col_str);
+        let col_out = Col::from_str(col_str).expect("Invalid String");
         let col_exp: ArrayVec<u8, 3> = ArrayVec::from([b'Z'; 3]);
         let col_exp = Col(col_exp);
 
@@ -155,14 +290,14 @@ mod col_tests {
     #[should_panic]
     fn create_aaaa() {
         let col_str = "AAAA";
-        let _col_out = Col::from_str(col_str);
+        let _col_out = Col::from_str(col_str).expect("Invalid String");
     }
 
     #[test]
     #[should_panic]
     fn create_lower_a() {
         let col_str = "a";
-        let _col_out = Col::from_str(col_str);
+        let _col_out = Col::from_str(col_str).expect("Invalid String");
     }
 
     #[test]

@@ -2,45 +2,17 @@ use arrayvec::ArrayVec;
 use std::{f32::consts::E, io::{self, BufRead, Error}, thread::sleep};
 use regex::Regex;
 use once_cell::sync::Lazy;
+use std::io::Cursor;
+use std::fmt::{self, Display, Formatter};
+
+
+use crate::basic::{Cell, Formula, Expression, Value};
 
 
 
-
-
-#[derive(Debug)]
-pub struct Cell {
-    row: u32,
-    col: u32,
-}
-
-#[derive(Debug)]
-pub enum Value {
-    Num(i32),
-    Ref(Cell),
-}
-
-#[derive(Debug)]
-enum Expression {
-    Add(Value, Value),
-    Sub(Value, Value),
-    Mul(Value, Value),
-    Div(Value, Value),
-    Min(Cell, Cell),
-    Max(Cell, Cell),
-    Avg(Cell, Cell),
-    Sum(Cell, Cell),
-    Stdev(Cell, Cell),
-    Sleep(Value),
-}
-
-#[derive(Debug)]
-pub struct Formula {
-    inp_cell: Cell,
-    expression: Expression,
-}
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Col(ArrayVec<u8, 3>);
+pub struct Col(pub ArrayVec<u8, 3>);
 
 fn parse_row (row_str: &str) -> Option<u32> {
     let row_num = row_str.parse::<u32>().ok()?;
@@ -55,7 +27,7 @@ fn parse_int (int_str: &str) -> Option<i32> {
     Some(int_str.parse::<i32>().ok()?)
 }
 
-
+    
 impl Col {
     fn from_str(col_str: &str) -> Option<Col> {
         if col_str.len() > 3 {
@@ -71,7 +43,7 @@ impl Col {
         }
     }
 
-    fn from_num (mut num : u32) -> Option<Col> {
+    pub fn from_num (mut num : u32) -> Option<Col> {
         if num <= 0 || num > 18278 {
             None
         } else {
@@ -104,6 +76,10 @@ impl Col {
         }
         val
     }
+
+    pub fn as_str(&self) -> &str {
+        std::str::from_utf8(&self.0).unwrap()
+    }
 }
 
 // static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"...").unwrap());
@@ -115,8 +91,8 @@ fn parse_cell (cell_str: &str) -> Option<Cell> {
 
     Some(
         Cell {
-            col: Col::from_str(&caps["col"])?.num_of_col(),
-            row: parse_row(&caps["row"])?,
+            col: Col::from_str(&caps["col"])?.num_of_col() as u16,
+            row: parse_row(&caps["row"])? as u16,
         }
     )
 }
@@ -142,10 +118,22 @@ pub fn get_formula<R: BufRead>(reader: & mut R) -> Option<Formula> {
     let _bytes_read = reader.read_line(&mut line);
 
      
-    let binary_op_re = Lazy::new(|| Regex::new(r"(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<val1>-?\d+|[A-Z]+[0-9]+)\s*(?P<op>['*'|'/'|'-'|'+'])\s*(?P<val2>-?\d+|[A-Z]+[0-9]+)\s*").unwrap());
-    let range_op_re = Lazy::new(|| Regex::new(r"(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<op>MAX|MIN|STDEV|AVG|SUM)\s*['(']\s*(?P<cell1>[A-Z]+[0-9]+)\s*:\s*(?P<cell2>[A-Z]+[0-9]+)\s*[')']\s*").unwrap());
-    let sleep_op_re = Lazy::new(|| Regex::new(r"(?P<cell>[A-Z]+[0-9]+)\s*=\s*SLEEP\s*['(']\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*[')']\s*").unwrap());
+    let binary_op_re = Lazy::new(|| Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<val1>-?\d+|[A-Z]+[0-9]+)\s*(?P<op>[*/+-])\s*(?P<val2>-?\d+|[A-Z]+[0-9]+)\s*$").unwrap());
+    let range_op_re = Lazy::new(|| Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<op>MAX|MIN|STDEV|AVG|SUM)\s*['(']\s*(?P<cell1>[A-Z]+[0-9]+)\s*:\s*(?P<cell2>[A-Z]+[0-9]+)\s*[')']\s*$").unwrap());
+    let sleep_op_re = Lazy::new(|| Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*SLEEP\s*['(']\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*[')']\s*$").unwrap());
+    let constant_op_re = Lazy::new(|| Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*$").unwrap());
 
+    if let Some(caps) = constant_op_re.captures(&line) {
+        let cell = parse_cell(&caps["cell"])?;
+        let val = parse_val(&caps["val"])?;
+
+        let form = Formula {
+            inp_cell: cell,
+            expression: Expression::Constant(val),
+        };
+
+        return Some(form);
+    }
     if let Some(caps) = binary_op_re.captures(&line) {
         let cell = parse_cell(&caps["cell"])?;
         let val1 = parse_val(&caps["val1"])?;
@@ -173,7 +161,6 @@ pub fn get_formula<R: BufRead>(reader: & mut R) -> Option<Formula> {
             _ => return None
         };
 
-        println!("{:#?}", form);
 
         return Some(form);
     } 
@@ -208,7 +195,6 @@ pub fn get_formula<R: BufRead>(reader: & mut R) -> Option<Formula> {
             _ => return None
         };
 
-        println!("{:#?}", form);
         return Some(form)
     }
     if let Some(caps) = sleep_op_re.captures(&line) {
@@ -220,10 +206,42 @@ pub fn get_formula<R: BufRead>(reader: & mut R) -> Option<Formula> {
             expression: Expression::Sleep(val)
         };
 
-        println!("{:#?}", form);
         return Some(form)
     }
     None
+}
+
+
+#[cfg(test)]
+mod formula_tests {
+    use super::*;
+
+
+    fn test_binary_op(inp_cell: &str, op: &str, val1: &str, val2: &str, form: Formula) {
+        let input = format!("{inp_cell}={val1}{op}{val2}");
+
+        let mut buf_inp = Cursor::new(input);
+        let form_out = get_formula(&mut buf_inp).expect("Incorrect Input");
+
+        assert_eq!(form_out, form);
+    }
+
+    #[test]
+    fn binary_op () {
+        test_binary_op("A1", "+", "-4", "3", 
+        Formula { inp_cell: Cell { row: 1, col: 1 }, expression: Expression::Add(Value::Num(-4), Value::Num(3))});
+
+        test_binary_op("ZZZ898", "*", "   -4", "        3\n", 
+        Formula { inp_cell: Cell { row: 898, col: 18278 }, expression: Expression::Mul(Value::Num(-4), Value::Num(3))});
+
+        test_binary_op("ZZZ898", "/", "   -4    ", "        3\n", 
+        Formula { inp_cell: Cell { row: 898, col: 18278 }, expression: Expression::Div(Value::Num(-4), Value::Num(3))});
+
+        test_binary_op("ZZZ898", "-", "   4    ", "        3\n", 
+        Formula { inp_cell: Cell { row: 898, col: 18278 }, expression: Expression::Sub(Value::Num(4), Value::Num(3))});
+
+        //Complete more tests
+    }
 }
 
 #[cfg(test)]

@@ -175,6 +175,11 @@ impl SpreadSheet {
                 self.col_pointer =  self.col_pointer.saturating_sub(10).max(1);
                 return SpreadSheetError::Valid;
             },
+            Expression::ScrollTo(c) => {
+                self.col_pointer = c.col as usize;
+                self.row_pointer = c.row as usize;
+                return SpreadSheetError::Valid;
+            }
             _ => ()
         }
         match self.check_cycle(form.clone()) {

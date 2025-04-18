@@ -124,6 +124,18 @@ pub fn get_formula<R: BufRead>(reader: & mut R) -> Option<Formula> {
     let constant_op_re = Lazy::new(|| Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*$").unwrap());
     let commands_re = Lazy::new(|| Regex::new(r"^\s*(?P<command>q|enable_output|disable_output)\s*$").unwrap());
     let scroll_re = Lazy::new(|| Regex::new(r"^\s*(?P<scroll>w|a|s|d)\s*$").unwrap());
+    let scroll_to_re = Lazy::new(|| Regex::new(r"^\s*scroll_to\s*(?P<cell>[A-Z]+[0-9]+)\s*$").unwrap());
+
+    if let Some(caps) = scroll_to_re.captures(&line) {
+        let cell = parse_cell(&caps["cell"])?;
+
+        let form = Formula {
+            inp_cell: Cell {row : 0, col : 0},
+            expression: Expression::ScrollTo(cell),
+        };
+
+        return Some(form);
+    } 
 
     if let Some(caps) = constant_op_re.captures(&line) {
         let cell = parse_cell(&caps["cell"])?;

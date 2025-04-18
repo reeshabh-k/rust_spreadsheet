@@ -32,6 +32,7 @@ pub enum Expression {
     ScrollDown,
     ScrollRight,
     ScrollLeft,
+    ScrollTo(Cell),
 }
 
 #[derive(Debug, PartialEq, Clone)]

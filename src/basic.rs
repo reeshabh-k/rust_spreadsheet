@@ -1,4 +1,6 @@
-#[derive(Debug, PartialEq, Clone)]
+use std::hash::{Hash, Hasher};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Cell {
     pub row: u16,
     pub col: u16,

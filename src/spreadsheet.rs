@@ -1,7 +1,7 @@
 use crate::{basic::Cell, basic::Formula, basic::Expression, basic::Value, basic::SpreadSheetError};
 use crate::{input::Col};
 
-use std::{cell, collections::HashSet};
+use std::{cell, collections::HashSet, collections::HashMap};
 
 #[derive(Clone, Debug)]
 struct CellData {
@@ -83,6 +83,88 @@ impl SpreadSheet {
         }
     }
 
+    fn add_cell_list (&self, parent_list: & mut Vec<Cell> , val: Value){
+        match val {
+            Value::Num(_) => return,
+            Value::Ref(c) => parent_list.push(c),
+        }
+    }
+
+    fn get_pointer (&self, inp_cell: Cell) -> usize {
+        inp_cell.row as usize * self.col + inp_cell.col as usize
+    }
+
+    fn remove_children (&mut self, inp_cell: Cell) {
+        let mut parent_list: Vec<Cell> = vec![];
+        let cell_pointer = self.get_pointer(inp_cell);
+        let expr = self.spreadsheet[cell_pointer].expr.clone();
+        
+
+        match expr {
+            Expression::Add(v1, v2) => {
+                self.add_cell_list(& mut parent_list, v1);
+                self.add_cell_list(& mut parent_list, v2);
+            } ,
+            Expression::Mul(v1, v2) => {
+                self.add_cell_list(& mut parent_list, v1);
+                self.add_cell_list(& mut parent_list, v2);
+            } ,
+            Expression::Div(v1, v2) => {
+                self.add_cell_list(& mut parent_list, v1);
+                self.add_cell_list(& mut parent_list, v2);
+            } ,
+            Expression::Sub(v1, v2) => {
+                self.add_cell_list(& mut parent_list, v1);
+                self.add_cell_list(& mut parent_list, v2);
+            } ,
+            Expression::Constant(v) => {
+                self.add_cell_list(& mut parent_list, v);
+            }
+            _ => (),
+        }
+
+        for i in parent_list.iter().cloned() {
+            let parent_pointer = self.get_pointer(i);
+            self.spreadsheet[parent_pointer].children.remove(&inp_cell);
+        }
+
+    }
+
+    fn add_children (&mut self, inp_cell: Cell, expr: Expression) {
+        let mut parent_list: Vec<Cell> = vec![];
+        
+        
+
+        match expr {
+            Expression::Add(v1, v2) => {
+                self.add_cell_list(& mut parent_list, v1);
+                self.add_cell_list(& mut parent_list, v2);
+            } ,
+            Expression::Mul(v1, v2) => {
+                self.add_cell_list(& mut parent_list, v1);
+                self.add_cell_list(& mut parent_list, v2);
+            } ,
+            Expression::Div(v1, v2) => {
+                self.add_cell_list(& mut parent_list, v1);
+                self.add_cell_list(& mut parent_list, v2);
+            } ,
+            Expression::Sub(v1, v2) => {
+                self.add_cell_list(& mut parent_list, v1);
+                self.add_cell_list(& mut parent_list, v2);
+            } ,
+            Expression::Constant(v) => {
+                self.add_cell_list(& mut parent_list, v);
+            }
+            _ => (),
+        }
+
+        for i in parent_list.iter().cloned() {
+            let parent_pointer = self.get_pointer(i);
+            self.spreadsheet[parent_pointer].children.insert(inp_cell.clone());
+        }
+
+    }
+
     pub fn call_formula (&mut self, form: Option<Formula>) -> SpreadSheetError {
         let form = match form {
             None => return SpreadSheetError::InvalidInput,
@@ -95,9 +177,47 @@ impl SpreadSheet {
 
         let cell_pointer = self.col*form.inp_cell.row as usize + form.inp_cell.col as usize;
         self.spreadsheet[cell_pointer].expr = form.expression.clone();
-        self.update_cell(form.inp_cell);
+        self.remove_children(form.inp_cell.clone());
+        self.add_children(form.inp_cell.clone(), form.expression.clone());
+
+        self.update_children(form.inp_cell.clone());
 
         return SpreadSheetError::Valid;
+    }
+
+    fn update_children(&mut self, inp_cell: Cell) {
+        let mut cell_counts: HashMap<Cell, u32> = HashMap::new();
+        cell_counts.insert(inp_cell.clone(), 0);
+
+        let mut stack: Vec<Cell> = Vec::new();
+
+        stack.push(inp_cell);
+
+        let mut k = 0;
+
+        while stack.is_empty() == false {
+            k += 1;
+            let top_cell = stack.pop().expect("Stack is empty!");
+            
+            let cell_pointer = self.get_pointer(top_cell);
+
+            for i in self.spreadsheet[cell_pointer].children.iter() {
+                if cell_counts.contains_key(i) == false {
+                    stack.push(i.clone());
+                }
+                cell_counts.insert(i.clone(),   k);   
+            }
+        }
+
+        let mut sorted_vec: Vec<(Cell, u32)> = cell_counts.into_iter().collect();
+
+        sorted_vec.sort_by(|a, b| a.1.cmp(&b.1));
+
+        for (i, _) in sorted_vec.iter() {
+            self.update_cell(i.clone());
+        }
+
+
     }
 
     fn check_cycle (&self, form: Formula) -> bool {

@@ -90,41 +90,34 @@ impl SpreadSheet {
         }
     }
 
-    fn get_pointer (&self, inp_cell: Cell) -> usize {
+    fn get_pointer (&self, inp_cell: &Cell) -> usize {
         inp_cell.row as usize * self.col + inp_cell.col as usize
     }
 
     fn remove_children (&mut self, inp_cell: Cell) {
         let mut parent_list: Vec<Cell> = vec![];
-        let cell_pointer = self.get_pointer(inp_cell);
+        let cell_pointer = self.get_pointer(&inp_cell);
         let expr = self.spreadsheet[cell_pointer].expr.clone();
-        
+
+       
 
         match expr {
-            Expression::Add(v1, v2) => {
-                self.add_cell_list(& mut parent_list, v1);
-                self.add_cell_list(& mut parent_list, v2);
-            } ,
-            Expression::Mul(v1, v2) => {
-                self.add_cell_list(& mut parent_list, v1);
-                self.add_cell_list(& mut parent_list, v2);
-            } ,
-            Expression::Div(v1, v2) => {
-                self.add_cell_list(& mut parent_list, v1);
-                self.add_cell_list(& mut parent_list, v2);
-            } ,
-            Expression::Sub(v1, v2) => {
-                self.add_cell_list(& mut parent_list, v1);
-                self.add_cell_list(& mut parent_list, v2);
-            } ,
-            Expression::Constant(v) => {
-                self.add_cell_list(& mut parent_list, v);
+            Expression::Add(v1, v2)
+            | Expression::Mul(v1, v2)
+            | Expression::Div(v1, v2)
+            | Expression::Sub(v1, v2) => {
+                self.add_cell_list(&mut parent_list, v1);
+                self.add_cell_list(&mut parent_list, v2);
             }
-            _ => (),
+        
+            Expression::Constant(v) => {
+                self.add_cell_list(&mut parent_list, v);
+            }
+            _ => panic!("Unimplemented add_children!"),
         }
 
         for i in parent_list.iter().cloned() {
-            let parent_pointer = self.get_pointer(i);
+            let parent_pointer = self.get_pointer(&i);
             self.spreadsheet[parent_pointer].children.remove(&inp_cell);
         }
 
@@ -136,30 +129,22 @@ impl SpreadSheet {
         
 
         match expr {
-            Expression::Add(v1, v2) => {
-                self.add_cell_list(& mut parent_list, v1);
-                self.add_cell_list(& mut parent_list, v2);
-            } ,
-            Expression::Mul(v1, v2) => {
-                self.add_cell_list(& mut parent_list, v1);
-                self.add_cell_list(& mut parent_list, v2);
-            } ,
-            Expression::Div(v1, v2) => {
-                self.add_cell_list(& mut parent_list, v1);
-                self.add_cell_list(& mut parent_list, v2);
-            } ,
-            Expression::Sub(v1, v2) => {
-                self.add_cell_list(& mut parent_list, v1);
-                self.add_cell_list(& mut parent_list, v2);
-            } ,
-            Expression::Constant(v) => {
-                self.add_cell_list(& mut parent_list, v);
+            Expression::Add(v1, v2)
+            | Expression::Mul(v1, v2)
+            | Expression::Div(v1, v2)
+            | Expression::Sub(v1, v2) => {
+                self.add_cell_list(&mut parent_list, v1);
+                self.add_cell_list(&mut parent_list, v2);
             }
-            _ => (),
+        
+            Expression::Constant(v) => {
+                self.add_cell_list(&mut parent_list, v);
+            }
+            _ => panic!("Unimplemented add_children!"),
         }
 
         for i in parent_list.iter().cloned() {
-            let parent_pointer = self.get_pointer(i);
+            let parent_pointer = self.get_pointer(&i);
             self.spreadsheet[parent_pointer].children.insert(inp_cell.clone());
         }
 
@@ -170,15 +155,25 @@ impl SpreadSheet {
             None => return SpreadSheetError::InvalidInput,
             Some(valid_form) => valid_form,
         };
+        match form.expression {
+            Expression::Quit => return SpreadSheetError::Quit,
+            _ => ()
+        }
         match self.check_cycle(form.clone()) {
             true => return SpreadSheetError::Cycle,
             false => (),
         }
 
+        
+        self.remove_children(form.inp_cell.clone());
+
         let cell_pointer = self.col*form.inp_cell.row as usize + form.inp_cell.col as usize;
         self.spreadsheet[cell_pointer].expr = form.expression.clone();
-        self.remove_children(form.inp_cell.clone());
+
         self.add_children(form.inp_cell.clone(), form.expression.clone());
+
+        
+
 
         self.update_children(form.inp_cell.clone());
 
@@ -199,7 +194,7 @@ impl SpreadSheet {
             k += 1;
             let top_cell = stack.pop().expect("Stack is empty!");
             
-            let cell_pointer = self.get_pointer(top_cell);
+            let cell_pointer = self.get_pointer(&top_cell);
 
             for i in self.spreadsheet[cell_pointer].children.iter() {
                 if cell_counts.contains_key(i) == false {
@@ -220,7 +215,45 @@ impl SpreadSheet {
 
     }
 
+    fn belongs_to_expression(&self, expr : &Expression, c: Cell) -> bool {
+        let val = Value::Ref(c);
+
+        match expr {
+            | Expression::Add(v1, v2)
+            | Expression::Div(v1, v2)
+            | Expression::Mul(v1, v2)
+            | Expression::Sub(v1, v2) => *v1 == val || *v2 == val,
+        
+            Expression::Constant(v) => *v == val,
+            _ => panic!("Unimplemented belongs_to_expression!"),
+        }
+    }
+
     fn check_cycle (&self, form: Formula) -> bool {
+        let inp_cell = form.inp_cell.clone();
+        let expr = form.expression;
+
+        let mut visited: HashSet<Cell> = HashSet::new();
+        visited.insert(inp_cell.clone());
+
+        let mut stack: Vec<Cell> = Vec::new();
+        stack.push(inp_cell);
+
+        while stack.is_empty() == false {
+            let top_cell = stack.pop().expect("Stack is empty!");
+            
+            let cell_pointer = self.get_pointer(&top_cell);
+
+            for i in self.spreadsheet[cell_pointer].children.iter() {
+                if self.belongs_to_expression(&expr, i.clone()) {
+                    return true;
+                }
+                if visited.contains(i) == false {
+                    stack.push(i.clone());
+                    visited.insert(i.clone());   
+                }    
+            }
+        }
         false
     }
 

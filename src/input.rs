@@ -122,6 +122,7 @@ pub fn get_formula<R: BufRead>(reader: & mut R) -> Option<Formula> {
     let range_op_re = Lazy::new(|| Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<op>MAX|MIN|STDEV|AVG|SUM)\s*['(']\s*(?P<cell1>[A-Z]+[0-9]+)\s*:\s*(?P<cell2>[A-Z]+[0-9]+)\s*[')']\s*$").unwrap());
     let sleep_op_re = Lazy::new(|| Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*SLEEP\s*['(']\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*[')']\s*$").unwrap());
     let constant_op_re = Lazy::new(|| Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*$").unwrap());
+    let quit_re = Lazy::new(|| Regex::new(r"^\s*(?P<quit>q)\s*$").unwrap());
 
     if let Some(caps) = constant_op_re.captures(&line) {
         let cell = parse_cell(&caps["cell"])?;
@@ -207,6 +208,14 @@ pub fn get_formula<R: BufRead>(reader: & mut R) -> Option<Formula> {
         };
 
         return Some(form)
+    }
+    if let Some(_) = quit_re.captures(&line) {
+        return Some(
+            Formula {
+                inp_cell: Cell{row: 0, col: 0},
+                expression: Expression::Quit,
+            }
+        );
     }
     None
 }

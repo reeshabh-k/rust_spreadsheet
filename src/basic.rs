@@ -25,6 +25,7 @@ pub enum Expression {
     Sum(Cell, Cell),
     Stdev(Cell, Cell),
     Sleep(Value),
+    Quit,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -37,5 +38,6 @@ pub enum SpreadSheetError {
     InvalidInput,
     Cycle,
     Valid,
+    Quit,
 }
 

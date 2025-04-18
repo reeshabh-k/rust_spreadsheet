@@ -116,6 +116,9 @@ name = "frontend"
 version = "0.1.0"
 dependencies = [
  "helper",
+ "js-sys",
+ "serde",
+ "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

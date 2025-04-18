@@ -1,13 +1,17 @@
-<!doctype html>
-<html land="en">
+<!DOCTYPE html>
+<html lang="en">
     <head>
-        <title>spreadsheet</title>
+        <title>Spreadsheet</title>
+        <link rel="stylesheet" href="/styles-d54a666afe4b0e40.css" integrity="sha384-43fiorVe5xVlF/edE8OTOZaedOPfVD0abx1yxm/wW+ZqWaSzro8pA5bmOWsC9vQw"/>
         <meta charset="utf-8">
-    <link rel="modulepreload" href="/frontend-7dd49d3b1442f0ab.js" crossorigin="anonymous" integrity="sha384-lm3ps1F11SE9pqAAA8GFsofXluHI9gTWJHVPOnQxyvMgi25k2x8ANHaG5GWyqrBZ"><link rel="preload" href="/frontend-7dd49d3b1442f0ab_bg.wasm" crossorigin="anonymous" integrity="sha384-95+1baw7aoMDifxVCb/xo+Ngp4ieGnKJQTl7Y4Xb7vcv/AhFaRrLysZJE4JOF2hh" as="fetch" type="application/wasm"></head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="modulepreload" href="/frontend-6374b123c14f8bd5.js" crossorigin="anonymous" integrity="sha384-CGa0tiasuOLYaQu3bSNmcvhlG4uu4ldl5yxWUk1rOm6DG/qQTWhsDSsBfh6lNocL"><link rel="preload" href="/frontend-6374b123c14f8bd5_bg.wasm" crossorigin="anonymous" integrity="sha384-e/i3XtMzokyujZd4noJP3aLTAmWorGCuTtTg0aTqXprdNuccMk2s5dqLVzshRwxm" as="fetch" type="application/wasm"></head>
     <body>
+        <div id="app"></div>
+    
 <script type="module">
-import init, * as bindings from '/frontend-7dd49d3b1442f0ab.js';
-const wasm = await init({ module_or_path: '/frontend-7dd49d3b1442f0ab_bg.wasm' });
+import init, * as bindings from '/frontend-6374b123c14f8bd5.js';
+const wasm = await init({ module_or_path: '/frontend-6374b123c14f8bd5_bg.wasm' });
 
 
 window.wasmBindings = bindings;

@@ -157,6 +157,24 @@ impl SpreadSheet {
         };
         match form.expression {
             Expression::Quit => return SpreadSheetError::Quit,
+            Expression::Disable => return SpreadSheetError::Disable,
+            Expression::Enable => return SpreadSheetError::Enable,
+            Expression::ScrollDown => {
+                self.row_pointer = (self.row_pointer+10).min(self.row - 9);
+                return SpreadSheetError::Valid;
+            },
+            Expression::ScrollUp => {
+                self.row_pointer = self.row_pointer.saturating_sub(10).max(1);
+                return SpreadSheetError::Valid;
+            },
+            Expression::ScrollRight => {
+                self.col_pointer = (self.col_pointer+10).min(self.col - 9);
+                return SpreadSheetError::Valid;
+            },
+            Expression::ScrollLeft => {
+                self.col_pointer =  self.col_pointer.saturating_sub(10).max(1);
+                return SpreadSheetError::Valid;
+            },
             _ => ()
         }
         match self.check_cycle(form.clone()) {

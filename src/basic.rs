@@ -26,6 +26,12 @@ pub enum Expression {
     Stdev(Cell, Cell),
     Sleep(Value),
     Quit,
+    Enable,
+    Disable,
+    ScrollUp,
+    ScrollDown,
+    ScrollRight,
+    ScrollLeft,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -39,5 +45,7 @@ pub enum SpreadSheetError {
     Cycle,
     Valid,
     Quit,
+    Enable,
+    Disable,
 }
 

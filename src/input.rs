@@ -122,7 +122,8 @@ pub fn get_formula<R: BufRead>(reader: & mut R) -> Option<Formula> {
     let range_op_re = Lazy::new(|| Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<op>MAX|MIN|STDEV|AVG|SUM)\s*['(']\s*(?P<cell1>[A-Z]+[0-9]+)\s*:\s*(?P<cell2>[A-Z]+[0-9]+)\s*[')']\s*$").unwrap());
     let sleep_op_re = Lazy::new(|| Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*SLEEP\s*['(']\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*[')']\s*$").unwrap());
     let constant_op_re = Lazy::new(|| Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*$").unwrap());
-    let quit_re = Lazy::new(|| Regex::new(r"^\s*(?P<quit>q)\s*$").unwrap());
+    let commands_re = Lazy::new(|| Regex::new(r"^\s*(?P<command>q|enable_output|disable_output)\s*$").unwrap());
+    let scroll_re = Lazy::new(|| Regex::new(r"^\s*(?P<scroll>w|a|s|d)\s*$").unwrap());
 
     if let Some(caps) = constant_op_re.captures(&line) {
         let cell = parse_cell(&caps["cell"])?;
@@ -209,13 +210,57 @@ pub fn get_formula<R: BufRead>(reader: & mut R) -> Option<Formula> {
 
         return Some(form)
     }
-    if let Some(_) = quit_re.captures(&line) {
-        return Some(
-            Formula {
-                inp_cell: Cell{row: 0, col: 0},
-                expression: Expression::Quit,
-            }
-        );
+    if let Some(caps) = commands_re.captures(&line) {
+        let command = &caps["command"];
+
+        match command {
+            "q" => return Some(
+                Formula {
+                    inp_cell: Cell{row: 0, col: 0},
+                    expression: Expression::Quit,
+                }
+            ),
+            "enable_output" => return Some(
+                Formula {
+                    inp_cell: Cell{row: 0, col: 0},
+                    expression: Expression::Enable,
+                }
+            ),
+            "disable_output" => return Some(
+                Formula {
+                    inp_cell: Cell{row: 0, col: 0},
+                    expression: Expression::Disable,
+                }
+            ),
+            _ => panic!("Invalid Sheet Command!"),
+        }
+    }
+    if let Some(caps) = scroll_re.captures(&line) {
+        let scroll = &caps["scroll"];
+
+        match scroll {
+            "w" => return Some(
+                Formula {
+                    inp_cell: Cell{row: 0, col: 0},
+                    expression: Expression::ScrollUp,
+                }),
+            "a" => return Some(
+                Formula {
+                    inp_cell: Cell{row: 0, col: 0},
+                    expression: Expression::ScrollLeft,
+                }),
+            "s" => return Some(
+                Formula {
+                    inp_cell: Cell{row: 0, col: 0},
+                    expression: Expression::ScrollDown,
+                }),
+            "d" => return Some(
+                Formula {
+                    inp_cell: Cell{row: 0, col: 0},
+                    expression: Expression::ScrollRight,
+                }),
+            _ => panic!("Invalid Scroll Command!"),
+        }
     }
     None
 }

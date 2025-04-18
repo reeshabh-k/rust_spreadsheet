@@ -8,13 +8,13 @@ use once_cell::sync::Lazy;
 
 
 #[derive(Debug)]
-pub struct Cell {
+struct Cell {
     row: u32,
     col: u32,
 }
 
 #[derive(Debug)]
-pub enum Value {
+enum Value {
     Num(i32),
     Ref(Cell),
 }
@@ -34,13 +34,13 @@ enum Expression {
 }
 
 #[derive(Debug)]
-pub struct Formula {
+struct Formula {
     inp_cell: Cell,
     expression: Expression,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Col(ArrayVec<u8, 3>);
+struct Col(ArrayVec<u8, 3>);
 
 fn parse_row (row_str: &str) -> Option<u32> {
     let row_num = row_str.parse::<u32>().ok()?;

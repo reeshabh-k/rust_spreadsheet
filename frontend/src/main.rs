@@ -76,7 +76,7 @@ fn app() -> Html {
                 
                 let mut updated_messages = (*messages).clone();
                 if let Some(field) = (*fields).get(&field_id) {
-                    match field.validate() {
+                    match field.validate(&(*fields)) {
                         Ok(message) => { updated_messages.insert(field_id.clone(), message); },
                         Err(error) => { updated_messages.insert(field_id.clone(), error); },
                     }
@@ -153,7 +153,6 @@ fn app() -> Html {
     html! {
         <>
             <h1> {"Rust Spreadsheet"} </h1>
-            // { for form_fields }
             { for dimension_fields }
             { for content_fields }
         </>

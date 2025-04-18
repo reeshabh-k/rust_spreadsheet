@@ -237,7 +237,12 @@ impl SpreadSheet {
             print!("{:<10}", self.row_pointer + i as usize);
             let cell_pointer = self.col * (i as usize + self.row_pointer) + self.col_pointer;
             for j in 0..width {
-                print!("{:<10}", self.spreadsheet[cell_pointer + j as usize].val);
+                if self.spreadsheet[cell_pointer+j as usize].valid == 1 {
+                    print!("{:<10}", "err");
+                }
+                else {
+                    print!("{:<10}", self.spreadsheet[cell_pointer + j as usize].val);
+                }
             }
             println!();
         }

@@ -103,17 +103,68 @@ impl Clone for Box<dyn FormField> {
     }
 }
 
+#[derive(Clone)]
+struct FormulaField {
+    value: String,
+}
+
+impl FormField for FormulaField {
+    fn id(&self) -> &str { "formula" }
+    fn label(&self) -> &str { "Enter formula" }
+    fn value(&self) -> &str { &self.value }
+    fn set_value(&mut self, value: String) { self.value = value; }
+    fn validate(&self) -> Result<String, String> {
+        if parse_input_formula(&self.value) {
+            Ok(format!("Formula: {}", self.value))
+        } else {
+            Err("Enter a valid formula".to_string())
+        }
+    }
+    fn clone_box(&self) -> Box<dyn FormField> {
+        Box::new(self.clone())
+    }
+}
+
 #[function_component(App)]
 fn app() -> Html {
     // Store fields in a map for easy access
     let fields = use_state(|| {
         let mut map: HashMap<String, Box<dyn FormField>> = HashMap::new();
         // map.insert("username".to_string(), Box::new(NameField { value: "".to_string() }));
-        map.insert("cell".to_string(), Box::new(CellField { value: "".to_string() }));
         map.insert("rows".to_string(), Box::new(RowsField { value: "".to_string() }));
         map.insert("cols".to_string(), Box::new(ColsField { value: "".to_string() }));
+        map.insert("cell".to_string(), Box::new(CellField { value: "".to_string() }));
+        map.insert("formula".to_string(), Box::new(FormulaField { value: "".to_string() }));
         map
     });
+    let dimensions_valid = {
+        let fields = &*fields;
+        
+        // Check if rows are valid
+        let rows_valid = if let Some(rows_field) = fields.get("rows") {
+            if let Ok(rows) = rows_field.value().parse::<u32>() {
+                rows > 0 && rows <= 100
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        
+        // Check if columns are valid
+        let cols_valid = if let Some(cols_field) = fields.get("cols") {
+            if let Ok(cols) = cols_field.value().parse::<u32>() {
+                cols > 0 && cols <= 26
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        
+        // Both must be valid
+        rows_valid && cols_valid
+    };
     
     // Store validation messages
     let messages = use_state(|| HashMap::<String, String>::new());
@@ -156,59 +207,114 @@ fn app() -> Html {
     };
 
     // Generate form fields
-    let form_fields = (*fields).keys().map(|field_id| {
-        let field = (*fields).get(field_id).unwrap();
-        let message = messages.get(field_id).cloned().unwrap_or_default();
-        
-        html! {
-            <>
-                <div style="margin-top:2rem;">
-                    <label for={field.id().to_string()}> {format!("{}: ", field.label())} </label>
-                    <input
-                        id={field.id().to_string()}
-                        type={field.input_type().to_string()}
-                        value={field.value().to_string()}
-                        min={field.min().map(|s| s.to_string())}
-                        max={field.max().map(|s| s.to_string())}
-                        oninput={oninput.clone()}
-                        onkeydown={onkeydown.clone()}
-                    />
-                    <p>{message}</p>
-                </div>
-            </>
-        }
-    }).collect::<Vec<_>>();
+    // let field_order = vec!["rows", "cols", "cell", "formula"]; // Define your preferred order here
+    // let form_fields = field_order.iter()
+    //     .filter_map(|field_id| {
+    //         if let Some(field) = (*fields).get(*field_id) {
+    //             let message = messages.get(*field_id).cloned().unwrap_or_default();
+                
+    //             Some(html! {
+    //                 <>
+    //                     <div style="margin-top:2rem;">
+    //                         <label for={field.id().to_string()}> {format!("{}: ", field.label())} </label>
+    //                         <input
+    //                             id={field.id().to_string()}
+    //                             type={field.input_type().to_string()}
+    //                             value={field.value().to_string()}
+    //                             min={field.min().map(|s| s.to_string())}
+    //                             max={field.max().map(|s| s.to_string())}
+    //                             oninput={oninput.clone()}
+    //                             onkeydown={onkeydown.clone()}
+    //                         />
+    //                         <p>{message}</p>
+    //                     </div>
+    //                 </>
+    //             })
+    //         } else {
+    //             None
+    //         }
+    //     })
+    //     .collect::<Vec<_>>();
+
+    let dimension_fields = vec!["rows", "cols"].iter()
+        .filter_map(|field_id| {
+            if let Some(field) = (*fields).get(*field_id) {
+                let message = messages.get(*field_id).cloned().unwrap_or_default();
+                
+                Some(html! {
+                    <div style="margin-top:2rem;">
+                        <label for={field.id().to_string()}> {format!("{}: ", field.label())} </label>
+                        <input
+                            id={field.id().to_string()}
+                            type={field.input_type().to_string()}
+                            value={field.value().to_string()}
+                            min={field.min().map(|s| s.to_string())}
+                            max={field.max().map(|s| s.to_string())}
+                            oninput={oninput.clone()}
+                            onkeydown={onkeydown.clone()}
+                        />
+                        <p>{message}</p>
+                    </div>
+                })
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    
+    // Generate cell and formula fields only if dimensions are valid
+    let content_fields = if dimensions_valid {
+        vec!["cell", "formula"].iter()
+            .filter_map(|field_id| {
+                if let Some(field) = (*fields).get(*field_id) {
+                    let message = messages.get(*field_id).cloned().unwrap_or_default();
+                    
+                    Some(html! {
+                        <div style="margin-top:2rem;">
+                            <label for={field.id().to_string()}> {format!("{}: ", field.label())} </label>
+                            <input
+                                id={field.id().to_string()}
+                                type={field.input_type().to_string()}
+                                value={field.value().to_string()}
+                                min={field.min().map(|s| s.to_string())}
+                                max={field.max().map(|s| s.to_string())}
+                                oninput={oninput.clone()}
+                                onkeydown={onkeydown.clone()}
+                            />
+                            <p>{message}</p>
+                        </div>
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+    } else {
+        // If dimensions aren't valid, show a message
+        vec![html! {
+            <div style="margin-top:2rem; color: #777;">
+                {"Please enter valid dimensions to continue."}
+            </div>
+        }]
+    };
     
     html! {
         <>
             <h1> {"Rust Spreadsheet"} </h1>
-            { for form_fields }
+            // { for form_fields }
+            { for dimension_fields }
+            { for content_fields }
         </>
     }
 }
 
-// Keep existing validation functions
-fn parse_input_name(name: &String) -> bool{
-    if name.is_empty() {
-        return false;
-    }
-    let mut chars = name.chars();
-
-    let first_char_uppercase = match chars.next(){
-        Some(c) => c.is_uppercase(),
-        None => false,
-    };
-
-    if !first_char_uppercase {return false;}
-    for c in chars {
-        if !(c.is_lowercase() || c==' ') {
-            return false;
-        }
-    }
+fn parse_input_formula(_formula: &String) -> bool {
+    // For now, accept any input as valid
+    // You can add actual formula validation later
     true
 }
 
-fn parse_input_cell(cell : &String) -> bool{true}
+fn parse_input_cell(_cell : &String) -> bool{true}
 
 fn main(){
     yew::Renderer::<App>::new().render();   

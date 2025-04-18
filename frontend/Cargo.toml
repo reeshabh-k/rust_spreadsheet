@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+helper = {path = "./helper"}
 yew = {version= "0.20", features = ["csr"]}
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = ["HtmlInputElement", "InputEvent", "KeyboardEvent","Document", "Window", "Element"]}

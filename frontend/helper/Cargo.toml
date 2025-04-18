@@ -1,0 +1,8 @@
+[package]
+name = "helper"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+yew = {version= "0.20", features = ["csr"]}
+wasm-bindgen-futures = "0.4"

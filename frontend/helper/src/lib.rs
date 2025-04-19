@@ -2,43 +2,36 @@ use std::collections::HashMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-// Define struct for cell representation
+// --- Structs & Enums ------------------------------------
+// Cell and formula representation types
 #[derive(Debug)]
-struct Cell {
-    row: u32,
-    col: u32,
+struct Cell { row: u32, col: u32 }
+
+#[derive(Debug)]
+enum Value { Num(i32), Ref(Cell) }
+
+#[derive(Debug)]
+enum Expression { Add(Value, Value), Sub(Value, Value), Mul(Value, Value), Div(Value, Value), Min(Cell, Cell), Max(Cell, Cell), Avg(Cell, Cell), Sum(Cell, Cell), Stdev(Cell, Cell), Sleep(Value) }
+
+#[derive(Debug)]
+struct Formula { inp_cell: Cell, expression: Expression }
+
+// Context menu state (moved from main.rs)
+#[derive(Clone, PartialEq)]
+pub struct ContextMenuState {
+    pub visible: bool,
+    pub position_x: i32,
+    pub position_y: i32,
+    pub target_cell: String,
 }
 
-// Define enum for values in formulas (either numbers or cell references)
-#[derive(Debug)]
-enum Value {
-    Num(i32),
-    Ref(Cell),
+impl ContextMenuState {
+    pub fn new() -> Self {
+        Self { visible: false, position_x: 0, position_y: 0, target_cell: String::new() }
+    }
 }
 
-// Expression types supported in the spreadsheet
-#[derive(Debug)]
-enum Expression {
-    Add(Value, Value),
-    Sub(Value, Value),
-    Mul(Value, Value),
-    Div(Value, Value),
-    Min(Cell, Cell),
-    Max(Cell, Cell),
-    Avg(Cell, Cell),
-    Sum(Cell, Cell),
-    Stdev(Cell, Cell),
-    Sleep(Value),
-}
-
-// Formula representation
-#[derive(Debug)]
-struct Formula {
-    inp_cell: Cell,
-    expression: Expression,
-}
-
-// Parsing helper functions
+// --- Parsing Helpers ------------------------------------
 fn parse_row(row_str: &str) -> Option<u32> {
     let row_num = row_str.parse::<u32>().ok()?;
     if row_num >= 1 && row_num <= 999 {
@@ -192,7 +185,7 @@ fn parse_formula(formula_str: &str) -> Option<Formula> {
     None
 }
 
-// Define a public trait for form fields
+// --- FormField Trait & Implementations ------------------
 pub trait FormField {
     fn id(&self) -> &str;
     fn label(&self) -> &str;
@@ -359,7 +352,7 @@ impl FormField for FormulaField {
     }
 }
 
-// Helper functions for external use with simplified interface
+// --- Public API -----------------------------------------
 pub fn parse_input_cell(input: &str) -> bool {
     parse_cell(input).is_some()
 }

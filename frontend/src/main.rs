@@ -1,5 +1,5 @@
 use yew::prelude::*;
-use web_sys::{HtmlInputElement, InputEvent, KeyboardEvent, HtmlElement, MouseEvent, WheelEvent, Event, window};
+use web_sys::{HtmlInputElement, InputEvent, KeyboardEvent, HtmlElement, MouseEvent, WheelEvent, Event};
 use std::collections::HashMap;
 use helper::*;
 use wasm_bindgen::{JsCast, closure::Closure};
@@ -7,41 +7,7 @@ use serde::{Serialize, Deserialize};
 use std::rc::Rc;
 use std::cell::RefCell;
 
-// Cell data structure to store cell values and formulas
-#[derive(Clone, PartialEq)]
-struct CellData {
-    value: String,
-    formula: Option<String>,
-}
 
-impl CellData {
-    fn new() -> Self {
-        Self {
-            value: "0".to_string(),
-            formula: None,
-        }
-    }
-}
-
-// Structure to represent the context menu state
-#[derive(Clone, PartialEq)]
-struct ContextMenuState {
-    visible: bool,
-    position_x: i32,
-    position_y: i32,
-    target_cell: String,
-}
-
-impl ContextMenuState {
-    fn new() -> Self {
-        Self {
-            visible: false,
-            position_x: 0,
-            position_y: 0,
-            target_cell: String::new(),
-        }
-    }
-}
 
 // Function to convert column number to label (1->A, 2->B, ..., 27->AA, 28->AB, etc.)
 fn get_column_label(col: u32) -> String {
@@ -96,11 +62,6 @@ struct ContextMenuProps {
 
 #[function_component(ContextMenu)]
 fn context_menu(props: &ContextMenuProps) -> Html {
-    let style = format!(
-        "position: absolute; left: {}px; top: {}px; background-color: white; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); padding: 10px; z-index: 1000;",
-        props.position_x, props.position_y
-    );
-
     // Close the context menu when clicking outside of it
     let document = use_state(|| {
         web_sys::window()
@@ -183,7 +144,7 @@ fn context_menu(props: &ContextMenuProps) -> Html {
     };
 
     html! {
-        <div class="context-menu" style={style} onclick={|e: MouseEvent| e.stop_propagation()}>
+        <div class="context-menu" onclick={|e: MouseEvent| e.stop_propagation()}>
             <div style="margin-bottom: 8px; font-weight: bold;">
                 {format!("Add formula to {}", props.target_cell)}
             </div>
@@ -202,7 +163,6 @@ fn context_menu(props: &ContextMenuProps) -> Html {
                 </div>
                 <button 
                     onclick={on_submit_formula}
-                    style="padding: 5px 10px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px;"
                 >
                     {"Apply Formula"}
                 </button>
@@ -913,7 +873,7 @@ fn app() -> Html {
                         id="spreadsheet-upload"
                         type="file"
                         accept=".json"
-                        style="display: none;"  // Completely hide the input element
+                        // native file input is hidden via CSS
                         onchange={
                             let cell_values = cell_values.clone();
                             Callback::from(move |e: Event| {

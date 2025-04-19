@@ -109,14 +109,105 @@ impl SpreadSheet {
         }
     }
 
-    fn get_sum (&self, c1: Cell, c2: Cell) -> i32 {
+    fn get_sum(&self, c1: Cell, c2: Cell) -> Option<i32> {
         let mut sum = 0;
         for i in c1.row..=c2.row {
             for j in c1.col..=c2.col {
+                if self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].valid == 1 {
+                    return None;
+                }
                 sum += self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].val;
             }
         }
-        sum
+        Some(sum)
+    }
+
+    fn get_avg(&self, c1: Cell, c2: Cell) ->Option<i32>{
+        let mut sum = 0;
+        let mut cnt = 0;
+        // sum = self.spreadsheet[self.get_pointer(&Cell {row : c1.row, col : c1.col})].val;
+        for i in c1.row..=c2.row {
+            for j in c1.col..=c2.col {
+                if self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].valid == 1 {
+                    return None;
+                }
+                sum += self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].val;
+                cnt += 1;
+            }
+        }
+        let mean = sum / cnt;
+        Some(mean)
+    }
+
+    fn get_max(&self, c1: Cell, c2: Cell) -> Option<i32> {
+        let mut max;
+        // let mut min;
+        max = self.spreadsheet[self.get_pointer(&Cell {row : c1.row, col : c1.col})].val;
+        // min = self.spreadsheet[self.get_pointer(&Cell {row : c1.row, col : c1.col})].val;
+        for i in c1.row..=c2.row {
+            for j in c1.col..=c2.col {
+                if self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].valid == 1 {
+                    return None;
+                }
+                let val = self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].val;
+                if val > max {
+                    max = val;
+                }
+                // if val < min {
+                //     min = val;
+                // }
+            }
+        }
+        Some(max)
+    }
+
+    fn get_min(&self, c1: Cell, c2: Cell) ->Option<i32> {
+        // let mut max;
+        let mut min;
+        // max = self.spreadsheet[self.get_pointer(&Cell {row : c1.row, col : c1.col})].val;
+        min = self.spreadsheet[self.get_pointer(&Cell {row : c1.row, col : c1.col})].val;
+        for i in c1.row..=c2.row {
+            for j in c1.col..=c2.col {
+                if self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].valid == 1 {
+                    return None;
+                }
+                let val = self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].val;
+                // if val > max {
+                //     max = val;
+                // }
+                if val < min {
+                    min = val;
+                }
+            }
+        }
+        Some(min)
+    }
+
+    fn get_stddev(&self, c1: Cell, c2: Cell) -> Option<i32> {
+        let mut mean = 0;
+        let mut variance = 0.0;
+        let mut cnt = 0;
+        let mut temp ;
+        for i in c1.row..=c2.row {
+            for j in c1.col..=c2.col {
+                if self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].valid == 1 {
+                    return None;
+                }
+                mean += self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].val;
+                cnt += 1;
+            }
+        }
+        mean /= cnt;
+
+        for i in c1.row..=c2.row {
+            for j in c1.col..=c2.col {
+                temp = self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].val;
+                variance += ((temp - mean) * (temp - mean)) as f64;
+            }
+        }
+        variance /= cnt as f64;
+        let stddev = variance.sqrt();
+        Some(stddev.round() as i32)
     }
 
 
@@ -144,22 +235,27 @@ impl SpreadSheet {
             Expression::Avg(c1, c2) => {
                 // let (_, _, sum_ele, _) = self.recursive_row_split(Range {tl: c1, br:c2})?;
                 // Some(sum_ele / ((c2.row as i32  - c1.row as i32+ 1) * (c2.col as i32  - c1.col as i32 + 1)))
-                Some(0)
+                match self.get_avg(c1, c2) {
+                    Some(i) => Some(i),
+                    None => None,
+                    // can directly return self.get_avg since it is also option i32
+                }
+
             }
             Expression::Max(c1, c2)  => {
                 // let (_, max_ele, _, _) = self.recursive_row_split(Range {tl: c1, br:c2})?;
                 // Some(max_ele)
-                Some(0)
+                self.get_max(c1, c2)
             }
             Expression::Min(c1, c2) => {
                 // let (min_ele, _, _, _) = self.recursive_row_split(Range {tl: c1, br:c2})?;
                 // Some(min_ele)
-                Some(0)
+                self.get_min(c1, c2)
             }
             Expression::Sum(c1, c2) => {
                 // let (_, _, sum_ele, _) = self.recursive_row_split(Range {tl: c1, br:c2})?;
                 // Some(sum_ele)
-                Some(self.get_sum(c1, c2))
+                self.get_sum(c1, c2)
             }
             Expression::Stdev(c1, c2) => {
                 // let (_, _, sum_ele, square_ele) = self.recursive_row_split(Range {tl: c1, br:c2})?;
@@ -168,7 +264,7 @@ impl SpreadSheet {
                 // let sq_avg =( (square_ele/area )as f64).sqrt() as i32;
 
                 // Some(sq_avg - avg)
-                Some(0)
+                self.get_stddev(c1, c2)
             }
 
             _ => panic!("Unimplemented Expression Matching in get_expr_res!"),

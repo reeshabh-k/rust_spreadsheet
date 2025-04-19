@@ -1,0 +1,6 @@
+all:
+	cargo build --release
+	mv target/release/rust_spreadsheet target/release/spreadsheet
+
+clean:
+	cargo clean

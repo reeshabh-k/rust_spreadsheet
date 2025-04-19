@@ -6,6 +6,12 @@ pub struct Cell {
     pub col: u16,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Range {
+    pub tl: Cell,
+    pub br: Cell,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     Num(i32),

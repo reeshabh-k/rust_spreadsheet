@@ -3,6 +3,8 @@ mod spreadsheet;
 mod basic;
 
 
+
+use std::env;
 use std::io::{self, Write};
 use std::time::Instant;
 
@@ -10,9 +12,24 @@ use input::get_formula;
 use spreadsheet::SpreadSheet;
 
 fn main() {
+
+    let args: Vec<String> = env::args().collect();
+
+    let row;
+    let col;
+
+    if args.len() != 3 {
+        row = 999;
+        col = 18278;
+    } else {
+        row = *&args[1].parse::<usize>().expect("Incorrect Argument");
+        col = *&args[2].parse::<usize>().expect("Incorrect Argument");
+    }
+
+
     let stdin = io::stdin();          
     let mut handle = stdin.lock();        
-    let mut sheet = SpreadSheet::new(31, 52);
+    let mut sheet = SpreadSheet::new(row, col);
 
     sheet.print_sheet();
     print!("[0.0] (ok) > ");
@@ -36,8 +53,8 @@ fn main() {
 
         match state {
             basic::SpreadSheetError::Valid => dashboard = format!("[{:.5}] (ok) > ", duration.as_secs_f32()),
-            basic::SpreadSheetError::InvalidInput => dashboard = format!("[{:.5}] (invalid input) > ", duration.as_secs_f32()),
-            basic::SpreadSheetError::Cycle => dashboard = format!("[{:.5}] (cycle) > ", duration.as_secs_f32()),
+            basic::SpreadSheetError::InvalidInput 
+            | basic::SpreadSheetError::Cycle => dashboard = format!("[{:.5}] (err) > ", duration.as_secs_f32()),
             basic::SpreadSheetError::Quit => break,
             basic::SpreadSheetError::Disable => {
                 dashboard = format!("[{:.5}] (ok) > ", duration.as_secs_f32());

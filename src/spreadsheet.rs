@@ -1,5 +1,9 @@
-use crate::{basic::Cell, basic::Formula, basic::Expression, basic::Value, basic::SpreadSheetError};
-use crate::input::Col;
+use crate::{basic::Cell, basic::Formula, basic::Expression, basic::Value, basic::SpreadSheetError, basic::Range};
+use crate::input::{Col, get_formula};
+use std::io::Cursor;
+
+use std::thread;
+use std::time::Duration;
 
 use std::{collections::HashSet, collections::HashMap};
 
@@ -64,6 +68,44 @@ impl SpreadSheet {
         }
     }
 
+    fn recursive_row_split (&self, r : Range) -> Option<(i32, i32, i32, i32)> {
+        if r.tl.row == r.br.row {
+            let val = self.extract_value_num(Value::Ref(r.tl.clone()))?;
+            Some((val, val, val, val*val))
+        } else {
+            let mid_tl = Cell {
+                col: r.tl.col,
+                row: (r.tl.row + r.br.row)/2,
+            };
+            let mid_br = Cell {
+                col: r.tl.col,
+                row: (r.tl.row + r.br.row)/2 + 1,
+            };
+            let (v00, v01, v02, v03) = self.recursive_row_split(Range {tl: r.tl, br: mid_tl})?;
+            let (v10, v11, v12, v13) = self.recursive_row_split(Range {tl: mid_br, br: r.br})?;
+            Some((v00.min(v10), v01.max(v11), v02+v12, v03+v13))
+        
+        }
+    }
+
+    fn recursive_col_split(&self, r: Range) -> Option<(i32, i32, i32, i32)> {
+        if r.tl.col == r.br.col {
+            self.recursive_row_split(r)
+        } else {
+            let mid_tl = Cell {
+                col: (r.tl.col+r.br.col)/2,
+                row: r.br.row,
+            };
+            let mid_br = Cell {
+                col: (r.tl.col+r.br.col)/2 + 1,
+                row: r.tl.row,
+            };
+            let (v00, v01, v02, v03) = self.recursive_col_split(Range {tl: r.tl, br: mid_tl})?;
+            let (v10, v11, v12, v13) = (self.recursive_col_split(Range {tl: mid_br, br: r.br}))?;
+            Some((v00.min(v10), v01.max(v11), v02+v12, v03+v13))
+        }
+    }
+
 
     fn get_expr_res (&self, expr: Expression) -> Option<i32> {
         match expr {
@@ -79,6 +121,38 @@ impl SpreadSheet {
             },
             Expression::Sub(v1, v2) => Some(self.extract_value_num(v1)? - self.extract_value_num(v2)?),
             Expression::Constant(v) => self.extract_value_num(v),
+            Expression::Sleep(v) => {
+                let sleep_time = self.extract_value_num(v)?;
+                thread::sleep(Duration::from_secs(sleep_time as u64));
+                Some(sleep_time as i32)
+
+            }
+
+            Expression::Avg(c1, c2) => {
+                let (_, _, sum_ele, _) = self.recursive_col_split(Range {tl: c1, br:c2})?;
+                Some(sum_ele / ((c2.row as i32  - c1.row as i32+ 1) * (c2.col as i32  - c1.col as i32 + 1)))
+            }
+            Expression::Max(c1, c2)  => {
+                let (_, max_ele, _, _) = self.recursive_col_split(Range {tl: c1, br:c2})?;
+                Some(max_ele)
+            }
+            Expression::Min(c1, c2) => {
+                let (min_ele, _, _, _) = self.recursive_col_split(Range {tl: c1, br:c2})?;
+                Some(min_ele)
+            }
+            Expression::Sum(c1, c2) => {
+                let (_, _, sum_ele, _) = self.recursive_col_split(Range {tl: c1, br:c2})?;
+                Some(sum_ele)
+            }
+            Expression::Stdev(c1, c2) => {
+                let (_, _, sum_ele, square_ele) = self.recursive_col_split(Range {tl: c1, br:c2})?;
+                let area = (c2.row as i32  - c1.row as i32+ 1) * (c2.col as i32  - c1.col as i32 + 1);
+                let avg = sum_ele/area;
+                let sq_avg =( (square_ele/area )as f64).sqrt() as i32;
+
+                Some(sq_avg - avg)
+            }
+
             _ => panic!("Unimplemented Expression Matching in get_expr_res!"),
         }
     }
@@ -109,10 +183,17 @@ impl SpreadSheet {
                 self.add_cell_list(&mut parent_list, v1);
                 self.add_cell_list(&mut parent_list, v2);
             }
-        
-            Expression::Constant(v) => {
+            
+            Expression::Sleep(v) 
+            | Expression::Constant(v) => {
                 self.add_cell_list(&mut parent_list, v);
             }
+
+            Expression::Avg(c1, c2)
+            | Expression::Max(c1, c2)
+            | Expression::Min(c1, c2)
+            | Expression::Sum(c1, c2)
+            | Expression::Stdev(c1, c2) => self.add_range_list(&mut parent_list, c1, c2),
             _ => panic!("Unimplemented add_children!"),
         }
 
@@ -121,6 +202,14 @@ impl SpreadSheet {
             self.spreadsheet[parent_pointer].children.remove(&inp_cell);
         }
 
+    }
+
+    fn add_range_list (&self, parent_list: & mut Vec<Cell> , cell1: Cell, cell2: Cell) {
+        for i in cell1.row..=cell2.row {
+            for j in cell1.col..=cell1.col {
+                parent_list.push(Cell {row: i, col: j})
+            }
+        }
     }
 
     fn add_children (&mut self, inp_cell: Cell, expr: Expression) {
@@ -134,10 +223,18 @@ impl SpreadSheet {
                 self.add_cell_list(&mut parent_list, v1);
                 self.add_cell_list(&mut parent_list, v2);
             }
-        
-            Expression::Constant(v) => {
+
+            Expression::Sleep(v) 
+            | Expression::Constant(v) => {
                 self.add_cell_list(&mut parent_list, v);
             }
+
+            Expression::Avg(c1, c2)
+            | Expression::Max(c1, c2)
+            | Expression::Min(c1, c2)
+            | Expression::Sum(c1, c2)
+            | Expression::Stdev(c1, c2) => self.add_range_list(&mut parent_list, c1, c2),
+            
             _ => panic!("Unimplemented add_children!"),
         }
 
@@ -177,6 +274,15 @@ impl SpreadSheet {
                 self.col_pointer = c.col as usize;
                 self.row_pointer = c.row as usize;
                 return SpreadSheetError::Valid;
+            },
+            Expression::Avg(c1, c2)
+            | Expression::Max(c1, c2)
+            | Expression::Min(c1, c2)
+            | Expression::Sum(c1, c2)
+            | Expression::Stdev(c1, c2) => {
+                if c1.row > c2.row || c1.col > c2.col {
+                    return SpreadSheetError::InvalidInput;
+                }
             }
             _ => ()
         }
@@ -237,15 +343,27 @@ impl SpreadSheet {
     }
 
     fn belongs_to_expression(&self, expr : &Expression, c: Cell) -> bool {
-        let val = Value::Ref(c);
+        let val = Value::Ref(c.clone());
 
         match expr {
             | Expression::Add(v1, v2)
             | Expression::Div(v1, v2)
             | Expression::Mul(v1, v2)
             | Expression::Sub(v1, v2) => *v1 == val || *v2 == val,
-        
-            Expression::Constant(v) => *v == val,
+
+
+            Expression::Sleep(v)
+            | Expression::Constant(v) => *v == val,
+
+            Expression::Avg(c1, c2)
+            | Expression::Max(c1, c2)
+            | Expression::Min(c1, c2)
+            | Expression::Sum(c1, c2)
+            | Expression::Stdev(c1, c2) => {
+                c.row >= c1.row && c.col >= c1.col && c.row <= c2.row && c.col <= c2.col
+            },
+
+
             _ => panic!("Unimplemented belongs_to_expression!"),
         }
     }
@@ -253,6 +371,10 @@ impl SpreadSheet {
     fn check_cycle (&self, form: Formula) -> bool {
         let inp_cell = form.inp_cell.clone();
         let expr = form.expression;
+
+        if self.belongs_to_expression(&expr, inp_cell.clone()) {
+            return true;
+        }
 
         let mut visited: HashSet<Cell> = HashSet::new();
         visited.insert(inp_cell.clone());
@@ -302,4 +424,30 @@ impl SpreadSheet {
         }
         
     }
+}
+
+#[cfg(test)]
+mod col_tests {
+    use super::*;
+
+    fn test_range (v: Vec<&str>, out: (i32, i32, i32, i32)) {
+        let mut spreadsheet = SpreadSheet::new(10,10);
+
+        for i in v.iter() {
+            let mut inp = Cursor::new(*i);
+            let parsed_input = get_formula(&mut inp);
+            spreadsheet.call_formula(parsed_input);
+        }
+
+        assert_eq!(spreadsheet.recursive_col_split(Range {tl: Cell {col: 1, row: 1}, br: Cell {col: 10, row: 10}}).expect(""), out);
+    }
+
+    #[test]
+    fn range_1 () {
+        test_range(vec!["A1=1"], (0,1,1,1));
+        test_range(vec!["A1=1", "B1=1"], (0,1,2,2));
+        test_range(vec!["A1=1", "B1=1", "C1=1", "D1=1", "E1=1"], (0,1,5,5));
+        test_range(vec!["A1=-1", "A2 = 3"],     (-1, 3, 2, 10));
+    }
+
 }

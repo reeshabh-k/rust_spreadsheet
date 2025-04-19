@@ -7,7 +7,77 @@ use serde::{Serialize, Deserialize};
 use std::rc::Rc;
 use std::cell::RefCell;
 
+// Visualization state structure for bar charts
+#[derive(Clone, PartialEq)]
+struct VisualizationState {
+    visible: bool,
+    data: Vec<(String, Vec<(String, f64)>)>,  // Vec of (Category, Vec of (label, value)) pairs to maintain order
+    title: String,  // Main title from cell A1
+}
 
+impl VisualizationState {
+    fn new() -> Self {
+        Self {
+            visible: false,
+            data: Vec::new(),
+            title: "Data Analysis".to_string(),
+        }
+    }
+}
+
+// Structure to represent the context menu state
+#[derive(Clone, PartialEq)]
+struct ContextMenuState {
+    visible: bool,
+    position_x: i32,
+    position_y: i32,
+    target_cell: String,
+}
+
+impl ContextMenuState {
+    fn new() -> Self {
+        Self {
+            visible: false,
+            position_x: 0,
+            position_y: 0,
+            target_cell: String::new(),
+        }
+    }
+}
+
+// Toast notification component for displaying errors
+#[derive(Clone, PartialEq)]
+struct ToastNotification {
+    visible: bool,
+    message: String,
+    is_error: bool,
+}
+
+impl ToastNotification {
+    fn new() -> Self {
+        Self {
+            visible: false,
+            message: String::new(),
+            is_error: false,
+        }
+    }
+    
+    fn show_error(message: String) -> Self {
+        Self {
+            visible: true,
+            message,
+            is_error: true,
+        }
+    }
+}
+
+// Toast component props
+#[derive(Properties, PartialEq)]
+struct ToastProps {
+    visible: bool,
+    message: String,
+    is_error: bool,
+}
 
 // Function to convert column number to label (1->A, 2->B, ..., 27->AA, 28->AB, etc.)
 fn get_column_label(col: u32) -> String {
@@ -191,17 +261,30 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     // State for the currently selected cell
     let selected_cell = use_state(|| None::<String>);
     
+    // New state for the currently editing cell
+    let editing_cell = use_state(|| None::<String>);
+    
+    // New state for the cell being edited's input value
+    let edit_input_value = use_state(String::new);
+    
     // Context menu state
     let context_menu_state = use_state(|| ContextMenuState::new());
     
     // NodeRef for scrolling container
     let container_ref = use_node_ref();
     
-    // Handle cell click to select a cell
+    // NodeRef for the cell edit input field
+    let cell_input_ref = use_node_ref();
+    
+    // Handle cell click to select a cell and enable direct editing
     let on_cell_click = {
         let selected_cell = selected_cell.clone();
         let on_cell_select = props.on_cell_select.clone();
-        let context_menu_state = context_menu_state.clone();
+        let editing_cell = editing_cell.clone();
+        let edit_input_value = edit_input_value.clone();
+        let cell_input_ref = cell_input_ref.clone();
+        let cell_values = props.cell_values.clone();
+        let props_on_formula = props.on_formula.clone();
         
         Callback::from(move |e: MouseEvent| {
             e.stop_propagation(); // Stop event propagation
@@ -211,70 +294,155 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                 selected_cell.set(Some(cell_id.clone()));
                 on_cell_select.emit(cell_id.clone());
                 
-                // Show the formula dialog when clicking on a cell
-                context_menu_state.set(ContextMenuState {
-                    visible: true,
-                    position_x: e.client_x(),
-                    position_y: e.client_y(),
-                    target_cell: cell_id,
+                // Enable editing mode for the clicked cell
+                editing_cell.set(Some(cell_id.clone()));
+                
+                // Get the current value from cell_values map
+                let current_value = cell_values.get(&cell_id).cloned().unwrap_or_default();
+                
+                // If the cell contains a formula (starts with =), show the formula text instead of the result
+                let display_value = if current_value.starts_with(&format!("{}=", cell_id)) || current_value.starts_with('=') {
+                    // Extract the formula part after the equals sign
+                    let formula_parts: Vec<&str> = current_value.splitn(2, '=').collect();
+                    if formula_parts.len() > 1 {
+                        formula_parts[1].to_string()
+                    } else {
+                        current_value
+                    }
+                } else {
+                    current_value
+                };
+                
+                edit_input_value.set(display_value);
+                
+                // Focus the input field after a short delay to ensure it's rendered
+                let cell_input_ref_clone = cell_input_ref.clone();
+                wasm_bindgen_futures::spawn_local(async move {
+                    // Small delay to ensure the input field is rendered
+                    let promise = js_sys::Promise::new(&mut |resolve, _| {
+                        let window = web_sys::window().unwrap();
+                        window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                            &resolve, 10).unwrap();
+                    });
+                    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+                    
+                    // Focus the input field and select all text
+                    if let Some(input) = cell_input_ref_clone.cast::<HtmlInputElement>() {
+                        input.focus().ok();
+                        input.select();
+                    }
                 });
             }
         })
     };
 
-    // Public function to scroll to a specific cell
-    // We'll use this via a callback to scroll to a cell when it's entered in the "Enter cell" input
-    let scroll_to_cell = {
-        let container_ref = container_ref.clone();
-        // Clone selected_cell before moving it into the closure
-        let selected_cell = selected_cell.clone();
+// Handle cell input changes in the editing cell
+    let on_cell_input_change = {
+        let edit_input_value = edit_input_value.clone();
+        let props_on_formula = props.on_formula.clone();
+        let editing_cell = editing_cell.clone();
         let on_cell_select = props.on_cell_select.clone();
         
-        Callback::from(move |cell_id: String| {
-            // First update the selected cell state and emit cell selection
-            selected_cell.set(Some(cell_id.clone()));
-            on_cell_select.emit(cell_id.clone());
+        Callback::from(move |e: InputEvent| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            let value = input.value();
+            edit_input_value.set(value.clone());
             
-            // Extract column label and row number from cell id (e.g. "A1" -> col="A", row=1)
-            let mut digit_start_index = 0;
-            for (i, c) in cell_id.chars().enumerate() {
-                if c.is_digit(10) {
-                    digit_start_index = i;
-                    break;
-                }
-            }
-            
-            if digit_start_index > 0 {
-                if let Some(container) = container_ref.cast::<HtmlElement>() {
-                    // Find the cell element we want to scroll to
-                    if let Some(window) = web_sys::window() {
-                        if let Some(document) = window.document() {
-                            // Try to find the cell by its data-id attribute
-                            let selector = format!("td[data-id=\"{}\"]", cell_id);
-                            if let Ok(Some(element)) = document.query_selector(&selector) {
-                                let cell_element = element.dyn_into::<HtmlElement>().unwrap();
-                                
-                                // Ensure the spreadsheet container has focus to receive keyboard events
-                                container.focus().ok();
-                                
-                                // Smooth scroll to the element
-                                cell_element.scroll_into_view_with_bool(true); // true for smooth scrolling
-                                
-                                // Debug output to console
-                                web_sys::console::log_1(&format!("Scrolling to cell: {}", cell_id).into());
-                            } else {
-                                // Debug output if cell not found
-                                web_sys::console::log_1(&format!("Cell not found: {}", cell_id).into());
-                            }
-                        }
-                    }
+            // Check if the input starts with "=" to handle as a formula
+            if value.starts_with('=') {
+                // When typing a formula directly in a cell, update the formula field in the parent component
+                if let Some(cell_id) = (*editing_cell).clone() {
+                    on_cell_select.emit(cell_id.clone()); // Update the cell reference field
+                    
+                    // Only update the formula field in parent, but DON'T apply the formula yet
+                    // Use the special prefix "__preview__" to indicate this is just for display
+                    props_on_formula.emit(format!("__preview__{}={}", cell_id, &value[1..]));
                 }
             }
         })
     };
     
-    // We no longer need to try to share the scroll_to_cell function with the parent component
-    // The App component has its own direct implementation for scrolling
+    // Handle keyboard events in the editing cell
+    let on_cell_input_keydown = {
+        let edit_input_value = edit_input_value.clone();
+        let editing_cell = editing_cell.clone();
+        let props_on_formula = props.on_formula.clone();
+        
+        Callback::from(move |e: KeyboardEvent| {
+            if e.key() == "Enter" {
+                e.stop_propagation();
+                e.prevent_default();
+                
+                if let Some(cell_id) = (*editing_cell).clone() {
+                    let value = (*edit_input_value).clone();
+                    
+                    // If input starts with =, treat as formula but remove the =
+                    let formula = if value.starts_with('=') {
+                        format!("{}={}", cell_id, &value[1..]) // Remove the = from the start
+                    } else {
+                        format!("{}={}", cell_id, value)
+                    };
+                    
+                    props_on_formula.emit(formula);
+                    
+                    // Exit editing mode
+                    editing_cell.set(None);
+                }
+            } else if e.key() == "Escape" {
+                e.stop_propagation();
+                e.prevent_default();
+                
+                // Cancel editing
+                editing_cell.set(None);
+            }
+        })
+    };
+    
+    // Handle clicking outside of the editing cell to exit edit mode
+    let on_click_outside = {
+        let editing_cell = editing_cell.clone();
+        
+        Callback::from(move |_: MouseEvent| {
+            editing_cell.set(None);
+        })
+    };
+    
+    // Effect to add global click handler to detect clicks outside the editing cell
+    {
+        let editing_cell = editing_cell.clone();
+        
+        use_effect_with_deps(
+            move |_| {
+                let document = web_sys::window().unwrap().document().unwrap();
+                let closure = Closure::wrap(Box::new(move |event: MouseEvent| {
+                    let target = event.target().unwrap();
+                    let target_element = target.dyn_ref::<web_sys::Element>();
+                    
+                    if let Some(target_el) = target_element {
+                        // Check if click is inside an input field or on a cell that's being edited
+                        if target_el.tag_name() != "INPUT" && !target_el.has_attribute("data-editing") {
+                            editing_cell.set(None);
+                        }
+                    }
+                }) as Box<dyn FnMut(_)>);
+                
+                document.add_event_listener_with_callback(
+                    "click",
+                    closure.as_ref().unchecked_ref(),
+                ).unwrap();
+                
+                // Return a cleanup function
+                move || {
+                    document.remove_event_listener_with_callback(
+                        "click",
+                        closure.as_ref().unchecked_ref(),
+                    ).unwrap();
+                    closure.forget(); // Prevent memory leak
+                }
+            },
+            (), // Dependencies
+        );
+    }
 
     // Handle right-click on cells
     let on_cell_context_menu = {
@@ -320,8 +488,14 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
         let on_cell_select = props.on_cell_select.clone();
         let rows = props.rows;
         let cols = props.cols;
+        let editing_cell = editing_cell.clone();
         
         Callback::from(move |e: KeyboardEvent| {
+            // Skip keyboard navigation if we're currently editing a cell
+            if (*editing_cell).is_some() {
+                return;
+            }
+            
             if let Some(current_cell) = (*selected_cell).clone() {
                 // Parse the current cell ID (e.g., "A1", "AA23", etc.)
                 // Find the index where the digits start
@@ -372,6 +546,11 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                                 selected_cell.set(Some(new_cell.clone()));
                                 on_cell_select.emit(new_cell);
                             }
+                        },
+                        // Start editing on Enter or F2 key
+                        "Enter" | "F2" => {
+                            e.prevent_default();
+                            editing_cell.set(Some(current_cell.clone()));
                         },
                         _ => {}
                     }
@@ -432,21 +611,50 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
             let is_selected = selected_cell.as_ref()
                 .map_or(false, |id| *id == cell_id);
             
-            let cell_class = if is_selected {
-                "cell selected"
+            // Check if this cell is currently being edited
+            let is_editing = editing_cell.as_ref()
+                .map_or(false, |id| *id == cell_id);
+            
+            // Apply appropriate CSS classes
+            let cell_class = if is_editing {
+                "cell editing"
+            } else if is_selected {
+                "cell selected highlighted"
             } else {
                 "cell"
             };
             
-            html! {
-                <td
-                    class={cell_class}
-                    data-id={cell_id.clone()}
-                    onclick={on_cell_click.clone()}
-                    oncontextmenu={on_cell_context_menu.clone()}
-                >
-                    { cell_value }
-                </td>
+            // Render either the cell value or an input field for editing
+            if is_editing {
+                html! {
+                    <td
+                        class={cell_class}
+                        data-id={cell_id.clone()}
+                        data-editing="true"
+                        onclick={|e: MouseEvent| e.stop_propagation()}
+                    >
+                        <input
+                            ref={cell_input_ref.clone()}
+                            type="text"
+                            value={(*edit_input_value).clone()}
+                            oninput={on_cell_input_change.clone()}
+                            onkeydown={on_cell_input_keydown.clone()}
+                            class="cell-edit-input"
+                            style="width: 100%; height: 100%; box-sizing: border-box; border: none; outline: none; font-family: inherit; font-size: inherit;"
+                        />
+                    </td>
+                }
+            } else {
+                html! {
+                    <td
+                        class={cell_class}
+                        data-id={cell_id.clone()}
+                        onclick={on_cell_click.clone()}
+                        oncontextmenu={on_cell_context_menu.clone()}
+                    >
+                        { cell_value }
+                    </td>
+                }
             }
         }).collect::<Html>();
         
@@ -498,6 +706,20 @@ fn app() -> Html {
     
     // Store validation messages
     let messages = use_state(|| HashMap::<String, String>::new());
+    
+    // Toast notification state
+    let toast_state = use_state(|| ToastProps {
+        visible: false,
+        message: String::new(),
+        is_error: false,
+    });
+
+    // Add visualization state
+    let visualization_state = use_state(|| VisualizationState {
+        visible: false,
+        data: Vec::new(),
+        title: "Data Analysis".to_string(),
+    });
     
     // Get the current number of rows and columns
     let rows = if let Some(rows_field) = (*fields).get("rows") {
@@ -559,6 +781,73 @@ fn app() -> Html {
             if let Some(field) = updated_fields.get_mut("cell") {
                 field.set_value(cell_id);
                 fields.set(updated_fields);
+            }
+        })
+    };
+
+// Handle for analyzing data and showing visualization
+    let on_analyze = {
+        let cell_values = cell_values.clone();
+        let visualization_state = visualization_state.clone();
+        
+        Callback::from(move |_| {
+            let mut visualization_data = Vec::new();
+            let cells = (*cell_values).clone();
+            
+            // Get main chart title from A1
+            let main_title = cells.get("A1").cloned().unwrap_or_else(|| "Data Analysis".to_string());
+            
+            // Find how many columns have data in the header row (row 1)
+            let mut header_columns = Vec::new();
+            // Start from column B (index 2)
+            for col in 2..=cols {
+                let col_label = get_column_label(col);
+                let header_cell_id = format!("{}{}", col_label, 1);
+                // If the header cell has a value, add it to our list of columns
+                if let Some(header_value) = cells.get(&header_cell_id) {
+                    if !header_value.trim().is_empty() && header_value != "0" {
+                        header_columns.push((col, header_value.clone()));
+                    }
+                }
+            }
+            
+            // Find data rows starting from row 2 (index 2) and continue until we find a row where A{i} is empty or "0"
+            for row in 2..=rows {
+                let row_label_cell = format!("A{}", row);
+                if let Some(row_label) = cells.get(&row_label_cell) {
+                    // If cell A{i} is empty or "0", we've reached the end of our data series
+                    if row_label.trim().is_empty() || row_label == "0" {
+                        break;
+                    }
+                    
+                    // This row has a label in column A, process it as a data series
+                    let mut row_data = Vec::new();
+                    for (col, header) in &header_columns {
+                        let cell_id = format!("{}{}", get_column_label(*col), row);
+                        if let Some(value_str) = cells.get(&cell_id) {
+                            if let Ok(value) = value_str.parse::<f64>() {
+                                row_data.push((header.clone(), value));
+                            }
+                        }
+                    }
+                    
+                    // If we have data for this row, add it to our visualization data
+                    if !row_data.is_empty() {
+                        visualization_data.push((row_label.clone(), row_data));
+                    }
+                } else {
+                    // No label in column A, we've reached the end of our data series
+                    break;
+                }
+            }
+            
+            // Only show visualization if we have data
+            if !visualization_data.is_empty() {
+                visualization_state.set(VisualizationState {
+                    visible: true,
+                    data: visualization_data,
+                    title: main_title,
+                });
             }
         })
     };
@@ -630,6 +919,7 @@ fn app() -> Html {
         let messages = messages.clone();
         let cell_values = cell_values.clone();
         let scroll_to_cell = scroll_to_cell.clone();
+        let toast_state = toast_state.clone();
         
         Callback::from(move |e: KeyboardEvent| {
             if e.key() == "Enter" {
@@ -688,6 +978,13 @@ fn app() -> Html {
                             let error_message = error.clone();
                             updated_messages.insert(field_id.clone(), error); 
                             web_sys::console::log_1(&format!("Validation error: {}", error_message).into());
+                            
+                            // Show toast notification for validation error
+                            toast_state.set(ToastProps {
+                                visible: true,
+                                message: error_message,
+                                is_error: true,
+                            });
                         },
                     }
                     messages.set(updated_messages);
@@ -696,40 +993,23 @@ fn app() -> Html {
         })
     };
     
+    // Handle closing visualization
+    let on_close_visualization = {
+        let visualization_state = visualization_state.clone();
+        
+        Callback::from(move |_| {
+            visualization_state.set(VisualizationState {
+                visible: false,
+                data: Vec::new(),
+                title: "Data Analysis".to_string(),
+            });
+        })
+    };
+
     // Render content based on dimensions validity
     let content = if dimensions_valid {
         html! {
             <div class="content-container">
-                <div class="cell-formula-inputs">
-                    {
-                        vec!["cell", "formula"].iter()
-                            .filter_map(|field_id| {
-                                if let Some(field) = (*fields).get(*field_id) {
-                                    let message = messages.get(*field_id).cloned().unwrap_or_default();
-                                    
-                                    Some(html! {
-                                        <div class="input-field">
-                                            <label for={field.id().to_string()}> {format!("{}: ", field.label())} </label>
-                                            <input
-                                                id={field.id().to_string()}
-                                                type={field.input_type().to_string()}
-                                                value={field.value().to_string()}
-                                                min={field.min().map(|s| s.to_string())}
-                                                max={field.max().map(|s| s.to_string())}
-                                                oninput={oninput.clone()}
-                                                onkeydown={onkeydown.clone()}
-                                                autofocus={field.id() == "cell"} // Auto-focus the cell input
-                                            />
-                                            <p>{message}</p>
-                                        </div>
-                                    })
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect::<Html>()
-                    }
-                </div>
                 <Spreadsheet 
                     rows={rows} 
                     cols={cols}
@@ -739,18 +1019,34 @@ fn app() -> Html {
                         let cell_values = cell_values.clone();
                         let on_cell_select = on_cell_select.clone();
                         let scroll_to_cell = scroll_to_cell.clone();
+                        let fields = fields.clone();
                         
                         Callback::from(move |formula: String| {
-                            // Process formula and update state
-                            if let Some((cell_id, value)) = process_formula(&formula) {
-                                let mut updated = (*cell_values).clone();
-                                updated.insert(cell_id.clone(), value);
-                                cell_values.set(updated);
-                                // Optionally select the cell after formula apply
-                                on_cell_select.emit(cell_id.clone());
+                            // Check if this is just a preview update from typing in a cell
+                            if formula.starts_with("__preview__") {
+                                // This is just to update the formula field in the UI
+                                // Extract the actual formula without the preview prefix
+                                let actual_formula = formula.trim_start_matches("__preview__");
                                 
-                                // Scroll to the cell with the formula result
-                                scroll_to_cell.emit(cell_id);
+                                // Update the formula field but don't process it yet
+                                let mut updated_fields = (*fields).clone();
+                                if let Some(field) = updated_fields.get_mut("formula") {
+                                    field.set_value(actual_formula.to_string());
+                                    fields.set(updated_fields);
+                                }
+                            } else {
+                                // This is an actual formula submission (Enter was pressed)
+                                // Process formula and update state
+                                if let Some((cell_id, value)) = process_formula(&formula) {
+                                    let mut updated = (*cell_values).clone();
+                                    updated.insert(cell_id.clone(), value);
+                                    cell_values.set(updated);
+                                    // Optionally select the cell after formula apply
+                                    on_cell_select.emit(cell_id.clone());
+                                    
+                                    // Only scroll to cell when Enter is pressed (not during preview)
+                                    scroll_to_cell.emit(cell_id);
+                                }
                             }
                         })
                     }
@@ -786,7 +1082,7 @@ fn app() -> Html {
                         if let Some(cell_field) = (*fields).get("cell") {
                             html! {
                                 <div class="input-field">
-                                    <label for={cell_field.id().to_string()}> {format!("Enter {}: ", cell_field.label())} </label>
+                                    <label for={cell_field.id().to_string()}> {format!("{}: ", cell_field.label())} </label>
                                     <input
                                         id={cell_field.id().to_string()}
                                         type={cell_field.input_type().to_string()}
@@ -808,7 +1104,7 @@ fn app() -> Html {
                         if let Some(formula_field) = (*fields).get("formula") {
                             html! {
                                 <div class="input-field">
-                                    <label for={formula_field.id().to_string()}> {format!("Enter {}: ", formula_field.label())} </label>
+                                    <label for={formula_field.id().to_string()}> {format!("{}: ", formula_field.label())} </label>
                                     <input
                                         id={formula_field.id().to_string()}
                                         type={formula_field.input_type().to_string()}
@@ -914,12 +1210,406 @@ fn app() -> Html {
                         }
                     />
                     
-                    <button class="nav-button graph-button">{"Analyze"}</button>
+                    <button 
+                        class="nav-button graph-button"
+                        onclick={on_analyze}
+                    >
+                        {"Analyze"}
+                    </button>
                 </div>
             </div>
             
             {content}
+            
+            // Render the Toast component
+            <Toast
+                visible={toast_state.visible}
+                message={toast_state.message.clone()}
+                is_error={toast_state.is_error}
+            />
+
+            // Render visualization if visible
+            { if visualization_state.visible {
+                html! {
+                    <div class="visualization-container">
+                        <div class="visualization-panel">
+                            <div class="visualization-header">
+                                <h2>{&visualization_state.title}</h2>
+                                <div class="visualization-controls">
+                                    <button class="visualization-close" onclick={on_close_visualization}>{"×"}</button>
+                                </div>
+                            </div>
+                            <div class="charts-container">
+                                {
+                                    // Dynamically generate chart sections for all series in the order they appear in the Vec
+                                    visualization_state.data.iter().enumerate().map(|(index, (title, data))| {
+                                        // Alternate colors for different charts
+                                        let chart_color = match index % 3 {
+                                            0 => "#3498db", // Blue
+                                            1 => "#2ecc71", // Green
+                                            _ => "#e74c3c", // Red
+                                        };
+                                        
+                                        html! {
+                                            <div class="chart-section">
+                                                <h3>{title}</h3>
+                                                <div class="chart-row">
+                                                    <div class="chart-column">
+                                                        <h4>{"Bar Chart"}</h4>
+                                                        <div class="bar-chart">
+                                                            { 
+                                                                {
+                                                                    // Calculate max value outside html! macro
+                                                                    let max_value = data.iter()
+                                                                        .map(|(_, value)| *value)
+                                                                        .fold(0.0_f64, |a, b| a.max(b));
+                                                                    
+                                                                    // Generate bars inside a block expression
+                                                                    data.iter().map(move |(label, value)| {
+                                                                        let height_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
+                                                                        
+                                                                        html! {
+                                                                            <div class="bar" style={format!("height: {}%; background-color: {};", height_percent, chart_color)}>
+                                                                                <div class="bar-value">{format!("{:.1}", value)}</div>
+                                                                                <div class="bar-label">{label.clone()}</div>
+                                                                            </div>
+                                                                        }
+                                                                    }).collect::<Html>()
+                                                                }
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                    <div class="chart-column">
+                                                        <h4>{"Line Chart"}</h4>
+                                                        <LineChart 
+                                                            label={title.clone()} 
+                                                            data={data.clone()} 
+                                                            color={chart_color.to_string()} 
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    }).collect::<Html>()
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            } else {
+                html! {}
+            }}
         </>
+    }
+}
+
+#[function_component(Toast)]
+fn toast(props: &ToastProps) -> Html {
+    // Create internal state to track visibility
+    let visible = use_state(|| props.visible);
+    let message = use_state(|| props.message.clone());
+    let is_error = use_state(|| props.is_error);
+    
+    // Update the internal state whenever props change
+    {
+        let visible = visible.clone();
+        let message = message.clone();
+        let is_error = is_error.clone();
+        
+        use_effect_with_deps(
+            move |(new_visible, new_message, new_is_error)| {
+                visible.set(*new_visible);
+                message.set(new_message.clone());
+                is_error.set(*new_is_error);
+                
+                // Auto-hide toast after 3 seconds
+                let visible_clone = visible.clone();
+                let timeout_id = if *new_visible {
+                    let window = web_sys::window().unwrap();
+                    Some(window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                        &Closure::once_into_js(move || {
+                            visible_clone.set(false);
+                        }).into(),
+                        3000,
+                    ).unwrap())
+                } else {
+                    None
+                };
+                
+                // Cleanup function
+                move || {
+                    if let Some(id) = timeout_id {
+                        let window = web_sys::window().unwrap();
+                        window.clear_timeout_with_handle(id);
+                    }
+                }
+            },
+            (props.visible, props.message.clone(), props.is_error),
+        );
+    }
+    
+    let toast_class = if *visible {
+        if *is_error {
+            "toast toast-visible toast-error"
+        } else {
+            "toast toast-visible toast-success"
+        }
+    } else {
+        "toast toast-hidden"
+    };
+    
+    html! {
+        <div class={toast_class}>
+            {(*message).clone()}
+        </div>
+    }
+}
+
+// Bar Chart Component Props
+#[derive(Properties, PartialEq, Clone)]
+struct BarChartProps {
+    label: String,
+    data: Vec<(String, f64)>,
+    color: String,
+}
+
+// Bar Chart Component
+#[function_component(BarChart)]
+fn bar_chart(props: &BarChartProps) -> Html {
+    let max_value = props.data.iter()
+        .map(|(_, value)| *value)
+        .fold(0.0_f64, |a, b| a.max(b));
+    
+    let chart_height = 300.0;
+    let bar_width = 80;
+    let gap = 20;
+    let chart_width = (bar_width + gap) * props.data.len();
+    
+    html! {
+        <div class="chart-container">
+            <h3>{ &props.label }</h3>
+            <div class="chart" style={format!("height: {}px; width: {}px;", chart_height, chart_width)}>
+                {
+                    props.data.iter().enumerate().map(|(index, (label, value))| {
+                        let height_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
+                        let bar_height = (height_percent / 100.0) * chart_height;
+                        let position = index * (bar_width + gap);
+                        
+                        html! {
+                            <div class="chart-bar-container" style={format!("left: {}px; width: {}px;", position, bar_width)}>
+                                <div class="chart-bar" 
+                                     style={format!("height: {}px; background-color: {};", 
+                                                  bar_height, props.color)}>
+                                </div>
+                                <div class="chart-value">{format!("{:.1}", value)}</div>
+                                <div class="chart-label">{label}</div>
+                            </div>
+                        }
+                    }).collect::<Html>()
+                }
+            </div>
+        </div>
+    }
+}
+
+// Line Chart Component Props - Similar to BarChartProps
+#[derive(Properties, PartialEq, Clone)]
+struct LineChartProps {
+    label: String,
+    data: Vec<(String, f64)>,
+    color: String,
+}
+
+// Line Chart Component
+#[function_component(LineChart)]
+fn line_chart(props: &LineChartProps) -> Html {
+    // Find the maximum value for scaling
+    let max_value = props.data.iter()
+        .map(|(_, value)| *value)
+        .fold(0.0_f64, |a, b| a.max(b));
+    
+    // Chart dimensions
+    let chart_height = 300.0;
+    let chart_width = 500;
+    let padding_top = 40.0;
+    let padding_bottom = 40.0;
+    let padding_left = 40;
+    let padding_right = 20;
+    
+    // If no data, return empty container
+    if props.data.is_empty() {
+        return html! {
+            <div class="chart-container">
+                <h3>{ &props.label }</h3>
+                <div class="line-chart-empty">{"No data available"}</div>
+            </div>
+        };
+    }
+    
+    // Calculate the usable area
+    let usable_width = chart_width - padding_left - padding_right;
+    let usable_height = chart_height - padding_top - padding_bottom;
+    
+    // Calculate horizontal spacing between points
+    let point_spacing = if props.data.len() > 1 {
+        usable_width as f64 / (props.data.len() - 1) as f64
+    } else {
+        usable_width as f64 / 2.0 // Center single point
+    };
+    
+    // Generate SVG path for the line
+    let path_points = props.data.iter().enumerate().map(|(i, (_, value))| {
+        let x = padding_left as f64 + (i as f64 * point_spacing);
+        let y_ratio = if max_value > 0.0 { value / max_value } else { 0.0 };
+        let y = (chart_height - padding_bottom) - (y_ratio * usable_height as f64);
+        format!("{},{}", x, y)
+    }).collect::<Vec<String>>().join(" L ");
+    
+    let path_d = if !path_points.is_empty() {
+        format!("M {}", path_points)
+    } else {
+        String::new()
+    };
+    
+    // Calculate grid lines
+    let grid_lines = (0..5).map(|i| {
+        let y_pos = chart_height - padding_bottom - (i as f64 / 4.0) * usable_height as f64;
+        let value = (i as f64 / 4.0) * max_value;
+        (y_pos, value)
+    }).collect::<Vec<(f64, f64)>>();
+    
+    html! {
+        <div class="chart-container">
+            <h3>{ &props.label }</h3>
+            <svg class="line-chart" viewBox={format!("0 0 {} {}", chart_width, chart_height)}>
+                // Grid lines
+                {
+                    grid_lines.iter().map(|(y_pos, value)| {
+                        html! {
+                            <>
+                                <line 
+                                    x1={padding_left.to_string()} y1={y_pos.to_string()} 
+                                    x2={(chart_width - padding_right).to_string()} y2={y_pos.to_string()} 
+                                    stroke="#eee" stroke-width="1" stroke-dasharray="4,4" 
+                                />
+                                <text 
+                                    x={(padding_left - 5).to_string()} y={y_pos.to_string()} 
+                                    text-anchor="end" 
+                                    dominant-baseline="middle"
+                                    font-size="10" 
+                                    fill="#777"
+                                >
+                                    {format!("{:.1}", value)}
+                                </text>
+                            </>
+                        }
+                    }).collect::<Html>()
+                }
+                
+                // X and Y axes
+                <line 
+                    x1={padding_left.to_string()} y1={(chart_height - padding_bottom).to_string()} 
+                    x2={(chart_width - padding_right).to_string()} y2={(chart_height - padding_bottom).to_string()} 
+                    stroke="#aaa" stroke-width="1.5" 
+                />
+                <line 
+                    x1={padding_left.to_string()} y1={padding_top.to_string()} 
+                    x2={padding_left.to_string()} y2={(chart_height - padding_bottom).to_string()} 
+                    stroke="#aaa" stroke-width="1.5" 
+                />
+                
+                // The line path with animated dash stroke
+                <path 
+                    d={path_d.clone()} 
+                    fill="none" 
+                    stroke={props.color.clone()} 
+                    stroke-width="2.5" 
+                    stroke-linejoin="round"
+                    stroke-linecap="round"
+                    style="animation: dash 1.5s ease-in-out forwards;"
+                />
+                
+                // Area fill under the line (with transparency)
+                <path 
+                    d={format!("{} L {},{} L {},{} Z", 
+                        path_d,
+                        padding_left as f64 + ((props.data.len() - 1) as f64 * point_spacing), 
+                        chart_height - padding_bottom,
+                        padding_left,
+                        chart_height - padding_bottom
+                    )} 
+                    fill={format!("{}40", props.color)} // 40 is hex for 25% opacity
+                />
+                
+                // Data points and labels
+                {props.data.iter().enumerate().map(|(i, (label, value))| {
+                    let x = padding_left as f64 + (i as f64 * point_spacing);
+                    let y_ratio = if max_value > 0.0 { value / max_value } else { 0.0 };
+                    let y = (chart_height - padding_bottom) - (y_ratio * usable_height as f64);
+                    
+                    html! {
+                        <>
+                            // Point circle
+                            <circle 
+                                cx={x.to_string()} cy={y.to_string()} 
+                                r="4" fill="white" stroke={props.color.clone()} stroke-width="2" 
+                            />
+                            
+                            // Value label above point
+                            <text 
+                                x={x.to_string()} y={(y - 10.0).to_string()} 
+                                text-anchor="middle" 
+                                font-size="12" 
+                                fill="#333"
+                            >
+                                {format!("{:.1}", value)}
+                            </text>
+                            
+                            // X-axis label
+                            <text 
+                                x={x.to_string()} y={(chart_height - padding_bottom + 15.0).to_string()} 
+                                text-anchor="middle" 
+                                font-size="11" 
+                                fill="#555"
+                                transform={format!("rotate(45, {}, {})", x, chart_height - padding_bottom + 5.0)}
+                            >
+                                {label.clone()}
+                            </text>
+                        </>
+                    }
+                }).collect::<Html>()}
+            </svg>
+        </div>
+    }
+}
+
+// Visualization Component Props
+#[derive(Properties, PartialEq, Clone)]
+struct VisualizationProps {
+    data: HashMap<String, Vec<(String, f64)>>,
+    #[prop_or_default]
+    onclose: Callback<()>,
+}
+
+// Visualization Component that shows all charts
+#[function_component(Visualization)]
+fn visualization(props: &VisualizationProps) -> Html {
+    let house_data = props.data.get("house").cloned().unwrap_or_default();
+    let eat_data = props.data.get("eat").cloned().unwrap_or_default();
+    
+    html! {
+        <div class="visualization-overlay">
+            <div class="visualization-container">
+                <div class="visualization-header">
+                    <h2>{"Data Visualization"}</h2>
+                    <button class="close-button" onclick={props.onclose.reform(|_| ())}>{"×"}</button>
+                </div>
+                <div class="charts-container">
+                    <BarChart label="House Data" data={house_data} color="#3498db" />
+                    <BarChart label="Eat Data" data={eat_data} color="#2ecc71" />
+                </div>
+            </div>
+        </div>
     }
 }
 

@@ -13,3 +13,12 @@
 3) Webdev (Vivswan)
 
 4) UI/UX
+
+
+
+
+currently to run the frontend do 
+```
+cd frontend
+trunk serve
+```

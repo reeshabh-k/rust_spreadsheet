@@ -70,11 +70,12 @@ impl SpreadSheet {
 
     fn recursive_row_split (&self, r : Range) -> Option<(i32, i32, i32, i32)> {
         if r.tl.row == r.br.row {
-            let val = self.extract_value_num(Value::Ref(r.tl.clone()))?;
-            Some((val, val, val, val*val))
+            // let val = self.extract_value_num(Value::Ref(r.tl.clone()))?;
+            // Some((val, val, val, val*val))
+            self.recursive_col_split(r)
         } else {
             let mid_tl = Cell {
-                col: r.tl.col,
+                col: r.br.col,
                 row: (r.tl.row + r.br.row)/2,
             };
             let mid_br = Cell {
@@ -90,7 +91,9 @@ impl SpreadSheet {
 
     fn recursive_col_split(&self, r: Range) -> Option<(i32, i32, i32, i32)> {
         if r.tl.col == r.br.col {
-            self.recursive_row_split(r)
+            
+            let val = self.extract_value_num(Value::Ref(r.tl.clone()))?;
+            Some((val, val, val, val*val))
         } else {
             let mid_tl = Cell {
                 col: (r.tl.col+r.br.col)/2,
@@ -104,6 +107,16 @@ impl SpreadSheet {
             let (v10, v11, v12, v13) = (self.recursive_col_split(Range {tl: mid_br, br: r.br}))?;
             Some((v00.min(v10), v01.max(v11), v02+v12, v03+v13))
         }
+    }
+
+    fn get_sum (&self, c1: Cell, c2: Cell) -> i32 {
+        let mut sum = 0;
+        for i in c1.row..=c2.row {
+            for j in c1.col..=c2.col {
+                sum += self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].val;
+            }
+        }
+        sum
     }
 
 
@@ -129,47 +142,46 @@ impl SpreadSheet {
             }
 
             Expression::Avg(c1, c2) => {
-                let (_, _, sum_ele, _) = self.recursive_col_split(Range {tl: c1, br:c2})?;
-                Some(sum_ele / ((c2.row as i32  - c1.row as i32+ 1) * (c2.col as i32  - c1.col as i32 + 1)))
+                // let (_, _, sum_ele, _) = self.recursive_row_split(Range {tl: c1, br:c2})?;
+                // Some(sum_ele / ((c2.row as i32  - c1.row as i32+ 1) * (c2.col as i32  - c1.col as i32 + 1)))
+                Some(0)
             }
             Expression::Max(c1, c2)  => {
-                let (_, max_ele, _, _) = self.recursive_col_split(Range {tl: c1, br:c2})?;
-                Some(max_ele)
+                // let (_, max_ele, _, _) = self.recursive_row_split(Range {tl: c1, br:c2})?;
+                // Some(max_ele)
+                Some(0)
             }
             Expression::Min(c1, c2) => {
-                let (min_ele, _, _, _) = self.recursive_col_split(Range {tl: c1, br:c2})?;
-                Some(min_ele)
+                // let (min_ele, _, _, _) = self.recursive_row_split(Range {tl: c1, br:c2})?;
+                // Some(min_ele)
+                Some(0)
             }
             Expression::Sum(c1, c2) => {
-                let (_, _, sum_ele, _) = self.recursive_col_split(Range {tl: c1, br:c2})?;
-                Some(sum_ele)
+                // let (_, _, sum_ele, _) = self.recursive_row_split(Range {tl: c1, br:c2})?;
+                // Some(sum_ele)
+                Some(self.get_sum(c1, c2))
             }
             Expression::Stdev(c1, c2) => {
-                let (_, _, sum_ele, square_ele) = self.recursive_col_split(Range {tl: c1, br:c2})?;
-                let area = (c2.row as i32  - c1.row as i32+ 1) * (c2.col as i32  - c1.col as i32 + 1);
-                let avg = sum_ele/area;
-                let sq_avg =( (square_ele/area )as f64).sqrt() as i32;
+                // let (_, _, sum_ele, square_ele) = self.recursive_row_split(Range {tl: c1, br:c2})?;
+                // let area = (c2.row as i32  - c1.row as i32+ 1) * (c2.col as i32  - c1.col as i32 + 1);
+                // let avg = sum_ele/area;
+                // let sq_avg =( (square_ele/area )as f64).sqrt() as i32;
 
-                Some(sq_avg - avg)
+                // Some(sq_avg - avg)
+                Some(0)
             }
 
             _ => panic!("Unimplemented Expression Matching in get_expr_res!"),
         }
     }
 
-    fn add_cell_list (&self, parent_list: & mut Vec<Cell> , val: Value){
-        match val {
-            Value::Num(_) => return,
-            Value::Ref(c) => parent_list.push(c),
-        }
-    }
 
     fn get_pointer (&self, inp_cell: &Cell) -> usize {
         inp_cell.row as usize * self.col + inp_cell.col as usize
     }
 
     fn remove_children (&mut self, inp_cell: Cell) {
-        let mut parent_list: Vec<Cell> = vec![];
+
         let cell_pointer = self.get_pointer(&inp_cell);
         let expr = self.spreadsheet[cell_pointer].expr.clone();
 
@@ -180,68 +192,81 @@ impl SpreadSheet {
             | Expression::Mul(v1, v2)
             | Expression::Div(v1, v2)
             | Expression::Sub(v1, v2) => {
-                self.add_cell_list(&mut parent_list, v1);
-                self.add_cell_list(&mut parent_list, v2);
+                self.remove_children_helper(v1, &inp_cell);
+                self.remove_children_helper(v2, &inp_cell);
             }
             
             Expression::Sleep(v) 
             | Expression::Constant(v) => {
-                self.add_cell_list(&mut parent_list, v);
+                self.remove_children_helper(v, &inp_cell);
             }
 
             Expression::Avg(c1, c2)
             | Expression::Max(c1, c2)
             | Expression::Min(c1, c2)
             | Expression::Sum(c1, c2)
-            | Expression::Stdev(c1, c2) => self.add_range_list(&mut parent_list, c1, c2),
+            | Expression::Stdev(c1, c2) => {
+                self.remove_children_helper(Value::Ref(c1), &inp_cell);
+                self.remove_children_helper(Value::Ref(c2), &inp_cell);
+            },
             _ => panic!("Unimplemented add_children!"),
         }
 
-        for i in parent_list.iter().cloned() {
-            let parent_pointer = self.get_pointer(&i);
-            self.spreadsheet[parent_pointer].children.remove(&inp_cell);
-        }
 
     }
 
-    fn add_range_list (&self, parent_list: & mut Vec<Cell> , cell1: Cell, cell2: Cell) {
-        for i in cell1.row..=cell2.row {
-            for j in cell1.col..=cell1.col {
-                parent_list.push(Cell {row: i, col: j})
-            }
+    fn add_children_helper (&mut self, v: Value, inp_cell: &Cell) {
+        match v {
+            Value::Num(_) => return,
+            Value::Ref(c) => {
+                let parent_pointer = self.get_pointer(&c);
+                self.spreadsheet[parent_pointer].children.insert(inp_cell.clone());
+                ()
+            },
+        }
+    }
+
+    fn remove_children_helper (&mut self, v: Value, inp_cell: &Cell) {
+        match v {
+            Value::Num(_) => return,
+            Value::Ref(c) => {
+                let parent_pointer = self.get_pointer(&c);
+                self.spreadsheet[parent_pointer].children.remove(inp_cell);
+                ()
+            },
         }
     }
 
     fn add_children (&mut self, inp_cell: Cell, expr: Expression) {
-        let mut parent_list: Vec<Cell> = vec![];
+
         
         match expr {
             Expression::Add(v1, v2)
             | Expression::Mul(v1, v2)
             | Expression::Div(v1, v2)
             | Expression::Sub(v1, v2) => {
-                self.add_cell_list(&mut parent_list, v1);
-                self.add_cell_list(&mut parent_list, v2);
+                self.add_children_helper(v1, &inp_cell);
+                self.add_children_helper(v2, &inp_cell);
             }
 
             Expression::Sleep(v) 
             | Expression::Constant(v) => {
-                self.add_cell_list(&mut parent_list, v);
+                self.add_children_helper(v, &inp_cell);
             }
 
             Expression::Avg(c1, c2)
             | Expression::Max(c1, c2)
             | Expression::Min(c1, c2)
             | Expression::Sum(c1, c2)
-            | Expression::Stdev(c1, c2) => self.add_range_list(&mut parent_list, c1, c2),
+            | Expression::Stdev(c1, c2) => {
+                self.add_children_helper(Value::Ref(c1), &inp_cell);
+                self.add_children_helper(Value::Ref(c2), &inp_cell)
+            },
             
             _ => panic!("Unimplemented add_children!"),
         }
 
-        for i in parent_list.iter().cloned() {
-            let parent_pointer = self.get_pointer(&i);
-            self.spreadsheet[parent_pointer].children.insert(inp_cell.clone());
-        }
+
 
     }
 

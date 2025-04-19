@@ -1,4 +1,3 @@
-use yew::prelude::*;
 use std::collections::HashMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -367,4 +366,42 @@ pub fn parse_input_cell(input: &str) -> bool {
 
 pub fn parse_input_formula(input: &str) -> bool {
     parse_formula(input).is_some()
+}
+
+// Process the formula and return the cell ID and the result value (always "42")
+pub fn process_formula(formula_str: &str) -> Option<(String, String)> {
+    if let Some(formula) = parse_formula(formula_str) {
+        // Convert cell coordinates back to a cell ID (e.g., "A1")
+        let col_str = column_number_to_label(formula.inp_cell.col);
+        let cell_id = format!("{}{}", col_str, formula.inp_cell.row);
+        
+        // For now, all formulas evaluate to "42"
+        return Some((cell_id, "42".to_string()));
+    }
+    None
+}
+
+// Convert column number to letter(s) (e.g., 1->A, 26->Z, 27->AA)
+fn column_number_to_label(col_num: u32) -> String {
+    if col_num == 0 {
+        return String::new();
+    }
+    
+    let mut result = String::new();
+    let mut n = col_num;
+    
+    while n > 0 {
+        // Convert to 0-based for calculation
+        n -= 1;
+        // Get the remainder when divided by 26 (A-Z)
+        let remainder = n % 26;
+        // Convert to ASCII character (A-Z)
+        let ch = (b'A' + remainder as u8) as char;
+        // Add to the beginning of the result
+        result.insert(0, ch);
+        // Integer division to get the next digit
+        n /= 26;
+    }
+    
+    result
 }

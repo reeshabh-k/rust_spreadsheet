@@ -1,16 +1,17 @@
 body {
     font-family: Arial, sans-serif;
     background-color: #f5f5f5;
-    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 100%;
     margin: 0 auto;
     padding: 20px;
 }
 
 h1 {
-    color: #2c3e50;
     text-align: center;
-    border-bottom: 2px solid #3498db;
-    padding-bottom: 10px;
+    margin-bottom: 10px;
 }
 
 div {
@@ -183,7 +184,12 @@ h1 + div + div + div {
 
 /* Spreadsheet styles */
 .spreadsheet-container {
-    overflow-x: auto;
+    position: relative; /* for absolute-positioned context menu */
+    /* constrain to viewport for internal scrolling */
+    max-height: 60vh;
+    overflow-y: auto; /* vertical scroll inside sheet */
+    overflow-x: auto; /* horizontal scroll when needed */
+    overscroll-behavior: contain; /* prevent page scrolling when at edges */
     margin-top: 20px;
     border-radius: 5px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -191,7 +197,7 @@ h1 + div + div + div {
 
 .spreadsheet {
     border-collapse: collapse;
-    width: 100%;
+    width: max-content; /* expand to content width so container scrolls horizontally */
     background-color: white;
     font-size: 14px;
 }
@@ -283,7 +289,7 @@ h1 + div + div + div {
 .spreadsheet {
     table-layout: fixed;
     border-collapse: collapse;
-    width: 100%;
+    width: max-content; /* allow horizontal overflow for scrolling */
     background-color: white;
     font-size: 14px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -361,18 +367,18 @@ h1 + div + div + div {
 }
 
 .action-button {
-    background: #3498db;
+    padding: 10px 20px;
+    background-color: #4CAF50;
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
-    font-weight: bold;
+    border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    font-size: 16px;
+    transition: background-color 0.3s;
 }
 
 .action-button:hover {
-    background: #2980b9;
+    background-color: #45a049;
     transform: translateY(-2px);
     box-shadow: 0 3px 5px rgba(0,0,0,0.2);
 }
@@ -404,4 +410,584 @@ h1 + div + div + div {
     .action-button, .file-upload {
         width: 100%;
     }
+}
+
+/* Upload button styling */
+.file-upload-container {
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 0.9em;
+}
+
+.file-upload {
+    display: inline-block;
+}
+
+.file-upload label {
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+/* Save button container at the bottom */
+.save-button-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+    padding: 15px 0;
+}
+
+/* Context Menu Styling */
+.context-menu {
+    position: absolute;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    padding: 15px;
+    z-index: 1000;
+    min-width: 250px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.context-menu input {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0;
+    box-sizing: border-box;
+}
+
+.context-menu button {
+    margin-top: 10px;
+    width: 100%;
+    padding: 8px;
+}
+
+/* Spreadsheet container styles */
+.spreadsheet-container {
+    margin-top: 2rem;
+    max-height: 70vh;
+    max-width: 95vw;
+    overflow: auto; /* Enable both horizontal and vertical scrolling */
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* Spreadsheet table styles */
+.spreadsheet {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: auto; /* Allow the table to be wider than its container */
+    min-width: 100%;
+    white-space: nowrap;
+}
+
+.spreadsheet th,
+.spreadsheet td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+    min-width: 80px; /* Minimum width for cells */
+}
+
+.spreadsheet .column-header,
+.spreadsheet .row-header {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    position: sticky;
+    z-index: 10;
+}
+
+.spreadsheet .column-header {
+    top: 0; /* Stick to top */
+}
+
+.spreadsheet .row-header {
+    left: 0; /* Stick to left */
+}
+
+.spreadsheet .corner-header {
+    background-color: #f2f2f2;
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 20; /* Higher z-index to appear above other headers */
+}
+
+.spreadsheet .cell {
+    user-select: none;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    padding: 8px;
+    min-width: 80px;
+    height: 32px;
+    text-align: right;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.spreadsheet .cell.selected {
+    background-color: rgba(52, 152, 219, 0.2);
+    box-shadow: inset 0 0 0 2px #3498db;
+}
+
+.cell-formula-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.input-field {
+    margin-bottom: 0.5rem;
+}
+
+.api-info {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    border-left: 4px solid #3498db;
+}
+
+.note {
+    font-style: italic;
+}
+
+.instructions {
+    margin-top: 0.5rem;
+    font-weight: bold;
+}
+
+/* Custom context menu styles */
+.context-menu {
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    padding: 10px;
+    z-index: 1000;
+}
+
+/* Override sticky header behavior to ensure the first column header stays fixed */
+.spreadsheet thead th.corner-header {
+    position: sticky !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 5 !important;
+    background-color: #f2f2f2 !important;
+}
+.spreadsheet thead th.column-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 4 !important;
+    background-color: #f2f2f2 !important;
+}
+.spreadsheet tbody th.row-header {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 3 !important;
+    background-color: #f2f2f2 !important;
+}
+
+/* ===== Additional overrides for header stickiness ===== */
+.spreadsheet-container .spreadsheet thead tr th.corner-header {
+    position: sticky !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 100 !important;
+    background-color: #f2f2f2 !important;
+}
+.spreadsheet-container .spreadsheet thead tr th.column-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 90 !important;
+    background-color: #f2f2f2 !important;
+}
+.spreadsheet-container .spreadsheet tbody tr th.row-header {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 80 !important;
+    background-color: #f2f2f2 !important;
+}
+
+/* ===== Force sticky headers at the bottom ===== */
+.spreadsheet-container .spreadsheet th.corner-header {
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 4;
+    background-color: #f2f2f2;
+}
+.spreadsheet-container .spreadsheet th.column-header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background-color: #f2f2f2;
+}
+.spreadsheet-container .spreadsheet th.row-header {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background-color: #f2f2f2;
+}
+
+/* Fix header stickiness: column headers fixed on top, row headers fixed on left, corner header fixed both */
+.spreadsheet thead th {
+    position: sticky !important;
+    top: 0 !important;
+    background-color: #f2f2f2 !important;
+    z-index: 10 !important;
+}
+.spreadsheet tbody th.row-header {
+    position: sticky !important;
+    left: 0 !important;
+    background-color: #f2f2f2 !important;
+    z-index: 5 !important;
+}
+.spreadsheet thead th.corner-header {
+    left: 0 !important;
+    z-index: 15 !important;
+}
+
+/* ===== Final override: enforce sticky headers ===== */
+.spreadsheet .column-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 2 !important;
+    background-color: #f2f2f2 !important;
+}
+.spreadsheet .row-header {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 1 !important;
+    background-color: #f2f2f2 !important;
+}
+.spreadsheet .corner-header {
+    position: sticky !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 3 !important;
+    background-color: #f2f2f2 !important;
+}
+
+/* FINAL STICKY HEADER OVERRIDE */
+.spreadsheet .corner-header {
+    position: sticky !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 3 !important;
+    background-color: #f2f2f2 !important;
+}
+.spreadsheet .column-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 2 !important;
+    background-color: #f2f2f2 !important;
+}
+.spreadsheet .row-header {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 1 !important;
+    background-color: #f2f2f2 !important;
+}
+
+/* ===== Sticky header fix ===== */
+.spreadsheet thead th {
+  position: sticky;
+  top: 0;
+  background-color: #f2f2f2;
+  z-index: 3;
+}
+.spreadsheet tbody tr th.row-header {
+  position: sticky;
+  left: 0;
+  background-color: #f2f2f2;
+  z-index: 2;
+}
+.spreadsheet thead th.corner-header {
+  left: 0;
+  z-index: 4;
+}
+
+/* ===== Final Sticky Header Override ===== */
+.spreadsheet .column-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 3 !important;
+  background-color: #f2f2f2 !important;
+}
+.spreadsheet .row-header {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 2 !important;
+  background-color: #f2f2f2 !important;
+}
+.spreadsheet .corner-header {
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 4 !important;
+  background-color: #f2f2f2 !important;
+}
+
+/* ===== Consolidated Sticky Header Override ===== */
+.spreadsheet thead th {
+  position: sticky !important;
+  top: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 10 !important;
+}
+.spreadsheet tbody tr th.row-header {
+  position: sticky !important;
+  left: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 5 !important;
+}
+.spreadsheet thead th.corner-header {
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 15 !important;
+}
+
+/* ===== Enforce Sticky Headers ===== */
+.spreadsheet .corner-header {
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 3 !important;
+}
+.spreadsheet .column-header {
+  position: sticky !important;
+  top: 0 !important;
+  left: auto !important;
+  background-color: #f2f2f2 !important;
+  z-index: 2 !important;
+}
+.spreadsheet .row-header {
+  position: sticky !important;
+  left: 0 !important;
+  top: auto !important;
+  background-color: #f2f2f2 !important;
+  z-index: 1 !important;
+}
+
+/* ===== Minimal Sticky Header Overrides ===== */
+.spreadsheet thead th.column-header {
+  position: sticky !important;
+  top: 0 !important;
+  left: auto !important;
+  background: #f2f2f2 !important;
+  z-index: 2 !important;
+}
+.spreadsheet tbody th.row-header {
+  position: sticky !important;
+  left: 0 !important;
+  top: auto !important;
+  background: #f2f2f2 !important;
+  z-index: 1 !important;
+}
+.spreadsheet thead th.corner-header {
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  background: #f2f2f2 !important;
+  z-index: 3 !important;
+}
+
+/* ===== Consolidated Sticky Header Overrides ===== */
+.spreadsheet thead th {
+  position: sticky !important;
+  top: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 100 !important;
+}
+.spreadsheet tbody th.row-header {
+  position: sticky !important;
+  left: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 90 !important;
+}
+.spreadsheet thead th.corner-header {
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 110 !important;
+}
+
+/* ===== Final Sticky Headers Enforcement ===== */
+.spreadsheet thead th {
+  position: sticky !important;
+  top: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 2 !important;
+}
+.spreadsheet tbody th {
+  position: sticky !important;
+  left: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 1 !important;
+}
+.spreadsheet thead th:first-child {
+  z-index: 3 !important;
+}
+
+/* ===== Minimal Sticky Header Enforcement ===== */
+.spreadsheet-container .spreadsheet thead th {
+  position: sticky !important;
+  top: 0 !important;
+  left: auto !important;
+  background-color: #f2f2f2 !important;
+  z-index: 3 !important;
+}
+.spreadsheet-container .spreadsheet thead th:nth-child(1) {
+  left: 0 !important;
+  z-index: 4 !important;
+}
+.spreadsheet-container .spreadsheet tbody tr th:nth-child(1) {
+  position: sticky !important;
+  left: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 2 !important;
+}
+
+/* ----- Final header sticky fix ----- */
+.spreadsheet thead th:not(.corner-header) {
+  position: sticky;
+  top: 0;
+  left: auto;
+  background-color: #f2f2f2;
+  z-index: 2;
+}
+.spreadsheet thead th.corner-header {
+  position: sticky;
+  top: 0;
+  left: 0;
+  background-color: #f2f2f2;
+  z-index: 3;
+}
+.spreadsheet tbody th.row-header {
+  position: sticky;
+  left: 0;
+  top: auto;
+  background-color: #f2f2f2;
+  z-index: 1;
+}
+
+/* ===== Final Sticky Header Fix ===== */
+.spreadsheet-container .spreadsheet thead th.corner-header {
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 3 !important;
+}
+.spreadsheet-container .spreadsheet thead th.column-header {
+  position: sticky !important;
+  top: 0 !important;
+  left: auto !important;
+  background-color: #f2f2f2 !important;
+  z-index: 2 !important;
+}
+.spreadsheet-container .spreadsheet tbody th.row-header {
+  position: sticky !important;
+  left: 0 !important;
+  top: auto !important;
+  background-color: #f2f2f2 !important;
+  z-index: 1 !important;
+}
+
+/* ===== RESET AND FINAL STICKY HEADERS ===== */
+.spreadsheet-container .spreadsheet thead th:not(:first-child) {
+  /* Only stick column headers (A, B, C...) at top */
+  position: sticky !important;
+  top: 0 !important;
+  left: auto !important;
+  background-color: #f2f2f2 !important;
+  z-index: 2 !important;
+}
+.spreadsheet-container .spreadsheet thead th:first-child {
+  /* Corner cell: stick both top and left */
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 3 !important;
+}
+.spreadsheet-container .spreadsheet tbody th {
+  /* Row headers (1, 2, 3...) stick at left */
+  position: sticky !important;
+  left: 0 !important;
+  top: auto !important;
+  background-color: #f2f2f2 !important;
+  z-index: 1 !important;
+}
+
+/* ===== Minimal Sticky Headers Enforcement ===== */
+.spreadsheet thead th {
+  position: sticky !important;
+  top: 0 !important;
+  left: auto !important;
+  background-color: #f2f2f2 !important;
+  z-index: 2 !important;
+}
+.spreadsheet tbody tr th {
+  position: sticky !important;
+  left: 0 !important;
+  top: auto !important;
+  background-color: #f2f2f2 !important;
+  z-index: 1 !important;
+}
+.spreadsheet thead th:first-child {
+  z-index: 3 !important;
+}
+
+/* ===== CLEAN STICKY HEADER OVERRIDES ===== */
+.spreadsheet-container .spreadsheet thead tr th:not(:first-child) {
+  position: sticky !important;
+  top: 0 !important;
+  left: auto !important;
+  z-index: 2 !important;
+  background-color: #f2f2f2 !important;
+}
+.spreadsheet-container .spreadsheet thead tr th:first-child {
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 3 !important;
+  background-color: #f2f2f2 !important;
+}
+.spreadsheet-container .spreadsheet tbody tr th:first-child {
+  position: sticky !important;
+  top: auto !important;
+  left: 0 !important;
+  z-index: 1 !important;
+  background-color: #f2f2f2 !important;
+}
+
+/* ===== Final Sticky Header Enforcement ===== */
+.spreadsheet-container .spreadsheet th.column-header {
+  position: sticky !important;
+  top: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 2 !important;
+}
+.spreadsheet-container .spreadsheet th.row-header {
+  position: sticky !important;
+  left: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 1 !important;
+}
+.spreadsheet-container .spreadsheet th.corner-header {
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  background-color: #f2f2f2 !important;
+  z-index: 3 !important;
 }

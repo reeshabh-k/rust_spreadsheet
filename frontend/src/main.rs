@@ -222,6 +222,8 @@ pub struct SpreadsheetProps {
     pub cell_values: HashMap<String, String>,
     #[prop_or_default]
     pub on_formula: Callback<String>,  // new callback for formula application
+    #[prop_or_default]
+    pub on_scroll_to_cell_ref: Callback<UseStateHandle<Option<Callback<String>>>>, // Get reference to the scroll_to_cell callback
 }
 
 #[function_component(Spreadsheet)]
@@ -231,6 +233,9 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     
     // Context menu state
     let context_menu_state = use_state(|| ContextMenuState::new());
+    
+    // NodeRef for scrolling container
+    let container_ref = use_node_ref();
     
     // Handle cell click to select a cell
     let on_cell_click = {
@@ -256,6 +261,60 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
             }
         })
     };
+
+    // Public function to scroll to a specific cell
+    // We'll use this via a callback to scroll to a cell when it's entered in the "Enter cell" input
+    let scroll_to_cell = {
+        let container_ref = container_ref.clone();
+        // Clone selected_cell before moving it into the closure
+        let selected_cell = selected_cell.clone();
+        let on_cell_select = props.on_cell_select.clone();
+        
+        Callback::from(move |cell_id: String| {
+            // First update the selected cell state and emit cell selection
+            selected_cell.set(Some(cell_id.clone()));
+            on_cell_select.emit(cell_id.clone());
+            
+            // Extract column label and row number from cell id (e.g. "A1" -> col="A", row=1)
+            let mut digit_start_index = 0;
+            for (i, c) in cell_id.chars().enumerate() {
+                if c.is_digit(10) {
+                    digit_start_index = i;
+                    break;
+                }
+            }
+            
+            if digit_start_index > 0 {
+                if let Some(container) = container_ref.cast::<HtmlElement>() {
+                    // Find the cell element we want to scroll to
+                    if let Some(window) = web_sys::window() {
+                        if let Some(document) = window.document() {
+                            // Try to find the cell by its data-id attribute
+                            let selector = format!("td[data-id=\"{}\"]", cell_id);
+                            if let Ok(Some(element)) = document.query_selector(&selector) {
+                                let cell_element = element.dyn_into::<HtmlElement>().unwrap();
+                                
+                                // Ensure the spreadsheet container has focus to receive keyboard events
+                                container.focus().ok();
+                                
+                                // Smooth scroll to the element
+                                cell_element.scroll_into_view_with_bool(true); // true for smooth scrolling
+                                
+                                // Debug output to console
+                                web_sys::console::log_1(&format!("Scrolling to cell: {}", cell_id).into());
+                            } else {
+                                // Debug output if cell not found
+                                web_sys::console::log_1(&format!("Cell not found: {}", cell_id).into());
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    };
+    
+    // We no longer need to try to share the scroll_to_cell function with the parent component
+    // The App component has its own direct implementation for scrolling
 
     // Handle right-click on cells
     let on_cell_context_menu = {
@@ -361,8 +420,6 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
         })
     };
     
-    // NodeRef for scrolling container
-    let container_ref = use_node_ref();
     // Handle wheel events to scroll both vertically and horizontally in the spreadsheet
     let on_wheel = {
         let container_ref = container_ref.clone();
@@ -384,7 +441,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                 div.set_scroll_left(new_left);
                 
                 // Apply vertical scrolling only if shift key is not pressed or there's actual vertical delta
-                if !e.shift_key() || e.delta_x() != 0.0 {
+                if (!e.shift_key() || e.delta_x() != 0.0) {
                     let new_top = (div.scroll_top() as f64 + e.delta_y()) as i32;
                     div.set_scroll_top(new_top);
                 }
@@ -546,17 +603,81 @@ fn app() -> Html {
         })
     };
     
+    // Function to scroll to a specific cell
+    let scroll_to_cell = Callback::from(move |cell_id: String| {
+        web_sys::console::log_1(&format!("App: Attempting to scroll to cell: {}", cell_id).into());
+        
+        // Find and scroll to the cell directly using DOM API
+        if let Some(window) = web_sys::window() {
+            if let Some(document) = window.document() {
+                // Try to find the cell by its data-id attribute
+                let selector = format!("td[data-id=\"{}\"]", cell_id);
+                if let Ok(Some(element)) = document.query_selector(&selector) {
+                    let cell_element = element.dyn_into::<HtmlElement>().unwrap();
+                    
+                    // Get the container element
+                    if let Ok(Some(container)) = document.query_selector(".spreadsheet-container") {
+                        let container_element = container.dyn_into::<HtmlElement>().unwrap();
+                        
+                        // Focus the container to enable keyboard navigation
+                        container_element.focus().ok();
+                        
+                        // Parse the cell ID to get column and row
+                        let col_chars: String = cell_id.chars()
+                            .take_while(|c| c.is_ascii_alphabetic())
+                            .collect();
+                        
+                        let row_str: String = cell_id.chars()
+                            .skip_while(|c| c.is_ascii_alphabetic())
+                            .collect();
+                        
+                        let row = row_str.parse::<i32>().unwrap_or(1);
+                        let col_num = get_column_number(&col_chars) as i32;
+                        
+                        // Use exact dimensions from the CSS file:
+                        // From CSS: .cell { min-width: 80px; height: 35px; }
+                        // From CSS: .row-header, .column-header are in similar dimensions
+                        let cell_width = 80;       // Exact width from CSS
+                        let cell_height = 35;      // Exact height from CSS
+                        let row_header_width = 40; // Width of the row headers (1, 2, 3...)
+                        let col_header_height = 35; // Height of the column headers (A, B, C...)
+                        
+                        // Calculate the exact pixel offset
+                        // Subtract header sizes to account for the fixed headers
+                        // Start exact at top-left corner of the target cell
+                        let scroll_top = ((row - 1) * cell_height) ;  // No extra offset needed vertically
+                        let scroll_left = ((col_num - 1) * cell_width) + 0; // No extra offset needed horizontally
+                        
+                        // Set scroll position
+                        container_element.set_scroll_top(scroll_top);
+                        container_element.set_scroll_left(scroll_left);
+                        
+                        web_sys::console::log_1(&format!(
+                            "Scrolled to cell: {}. Position: left={}, top={}, col={}, row={}", 
+                            cell_id, scroll_left, scroll_top, col_num, row
+                        ).into());
+                    }
+                } else {
+                    web_sys::console::log_1(&format!("Cell not found in DOM: {}", cell_id).into());
+                }
+            }
+        }
+    });
+    
     // Generic validation handler with formula processing
     let onkeydown = {
         let fields = fields.clone();
         let messages = messages.clone();
         let cell_values = cell_values.clone();
+        let scroll_to_cell = scroll_to_cell.clone();
         
         Callback::from(move |e: KeyboardEvent| {
             if e.key() == "Enter" {
                 let input: HtmlInputElement = e.target_unchecked_into();
                 let field_id = input.id();
                 let value = input.value();
+                
+                web_sys::console::log_1(&format!("Enter pressed in field: {}, value: {}", field_id, value).into());
                 
                 // For rows and cols fields, update their values on Enter key press
                 let mut updated_fields = (*fields).clone();
@@ -571,7 +692,7 @@ fn app() -> Html {
                 if let Some(field) = updated_fields.get(&field_id) {
                     match field.validate(&updated_fields) {
                         Ok(message) => { 
-                            updated_messages.insert(field_id.clone(), message); 
+                            updated_messages.insert(field_id.clone(), message);
                             
                             // Process formula if valid
                             if field_id == "formula" {
@@ -581,23 +702,40 @@ fn app() -> Html {
                                 if let Some((cell_id, value)) = process_formula(&formula) {
                                     // Update our local state with the processed formula result
                                     let mut updated_values = (*cell_values).clone();
-                                    updated_values.insert(cell_id, value);
+                                    updated_values.insert(cell_id.clone(), value);
                                     cell_values.set(updated_values);
                                     
                                     // Add success message
                                     updated_messages.insert(field_id.clone(), 
                                         format!("Formula applied: {}", formula));
+                                    
+                                    // Scroll to the cell with the formula result
+                                    web_sys::console::log_1(&format!("Scrolling to cell after formula: {}", cell_id).into());
+                                    scroll_to_cell.emit(cell_id);
                                 }
                             }
+                            
+                            // If it's a cell input and valid, scroll to that cell
+                            if field_id == "cell" {
+                                let cell_id = field.value();
+                                // Check if the cell is valid (already validated by the field's validate method)
+                                web_sys::console::log_1(&format!("Cell input validated, scrolling to: {}", cell_id).into());
+                                scroll_to_cell.emit(cell_id.to_string());
+                            }
                         },
-                        Err(error) => { updated_messages.insert(field_id.clone(), error); },
+                        Err(error) => { 
+                            // Clone the error before moving it to the updated_messages
+                            let error_message = error.clone();
+                            updated_messages.insert(field_id.clone(), error); 
+                            web_sys::console::log_1(&format!("Validation error: {}", error_message).into());
+                        },
                     }
                     messages.set(updated_messages);
                 }
             }
         })
     };
-
+    
     // Render content based on dimensions validity
     let content = if dimensions_valid {
         html! {
@@ -620,6 +758,7 @@ fn app() -> Html {
                                                 max={field.max().map(|s| s.to_string())}
                                                 oninput={oninput.clone()}
                                                 onkeydown={onkeydown.clone()}
+                                                autofocus={field.id() == "cell"} // Auto-focus the cell input
                                             />
                                             <p>{message}</p>
                                         </div>
@@ -639,6 +778,8 @@ fn app() -> Html {
                     on_formula={
                         let cell_values = cell_values.clone();
                         let on_cell_select = on_cell_select.clone();
+                        let scroll_to_cell = scroll_to_cell.clone();
+                        
                         Callback::from(move |formula: String| {
                             // Process formula and update state
                             if let Some((cell_id, value)) = process_formula(&formula) {
@@ -646,15 +787,22 @@ fn app() -> Html {
                                 updated.insert(cell_id.clone(), value);
                                 cell_values.set(updated);
                                 // Optionally select the cell after formula apply
-                                on_cell_select.emit(cell_id);
+                                on_cell_select.emit(cell_id.clone());
+                                
+                                // Scroll to the cell with the formula result
+                                scroll_to_cell.emit(cell_id);
                             }
                         })
                     }
+                    on_scroll_to_cell_ref={Callback::from(move |_| {
+                        // We're not using this anymore, but keep it in props for now
+                    })}
                 />
                 
                 <div class="api-info">
                     <p class="note">{"Note: In the future, this spreadsheet will connect to a backend API to process formulas and update cell values."}</p>
                     <p class="instructions">{"To use the spreadsheet: Click on a cell to select it, then enter a formula like \"A1=10+B2\" and press Enter."}</p>
+                    <p class="instructions">{"You can also type a cell reference (like A1) in the \"Enter cell\" field and press Enter to quickly navigate to that cell."}</p>
                 </div>
             </div>
         }
@@ -667,17 +815,105 @@ fn app() -> Html {
         }
     };
     
+    // Rest of the code remains the same
     html! {
         <>
             <h1> {"Rust Spreadsheet"} </h1>
             
-            <div class="file-upload-container">
-                <div class="file-upload">
-                    <label for="spreadsheet-upload">{"Upload Spreadsheet: "}</label>
+            <div class="navigation-bar">
+                <div class="nav-section">
+                    {
+                        if let Some(cell_field) = (*fields).get("cell") {
+                            html! {
+                                <div class="input-field">
+                                    <label for={cell_field.id().to_string()}> {format!("Enter {}: ", cell_field.label())} </label>
+                                    <input
+                                        id={cell_field.id().to_string()}
+                                        type={cell_field.input_type().to_string()}
+                                        value={cell_field.value().to_string()}
+                                        min={cell_field.min().map(|s| s.to_string())}
+                                        max={cell_field.max().map(|s| s.to_string())}
+                                        oninput={oninput.clone()}
+                                        onkeydown={onkeydown.clone()}
+                                        autofocus={true} 
+                                    />
+                                </div>
+                            }
+                        } else {
+                            html! {}
+                        }
+                    }
+
+                    {
+                        if let Some(formula_field) = (*fields).get("formula") {
+                            html! {
+                                <div class="input-field">
+                                    <label for={formula_field.id().to_string()}> {format!("Enter {}: ", formula_field.label())} </label>
+                                    <input
+                                        id={formula_field.id().to_string()}
+                                        type={formula_field.input_type().to_string()}
+                                        value={formula_field.value().to_string()}
+                                        min={formula_field.min().map(|s| s.to_string())}
+                                        max={formula_field.max().map(|s| s.to_string())}
+                                        oninput={oninput.clone()}
+                                        onkeydown={onkeydown.clone()}
+                                    />
+                                </div>
+                            }
+                        } else {
+                            html! {}
+                        }
+                    }
+                    
+                    // Spacer to push buttons to the right
+                    <div style="flex-grow: 1;"></div>
+                    
+                    <button 
+                        onclick={
+                            let cell_values = cell_values.clone();
+                            Callback::from(move |_| {
+                                // Convert cell_values to JSON and save as file
+                                let json_data = serde_json::to_string(&*cell_values).unwrap_or_default();
+                                
+                                // Use web_sys to create and download a file
+                                let window = web_sys::window().unwrap();
+                                let document = window.document().unwrap();
+                                let element = document.create_element("a").unwrap();
+                                let element = element.dyn_into::<HtmlElement>().unwrap();
+                                
+                                // Create a blob URL for the JSON data
+                                let blob_props = web_sys::BlobPropertyBag::new();
+                                let blob = web_sys::Blob::new_with_str_sequence_and_options(
+                                    &js_sys::Array::of1(&wasm_bindgen::JsValue::from_str(&json_data)),
+                                    &blob_props
+                                ).unwrap();
+                                let url = web_sys::Url::create_object_url_with_blob(&blob).unwrap();
+                                
+                                // Set up the download link
+                                element.set_attribute("href", &url).unwrap();
+                                element.set_attribute("download", "spreadsheet.json").unwrap();
+                                element.style().set_css_text("display: none");
+                                
+                                // Append to document, click, and clean up
+                                let body = document.body().unwrap();
+                                body.append_child(&element).unwrap();
+                                element.click();
+                                body.remove_child(&element).unwrap();
+                                web_sys::Url::revoke_object_url(&url).unwrap();
+                            })
+                        }
+                        class="nav-button save-button"
+                    >
+                        {"Save"}
+                    </button>
+                    
+                    // Completely hide the default file input and use only the custom button
+                    <label for="spreadsheet-upload" class="upload-button">{"Upload"}</label>
                     <input
                         id="spreadsheet-upload"
                         type="file"
                         accept=".json"
+                        style="display: none;"  // Completely hide the input element
                         onchange={
                             let cell_values = cell_values.clone();
                             Callback::from(move |e: Event| {
@@ -693,73 +929,36 @@ fn app() -> Html {
                                             let result = target.result().unwrap();
                                             let json_str = result.as_string().unwrap();
                                             
-                                            // Parse JSON and update cell_values
+                                            // Parse JSON to HashMap
                                             match serde_json::from_str::<HashMap<String, String>>(&json_str) {
-                                                Ok(data) => {
-                                                    cell_values_clone.set(data);
+                                                Ok(loaded_data) => {
+                                                    // Update cell values state with loaded data
+                                                    cell_values_clone.set(loaded_data);
                                                 },
-                                                Err(_) => {
-                                                    web_sys::window()
-                                                        .unwrap()
-                                                        .alert_with_message("Invalid spreadsheet file format")
-                                                        .unwrap();
+                                                Err(err) => {
+                                                    web_sys::console::error_1(&format!("Error parsing JSON: {}", err).into());
+                                                    // Optionally display error to user
                                                 }
                                             }
                                         }) as Box<dyn FnMut(Event)>);
                                         
+                                        // Attach event listener and trigger file read
                                         file_reader.set_onload(Some(onload_callback.as_ref().unchecked_ref()));
                                         file_reader.read_as_text(&file).unwrap();
-                                        onload_callback.forget(); // Prevent callback from being dropped
+                                        
+                                        // Keep callback alive
+                                        onload_callback.forget();
                                     }
                                 }
                             })
                         }
                     />
+                    
+                    <button class="nav-button graph-button">{"Analyze"}</button>
                 </div>
             </div>
             
-            { content }
-            
-            <div class="save-button-container">
-                <button 
-                    onclick={
-                        let cell_values = cell_values.clone();
-                        Callback::from(move |_| {
-                            // Convert cell_values to JSON and save as file
-                            let json_data = serde_json::to_string(&*cell_values).unwrap_or_default();
-                            
-                            // Use web_sys to create and download a file
-                            let window = web_sys::window().unwrap();
-                            let document = window.document().unwrap();
-                            let element = document.create_element("a").unwrap();
-                            let element = element.dyn_into::<web_sys::HtmlElement>().unwrap();
-                            
-                            // Create a blob URL for the JSON data
-                            let blob_props = web_sys::BlobPropertyBag::new();
-                            let blob = web_sys::Blob::new_with_str_sequence_and_options(
-                                &js_sys::Array::of1(&wasm_bindgen::JsValue::from_str(&json_data)),
-                                &blob_props
-                            ).unwrap();
-                            let url = web_sys::Url::create_object_url_with_blob(&blob).unwrap();
-                            
-                            // Set up the download link
-                            element.set_attribute("href", &url).unwrap();
-                            element.set_attribute("download", "spreadsheet.json").unwrap();
-                            element.style().set_css_text("display: none");
-                            
-                            // Append to document, click, and clean up
-                            let body = document.body().unwrap();
-                            body.append_child(&element).unwrap();
-                            element.click();
-                            body.remove_child(&element).unwrap();
-                            web_sys::Url::revoke_object_url(&url).unwrap();
-                        })
-                    }
-                    class="action-button"
-                >
-                    {"Save Spreadsheet"}
-                </button>
-            </div>
+            {content}
         </>
     }
 }

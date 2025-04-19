@@ -1,7 +1,7 @@
 use crate::{basic::Cell, basic::Formula, basic::Expression, basic::Value, basic::SpreadSheetError};
-use crate::{input::Col};
+use crate::input::Col;
 
-use std::{cell, collections::HashSet, collections::HashMap};
+use std::{collections::HashSet, collections::HashMap};
 
 #[derive(Clone, Debug)]
 struct CellData {
@@ -126,8 +126,6 @@ impl SpreadSheet {
     fn add_children (&mut self, inp_cell: Cell, expr: Expression) {
         let mut parent_list: Vec<Cell> = vec![];
         
-        
-
         match expr {
             Expression::Add(v1, v2)
             | Expression::Mul(v1, v2)

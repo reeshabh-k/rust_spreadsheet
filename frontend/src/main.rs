@@ -250,7 +250,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                 context_menu_state.set(ContextMenuState {
                     visible: true,
                     position_x: e.client_x(),
-                    position_y: e.client_y()-100,
+                    position_y: e.client_y(),
                     target_cell: cell_id,
                 });
             }
@@ -269,7 +269,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                 context_menu_state.set(ContextMenuState {
                     visible: true,
                     position_x: e.client_x(),
-                    position_y: e.client_y()-100,
+                    position_y: e.client_y(),
                     target_cell: cell_id,
                 });
             }

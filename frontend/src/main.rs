@@ -793,9 +793,11 @@ fn app() -> Html {
         Callback::from(move |_| {
             let mut visualization_data = Vec::new();
             let cells = (*cell_values).clone();
+            // web_sys::console::log_1(&format!("cell_values: {:?}", cells).into());
             
             // Get main chart title from A1
             let main_title = cells.get("A1").cloned().unwrap_or_else(|| "Data Analysis".to_string());
+            web_sys::console::log_1(&format!("Main title: {}", main_title).into()); // Log main_title
             
             // Find how many columns have data in the header row (row 1)
             let mut header_columns = Vec::new();
@@ -810,6 +812,7 @@ fn app() -> Html {
                     }
                 }
             }
+            web_sys::console::log_1(&format!("Header columns: {:?}", header_columns).into());
             
             // Find data rows starting from row 2 (index 2) and continue until we find a row where A{i} is empty or "0"
             for row in 2..=rows {
@@ -840,6 +843,7 @@ fn app() -> Html {
                     break;
                 }
             }
+            web_sys::console::log_1(&format!("Visualization data: {:?}", visualization_data).into());
             
             // Only show visualization if we have data
             if !visualization_data.is_empty() {
@@ -1070,6 +1074,11 @@ fn app() -> Html {
             </div>
         }
     };
+
+    fn assign_colors(data_len: usize, palette: Vec<String>) -> Vec<String> {
+        (0..data_len).map(|i| palette[i % palette.len()].clone()).collect()
+    }
+    
     
     // Rest of the code remains the same
     html! {
@@ -1230,6 +1239,14 @@ fn app() -> Html {
 
             // Render visualization if visible
             { if visualization_state.visible {
+                let data = &visualization_state.data;
+                let colors1 = assign_colors(data.len(), vec![
+                                                                "#3498db".to_string(), 
+                                                                "#2ecc71".to_string(), 
+                                                                "#e74c3c".to_string(),
+                                                                "#f1c40f".to_string(), 
+                                                                "#9b59b6".to_string()
+                                                            ]);
                 html! {
                     <div class="visualization-container">
                         <div class="visualization-panel">
@@ -1284,9 +1301,23 @@ fn app() -> Html {
                                                         <LineChart 
                                                             label={title.clone()} 
                                                             data={data.clone()} 
+                                                            // web_sys::console::log_1(&format!("Line chart data: {:?}", data).into());
                                                             color={chart_color.to_string()} 
                                                         />
                                                     </div>
+
+                                                    <div class="chart-column">
+                                                        <h4>{"Pie Chart"}</h4>
+                                                            
+                                                                <PieChart 
+                                                                    title={title.clone()}
+                                                                    data={data.clone()}
+                                                                    colors={colors1.clone()}
+                                                                    radius={150.0} // Default radius, can be customized
+                                                                />
+                                                             
+                                                    </div>
+
                                                 </div>
                                             </div>
                                         }
@@ -1581,6 +1612,124 @@ fn line_chart(props: &LineChartProps) -> Html {
             </svg>
         </div>
     }
+}
+
+#[function_component(PieChart)]
+fn pie_chart(props: &PieChartProps) -> Html {
+    use ordered_float::OrderedFloat;
+
+    // Build the counts map
+    let mut counts = std::collections::HashMap::new();
+    for (_, value) in props.data.iter() {
+        let key = OrderedFloat(*value); // Wrap f64 in OrderedFloat
+        *counts.entry(key).or_insert(0) += 1;
+    }
+
+    // Check if there's only one distinct value
+    if counts.len() == 1 {
+        // Special case: single value (100% fill)
+        let (single_value, single_count) = counts.iter().next().unwrap();
+        html! {
+            <div class="chart-container">
+                <h3>{ &props.title }</h3>
+                <svg class="pie-chart" viewBox="0 0 300 300">
+                    <path
+                        d="M 150,150 L 150,0 A 150,150 0 1 1 149.99,0 Z"
+                        fill={props.colors[0].clone()}
+                    />
+                    <text
+                        x="150"
+                        y="150"
+                        text-anchor="middle"
+                        font-size="12"
+                        fill="#333"
+                    >
+                        {format!("{} ({:.1}%)", single_value, 100.0)}
+                    </text>
+                </svg>
+            </div>
+        }
+    } else {
+        // Calculate the total count
+        let total_count: usize = counts.values().sum();
+
+        // Calculate the pie chart angles
+        let mut angles = Vec::new();
+        for (value, count) in counts.iter() {
+            let angle = (*count as f64 / total_count as f64) * 360.0;
+            angles.push((value, angle));
+        }
+
+        html! {
+            <div class="chart-container">
+                <h3>{ &props.title }</h3>
+                <svg class="pie-chart" viewBox="0 0 300 300">
+                    // Generate pie chart slices
+                    {
+                        angles.iter().enumerate().map(|(i, (value, angle))| {
+                            // Start angle is cumulative of all previous angles
+                            let start_angle = if i == 0 { 0.0 } else { angles[..i].iter().map(|(_, a)| *a).sum::<f64>() };
+                            let end_angle = start_angle + angle;
+                    
+                            // Convert angles to radians for trigonometric functions
+                            let start_radians = start_angle.to_radians();
+                            let end_radians = end_angle.to_radians();
+                    
+                            // Compute SVG coordinates for the start and end points of the arc
+                            let x1 = 150.0 + 150.0 * start_radians.cos();
+                            let y1 = 150.0 + 150.0 * start_radians.sin();
+                            let x2 = 150.0 + 150.0 * end_radians.cos();
+                            let y2 = 150.0 + 150.0 * end_radians.sin();
+                    
+                            // Determine if this arc is greater than 180 degrees
+                            let large_arc = if *angle > 180.0 { 1 } else { 0 };
+                    
+                            html! {
+                                <path
+                                    d={format!("M 150,150 L {},{} A 150,150 0 {} 1 {},{} Z", x1, y1, large_arc, x2, y2)}
+                                    fill={props.colors[i % props.colors.len()].clone()}
+                                />
+                            }
+                        }).collect::<Html>()
+                    }
+                    
+                    // Add labels to the pie slices
+                    {
+                        angles.iter().enumerate().map(|(i, (value, angle))| {
+                            let mid_angle = angles[..i].iter().map(|(_, a)| *a).sum::<f64>() + (angle / 2.0);
+                            let x = 150.0 + (120.0 * (mid_angle / 360.0 * 2.0 * std::f64::consts::PI).cos());
+                            let y = 150.0 + (120.0 * (mid_angle / 360.0 * 2.0 * std::f64::consts::PI).sin());
+
+                            html! {
+                                <text
+                                    x={x.to_string()}
+                                    y={y.to_string()}
+                                    text-anchor="middle"
+                                    font-size="12"
+                                    fill="#333"
+                                >
+                                    {format!("{} ({:.1}%)", value, angle / 360.0 * 100.0)}
+                                </text>
+                            }
+                        }).collect::<Html>()
+                    }
+                </svg>
+            </div>
+        }
+    }
+}
+
+
+
+// Pie Chart Props
+#[derive(Properties, PartialEq)]
+struct PieChartProps {
+    title: String,
+    // row_label: String,
+    data: Vec<(String, f64)>,
+    colors: Vec<String>,
+    #[prop_or(150.0)]
+    radius: f64,
 }
 
 // Visualization Component Props

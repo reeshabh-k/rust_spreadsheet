@@ -285,6 +285,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
         let cell_input_ref = cell_input_ref.clone();
         let cell_values = props.cell_values.clone();
         let props_on_formula = props.on_formula.clone();
+        let container_ref = container_ref.clone();
         
         Callback::from(move |e: MouseEvent| {
             e.stop_propagation(); // Stop event propagation
@@ -293,6 +294,11 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
             if let Some(cell_id) = target.get_attribute("data-id") {
                 selected_cell.set(Some(cell_id.clone()));
                 on_cell_select.emit(cell_id.clone());
+                
+                // Focus the container to enable keyboard navigation
+                if let Some(container) = container_ref.cast::<HtmlElement>() {
+                    container.focus().ok();
+                }
                 
                 // Enable editing mode for the clicked cell
                 editing_cell.set(Some(cell_id.clone()));
@@ -367,6 +373,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
         let edit_input_value = edit_input_value.clone();
         let editing_cell = editing_cell.clone();
         let props_on_formula = props.on_formula.clone();
+        let container_ref = container_ref.clone();
         
         Callback::from(move |e: KeyboardEvent| {
             if e.key() == "Enter" {
@@ -387,6 +394,11 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                     
                     // Exit editing mode
                     editing_cell.set(None);
+                    
+                    // Focus the container to enable keyboard navigation
+                    if let Some(container) = container_ref.cast::<HtmlElement>() {
+                        container.focus().ok();
+                    }
                 }
             } else if e.key() == "Escape" {
                 e.stop_propagation();
@@ -394,6 +406,11 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                 
                 // Cancel editing
                 editing_cell.set(None);
+                
+                // Focus the container to enable keyboard navigation after pressing Escape
+                if let Some(container) = container_ref.cast::<HtmlElement>() {
+                    container.focus().ok();
+                }
             }
         })
     };
@@ -1252,9 +1269,7 @@ fn app() -> Html {
                         <div class="visualization-panel">
                             <div class="visualization-header">
                                 <h2>{&visualization_state.title}</h2>
-                                <div class="visualization-controls">
-                                    <button class="visualization-close" onclick={on_close_visualization}>{"×"}</button>
-                                </div>
+                                <button class="visualization-close" onclick={on_close_visualization}>{"×"}</button>
                             </div>
                             <div class="charts-container">
                                 {
@@ -1273,51 +1288,75 @@ fn app() -> Html {
                                                 <div class="chart-row">
                                                     <div class="chart-column">
                                                         <h4>{"Bar Chart"}</h4>
-                                                        <div class="bar-chart">
-                                                            { 
-                                                                {
-                                                                    // Calculate max value outside html! macro
-                                                                    let max_value = data.iter()
-                                                                        .map(|(_, value)| *value)
-                                                                        .fold(0.0_f64, |a, b| a.max(b));
-                                                                    
-                                                                    // Generate bars inside a block expression
-                                                                    data.iter().map(move |(label, value)| {
-                                                                        let height_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
+                                                        <div class="chart-container">
+                                                            <div class="bar-chart">
+                                                                { 
+                                                                    {
+                                                                        // Calculate max value outside html! macro
+                                                                        let max_value = data.iter()
+                                                                            .map(|(_, value)| *value)
+                                                                            .fold(0.0_f64, |a, b| a.max(b));
                                                                         
-                                                                        html! {
-                                                                            <div class="bar" style={format!("height: {}%; background-color: {};", height_percent, chart_color)}>
-                                                                                <div class="bar-value">{format!("{:.1}", value)}</div>
-                                                                                <div class="bar-label">{label.clone()}</div>
-                                                                            </div>
-                                                                        }
-                                                                    }).collect::<Html>()
+                                                                        // Generate bars inside a block expression
+                                                                        data.iter().map(move |(label, value)| {
+                                                                            let height_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
+                                                                            
+                                                                            html! {
+                                                                                <div class="bar" style={format!("height: {}%; background-color: {};", height_percent, chart_color)}>
+                                                                                    <div class="bar-value">{format!("{:.1}", value)}</div>
+                                                                                    <div class="bar-label">{label.clone()}</div>
+                                                                                </div>
+                                                                            }
+                                                                        }).collect::<Html>()
+                                                                    }
                                                                 }
-                                                            }
+                                                            </div>
                                                         </div>
                                                     </div>
+                                                    
                                                     <div class="chart-column">
                                                         <h4>{"Line Chart"}</h4>
-                                                        <LineChart 
-                                                            label={title.clone()} 
-                                                            data={data.clone()} 
-                                                            // web_sys::console::log_1(&format!("Line chart data: {:?}", data).into());
-                                                            color={chart_color.to_string()} 
-                                                        />
+                                                        <div class="chart-container">
+                                                            <LineChart 
+                                                                label={title.clone()} 
+                                                                data={data.clone()} 
+                                                                color={chart_color.to_string()} 
+                                                            />
+                                                        </div>
                                                     </div>
 
                                                     <div class="chart-column">
                                                         <h4>{"Pie Chart"}</h4>
-                                                            
-                                                                <PieChart 
-                                                                    title={title.clone()}
-                                                                    data={data.clone()}
-                                                                    colors={colors1.clone()}
-                                                                    radius={150.0} // Default radius, can be customized
-                                                                />
-                                                             
+                                                        <div class="chart-container">
+                                                            <PieChart 
+                                                                title={title.clone()}
+                                                                data={data.clone()}
+                                                                colors={colors1.clone()}
+                                                                radius={100.0}
+                                                            />
+                                                        </div>
                                                     </div>
-
+                                                    
+                                                    <div class="chart-column">
+                                                        <h4>{"Heat Map"}</h4>
+                                                        <div class="chart-container">
+                                                            <HeatMap 
+                                                                title={title.clone()}
+                                                                data={data.clone()}
+                                                                color_scale={vec![
+                                                                    "#ffffcc".to_string(),
+                                                                    "#c7e9b4".to_string(),
+                                                                    "#7fcdbb".to_string(),
+                                                                    "#41b6c4".to_string(),
+                                                                    "#1d91c0".to_string(),
+                                                                    "#225ea8".to_string(),
+                                                                    "#0c2c84".to_string(),
+                                                                ]}
+                                                                width={220}
+                                                                height={220}
+                                                            />
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         }
@@ -1761,6 +1800,108 @@ fn visualization(props: &VisualizationProps) -> Html {
         </div>
     }
 }
+
+#[derive(Properties, PartialEq, Clone)]
+struct HeatMapProps {
+    title: String,
+    data: Vec<(String, f64)>,
+    color_scale: Vec<String>,
+    #[prop_or(300)]
+    width: usize,
+    #[prop_or(300)]
+    height: usize,
+}
+
+// HeatMap Component
+#[function_component(HeatMap)]
+fn heat_map(props: &HeatMapProps) -> Html {
+    // Find min and max values for color scaling
+    let min_value = props.data.iter()
+        .map(|(_, value)| *value)
+        .fold(f64::INFINITY, |a, b| a.min(b));
+        
+    let max_value = props.data.iter()
+        .map(|(_, value)| *value)
+        .fold(f64::NEG_INFINITY, |a, b| a.max(b));
+    
+    // Determine grid dimensions - try to make it roughly square
+    let total_cells = props.data.len();
+    let grid_width = (total_cells as f64).sqrt().ceil() as usize;
+    let grid_height = (total_cells as f64 / grid_width as f64).ceil() as usize;
+    
+    // Cell size calculation
+    let cell_width = props.width / grid_width;
+    let cell_height = props.height / grid_height;
+    let font_size = (cell_width.min(cell_height) / 4).max(8);
+    
+    // If no data, return empty container
+    if props.data.is_empty() {
+        return html! {
+            <div class="chart-container">
+                <h3>{ &props.title }</h3>
+                <div class="heatmap-empty">{"No data available"}</div>
+            </div>
+        };
+    }
+    
+    html! {
+        <div class="chart-container">
+            <h3>{ &props.title }</h3>
+            <div class="heat-map" style={format!("width: {}px; height: {}px;", props.width, props.height)}>
+                {
+                    props.data.iter().enumerate().map(|(index, (label, value))| {
+                        let row = index / grid_width;
+                        let col = index % grid_width;
+                        
+                        // Normalize value to 0-1 range for color interpolation
+                        let normalized_value = if max_value > min_value {
+                            (value - min_value) / (max_value - min_value)
+                        } else {
+                            0.5 // If all values are the same
+                        };
+                        
+                        // Color selection based on normalized value
+                        let color_index = (normalized_value * (props.color_scale.len() - 1) as f64).round() as usize;
+                        let color = &props.color_scale[color_index];
+                        
+                        // Text color - use white for dark backgrounds, black for light ones
+                        let is_dark = color_index > props.color_scale.len() / 2;
+                        let text_color = if is_dark { "#ffffff" } else { "#333333" };
+                        
+                        html! {
+                            <div class="heat-map-cell" 
+                                 style={format!("width: {}px; height: {}px; top: {}px; left: {}px; background-color: {}; color: {};",
+                                              cell_width - 2, cell_height - 2, 
+                                              row * cell_height, col * cell_width,
+                                              color, text_color)}>
+                                <div class="heat-map-value" style={format!("font-size: {}px;", font_size)}>
+                                    {format!("{:.1}", value)}
+                                </div>
+                                <div class="heat-map-label" style={format!("font-size: {}px;", (font_size as f64 * 0.8) as usize)}>
+                                    {label.clone()}
+                                </div>
+                            </div>
+                        }
+                    }).collect::<Html>()
+                }
+            </div>
+            <div class="heat-map-legend">
+                <div class="heat-map-legend-min">{format!("{:.1}", min_value)}</div>
+                <div class="heat-map-legend-gradient">
+                    {
+                        props.color_scale.iter().map(|color| {
+                            html! {
+                                <div class="heat-map-legend-color" style={format!("background-color: {};", color)}></div>
+                            }
+                        }).collect::<Html>()
+                    }
+                </div>
+                <div class="heat-map-legend-max">{format!("{:.1}", max_value)}</div>
+            </div>
+        </div>
+    }
+}
+
 
 fn main(){
     yew::Renderer::<App>::new().render();   

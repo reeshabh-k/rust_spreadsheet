@@ -44,7 +44,7 @@ impl Col {
     }
 
     pub fn from_num (mut num : u32) -> Option<Col> {
-        if num <= 0 || num > 18278 {
+        if num == 0 || num > 18278 {
             None
         } else {
             let mut col_out: ArrayVec<u8, 3> = ArrayVec::new();

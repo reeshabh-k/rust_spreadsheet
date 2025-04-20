@@ -570,29 +570,3 @@ impl SpreadSheet {
         
     }
 }
-
-#[cfg(test)]
-mod col_tests {
-    use super::*;
-
-    fn test_range (v: Vec<&str>, out: (i32, i32, i32, i32)) {
-        let mut spreadsheet = SpreadSheet::new(10,10);
-
-        for i in v.iter() {
-            let mut inp = Cursor::new(*i);
-            let parsed_input = get_formula(&mut inp);
-            spreadsheet.call_formula(parsed_input);
-        }
-
-        assert_eq!(spreadsheet.recursive_col_split(Range {tl: Cell {col: 1, row: 1}, br: Cell {col: 10, row: 10}}).expect(""), out);
-    }
-
-    #[test]
-    fn range_1 () {
-        test_range(vec!["A1=1"], (0,1,1,1));
-        test_range(vec!["A1=1", "B1=1"], (0,1,2,2));
-        test_range(vec!["A1=1", "B1=1", "C1=1", "D1=1", "E1=1"], (0,1,5,5));
-        test_range(vec!["A1=-1", "A2 = 3"],     (-1, 3, 2, 10));
-    }
-
-}

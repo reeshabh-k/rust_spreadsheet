@@ -12,25 +12,35 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        rust: [stable, beta, nightly]
+
     steps:
+    # Step 1: Checkout the code from the repository
     - name: Checkout code
       uses: actions/checkout@v3
 
+    # Step 2: Set up the Rust toolchain
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: stable
+        toolchain: ${{ matrix.rust }}
         profile: minimal
         components: rustfmt, clippy
 
+    # Step 3: Build the Rust project
     - name: Build project
       run: cargo build --release
 
+    # Step 4: Run tests for the Rust project
     - name: Run tests
       run: cargo test --verbose
 
+    # Step 5: Lint the code using Clippy
     - name: Lint with Clippy
       run: cargo clippy -- -D warnings
 
+    # Step 6: Check code formatting using rustfmt
     - name: Format code
       run: cargo fmt -- --check

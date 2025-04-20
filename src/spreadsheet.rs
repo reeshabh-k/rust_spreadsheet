@@ -437,6 +437,7 @@ impl SpreadSheet {
                 if self.exprs.contains_key(&form.inp_cell) {
                     self.exprs.remove(&form.inp_cell);
                 }
+                self.val[cell_pointer] = self.get_expr_res(form.expression.clone()).expect("Invalid Expression");
             }
 
             _ => {

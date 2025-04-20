@@ -1,4 +1,4 @@
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Cell {
@@ -55,4 +55,3 @@ pub enum SpreadSheetError {
     Enable,
     Disable,
 }
-

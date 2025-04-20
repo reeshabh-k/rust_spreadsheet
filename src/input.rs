@@ -126,17 +126,6 @@ pub fn get_formula<R: BufRead>(reader: & mut R) -> Option<Formula> {
     let scroll_re = Lazy::new(|| Regex::new(r"^\s*(?P<scroll>w|a|s|d)\s*$").unwrap());
     let scroll_to_re = Lazy::new(|| Regex::new(r"^\s*scroll_to\s*(?P<cell>[A-Z]+[0-9]+)\s*$").unwrap());
 
-    if let Some(caps) = scroll_to_re.captures(&line) {
-        let cell = parse_cell(&caps["cell"])?;
-
-        let form = Formula {
-            inp_cell: Cell {row : 0, col : 0},
-            expression: Expression::ScrollTo(cell),
-        };
-
-        return Some(form);
-    } 
-
     if let Some(caps) = constant_op_re.captures(&line) {
         let cell = parse_cell(&caps["cell"])?;
         let val = parse_val(&caps["val"])?;
@@ -148,6 +137,19 @@ pub fn get_formula<R: BufRead>(reader: & mut R) -> Option<Formula> {
 
         return Some(form);
     }
+    
+    if let Some(caps) = scroll_to_re.captures(&line) {
+        let cell = parse_cell(&caps["cell"])?;
+
+        let form = Formula {
+            inp_cell: Cell {row : 0, col : 0},
+            expression: Expression::ScrollTo(cell),
+        };
+
+        return Some(form);
+    } 
+
+    
     if let Some(caps) = binary_op_re.captures(&line) {
         let cell = parse_cell(&caps["cell"])?;
         let val1 = parse_val(&caps["val1"])?;

@@ -9,9 +9,6 @@ use std::{collections::HashSet, collections::HashMap};
 
 #[derive(Clone, Debug)]
 struct CellData {
-    val: i32,
-    expr: Expression,
-    valid: u8,
     children: HashSet<Cell>
 }
 
@@ -21,17 +18,18 @@ pub struct SpreadSheet {
     row: usize,
     col: usize,
     spreadsheet: Vec<CellData>,
+    val: Vec<i32>,
+    valid: Vec<u8>,
+    exprs: HashMap<Cell, Expression>,
 }
 
 impl SpreadSheet {
     pub fn new (row: usize, col: usize) -> SpreadSheet {
         let default_cell = CellData {
-            val: 0,
-            expr: Expression::Constant(Value::Num(0)),
-            valid: 0 as u8,
+            
             children: HashSet::new(),
         };
-        SpreadSheet { row_pointer: 1, col_pointer: 1, row, col, spreadsheet: vec![default_cell; (row+1)*(1+col)] }
+        SpreadSheet { row_pointer: 1, col_pointer: 1, row, col, spreadsheet: vec![default_cell; (row+1)*(1+col)] , val: vec![0; (row+1)*(col+1)], valid: vec![0; (row+1)*(col+1)], exprs: HashMap::new()}
     }
 
     fn update_cell (&mut self, cell: Cell) {
@@ -40,16 +38,22 @@ impl SpreadSheet {
 
         let cell_loc = self.col*row + col;
         let cell_data = &self.spreadsheet[cell_loc];
-    
-        let expr = cell_data.expr.clone();
 
-        let eval_expr = self.get_expr_res(expr);
+        let expr;
+    
+        if self.exprs.contains_key(&cell) {
+            expr = self.exprs.get(&cell).expect("Weird!");
+        } else {
+            return;
+        }
+
+        let eval_expr = self.get_expr_res(expr.clone());
 
         match eval_expr {
-            None => self.spreadsheet[cell_loc].valid = 1,
+            None => self.valid[cell_loc] = 1,
             Some(i) => {
-                self.spreadsheet[cell_loc].valid = 0;
-                self.spreadsheet[cell_loc].val = i
+                self.valid[cell_loc] = 0;
+                self.val[cell_loc] = i
             }
         }
     }
@@ -59,10 +63,10 @@ impl SpreadSheet {
             Value::Num(i) => Some(i),
             Value::Ref(cell) => {
                 let cell_point = self.col * (cell.row as usize)  + (cell.col as usize);
-                if self.spreadsheet[cell_point].valid == 1 {
+                if self.valid[cell_point] == 1 {
                     None
                 } else {
-                    Some(self.spreadsheet[cell_point].val.clone())
+                    Some(self.val[cell_point].clone())
                 }
             }
         }
@@ -113,10 +117,10 @@ impl SpreadSheet {
         let mut sum = 0;
         for i in c1.row..=c2.row {
             for j in c1.col..=c2.col {
-                if self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].valid == 1 {
-                    return None;
-                }
-                sum += self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].val;
+                // if self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].valid == 1 {
+                //     return None;
+                // }
+                sum += self.val[self.get_pointer(&Cell {row : i, col : j})];
             }
         }
         Some(sum)
@@ -128,10 +132,10 @@ impl SpreadSheet {
         // sum = self.spreadsheet[self.get_pointer(&Cell {row : c1.row, col : c1.col})].val;
         for i in c1.row..=c2.row {
             for j in c1.col..=c2.col {
-                if self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].valid == 1 {
+                if self.valid[self.get_pointer(&Cell {row : i, col : j})] == 1 {
                     return None;
                 }
-                sum += self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].val;
+                sum += self.val[self.get_pointer(&Cell {row : i, col : j})];
                 cnt += 1;
             }
         }
@@ -142,14 +146,14 @@ impl SpreadSheet {
     fn get_max(&self, c1: Cell, c2: Cell) -> Option<i32> {
         let mut max;
         // let mut min;
-        max = self.spreadsheet[self.get_pointer(&Cell {row : c1.row, col : c1.col})].val;
+        max = self.val[self.get_pointer(&Cell {row : c1.row, col : c1.col})];
         // min = self.spreadsheet[self.get_pointer(&Cell {row : c1.row, col : c1.col})].val;
         for i in c1.row..=c2.row {
             for j in c1.col..=c2.col {
-                if self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].valid == 1 {
+                if self.valid[self.get_pointer(&Cell {row : i, col : j})] == 1 {
                     return None;
                 }
-                let val = self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].val;
+                let val = self.val[self.get_pointer(&Cell {row : i, col : j})];
                 if val > max {
                     max = val;
                 }
@@ -165,13 +169,13 @@ impl SpreadSheet {
         // let mut max;
         let mut min;
         // max = self.spreadsheet[self.get_pointer(&Cell {row : c1.row, col : c1.col})].val;
-        min = self.spreadsheet[self.get_pointer(&Cell {row : c1.row, col : c1.col})].val;
+        min = self.val[self.get_pointer(&Cell {row : c1.row, col : c1.col})];
         for i in c1.row..=c2.row {
             for j in c1.col..=c2.col {
-                if self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].valid == 1 {
+                if self.valid[self.get_pointer(&Cell {row : i, col : j})] == 1 {
                     return None;
                 }
-                let val = self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].val;
+                let val = self.val[self.get_pointer(&Cell {row : i, col : j})];
                 // if val > max {
                 //     max = val;
                 // }
@@ -190,10 +194,10 @@ impl SpreadSheet {
         let mut temp ;
         for i in c1.row..=c2.row {
             for j in c1.col..=c2.col {
-                if self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].valid == 1 {
+                if self.valid[self.get_pointer(&Cell {row : i, col : j})] == 1 {
                     return None;
                 }
-                mean += self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].val;
+                mean += self.val[self.get_pointer(&Cell {row : i, col : j})];
                 cnt += 1;
             }
         }
@@ -201,7 +205,7 @@ impl SpreadSheet {
 
         for i in c1.row..=c2.row {
             for j in c1.col..=c2.col {
-                temp = self.spreadsheet[self.get_pointer(&Cell {row : i, col : j})].val;
+                temp = self.val[self.get_pointer(&Cell {row : i, col : j})];
                 variance += ((temp - mean) * (temp - mean)) as f64;
             }
         }
@@ -271,15 +275,21 @@ impl SpreadSheet {
         }
     }
 
-
+    #[inline]
     fn get_pointer (&self, inp_cell: &Cell) -> usize {
         inp_cell.row as usize * self.col + inp_cell.col as usize
     }
 
     fn remove_children (&mut self, inp_cell: Cell) {
 
-        let cell_pointer = self.get_pointer(&inp_cell);
-        let expr = self.spreadsheet[cell_pointer].expr.clone();
+        
+        let expr ;
+
+        if self.exprs.contains_key(&inp_cell) {
+            expr = self.exprs.get(&inp_cell).expect("Weird!").clone();
+        } else {
+            return
+        }
 
        
 
@@ -416,12 +426,25 @@ impl SpreadSheet {
         self.remove_children(form.inp_cell.clone());
 
         let cell_pointer = self.col*form.inp_cell.row as usize + form.inp_cell.col as usize;
-        self.spreadsheet[cell_pointer].expr = form.expression.clone();
 
-        self.add_children(form.inp_cell.clone(), form.expression.clone());
+        match form.expression {
+            Expression::Add(Value::Num(_), Value::Num(_)) 
+            | Expression::Mul(Value::Num(_), Value::Num(_)) 
+            | Expression::Div(Value::Num(_), Value::Num(_)) 
+            | Expression::Sub(Value::Num(_), Value::Num(_)) 
+            | Expression::Sleep(Value::Num(_))
+            | Expression::Constant(Value::Num(_)) => {
+                if self.exprs.contains_key(&form.inp_cell) {
+                    self.exprs.remove(&form.inp_cell);
+                }
+            }
 
-        
-
+            _ => {
+                self.exprs.insert(form.inp_cell.clone(), form.expression.clone());
+                self.add_children(form.inp_cell.clone(), form.expression);
+                ()
+            }
+        }
 
         self.update_children(form.inp_cell.clone());
 
@@ -534,11 +557,11 @@ impl SpreadSheet {
             print!("{:<10}", self.row_pointer + i as usize);
             let cell_pointer = self.col * (i as usize + self.row_pointer) + self.col_pointer;
             for j in 0..width {
-                if self.spreadsheet[cell_pointer+j as usize].valid == 1 {
+                if self.valid[cell_pointer+j as usize] == 1 {
                     print!("{:<10}", "err");
                 }
                 else {
-                    print!("{:<10}", self.spreadsheet[cell_pointer + j as usize].val);
+                    print!("{:<10}", self.val[cell_pointer + j as usize]);
                 }
             }
             println!();

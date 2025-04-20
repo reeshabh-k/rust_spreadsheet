@@ -11,6 +11,7 @@ use std::time::Instant;
 use input::get_formula;
 use spreadsheet::SpreadSheet;
 
+
 fn main() {
 
     let args: Vec<String> = env::args().collect();
@@ -52,16 +53,16 @@ fn main() {
         
 
         match state {
-            basic::SpreadSheetError::Valid => dashboard = format!("[{:.5}] (ok) > ", duration.as_secs_f32()),
+            basic::SpreadSheetError::Valid => dashboard = format!("[{:.10}] (ok) > ", duration.as_secs_f32()),
             basic::SpreadSheetError::InvalidInput 
-            | basic::SpreadSheetError::Cycle => dashboard = format!("[{:.5}] (err) > ", duration.as_secs_f32()),
+            | basic::SpreadSheetError::Cycle => dashboard = format!("[{:.10}] (err) > ", duration.as_secs_f32()),
             basic::SpreadSheetError::Quit => break,
             basic::SpreadSheetError::Disable => {
-                dashboard = format!("[{:.5}] (ok) > ", duration.as_secs_f32());
+                dashboard = format!("[{:.10}] (ok) > ", duration.as_secs_f32());
                 print_sheet = false;
             },
             basic::SpreadSheetError::Enable => {
-                dashboard = format!("[{:.5}] (ok) > ", duration.as_secs_f32());
+                dashboard = format!("[{:.10}] (ok) > ", duration.as_secs_f32());
                 print_sheet = true;
             }
         }

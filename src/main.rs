@@ -23,8 +23,8 @@ fn main() {
         row = 999;
         col = 18278;
     } else {
-        row = *&args[1].parse::<usize>().expect("Incorrect Argument");
-        col = *&args[2].parse::<usize>().expect("Incorrect Argument");
+        row = args[1].parse::<usize>().expect("Incorrect Argument");
+        col = args[2].parse::<usize>().expect("Incorrect Argument");
     }
 
 
@@ -67,7 +67,7 @@ fn main() {
             }
         }
 
-        if print_sheet == true{
+        if print_sheet{
             sheet.print_sheet();
         }
         print!("{}", dashboard);

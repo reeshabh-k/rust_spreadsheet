@@ -1,6 +1,5 @@
 use crate::{basic::Cell, basic::Formula, basic::Expression, basic::Value, basic::SpreadSheetError, basic::Range};
-use crate::input::{Col, get_formula};
-use std::io::Cursor;
+use crate::input::Col;
 
 use std::thread;
 use std::time::Duration;
@@ -66,7 +65,7 @@ impl SpreadSheet {
                 if self.valid[cell_point] == 1 {
                     None
                 } else {
-                    Some(self.val[cell_point].clone())
+                    Some(self.val[cell_point])
                 }
             }
         }
@@ -96,7 +95,7 @@ impl SpreadSheet {
     fn recursive_col_split(&self, r: Range) -> Option<(i32, i32, i32, i32)> {
         if r.tl.col == r.br.col {
             
-            let val = self.extract_value_num(Value::Ref(r.tl.clone()))?;
+            let val = self.extract_value_num(Value::Ref(r.tl))?;
             Some((val, val, val, val*val))
         } else {
             let mid_tl = Cell {
@@ -232,18 +231,14 @@ impl SpreadSheet {
             Expression::Sleep(v) => {
                 let sleep_time = self.extract_value_num(v)?;
                 thread::sleep(Duration::from_secs(sleep_time as u64));
-                Some(sleep_time as i32)
+                Some(sleep_time)
 
             }
 
             Expression::Avg(c1, c2) => {
                 // let (_, _, sum_ele, _) = self.recursive_row_split(Range {tl: c1, br:c2})?;
                 // Some(sum_ele / ((c2.row as i32  - c1.row as i32+ 1) * (c2.col as i32  - c1.col as i32 + 1)))
-                match self.get_avg(c1, c2) {
-                    Some(i) => Some(i),
-                    None => None,
-                    // can directly return self.get_avg since it is also option i32
-                }
+                self.get_avg(c1, c2).map(|i| i)
 
             }
             Expression::Max(c1, c2)  => {
@@ -323,22 +318,22 @@ impl SpreadSheet {
 
     fn add_children_helper (&mut self, v: Value, inp_cell: &Cell) {
         match v {
-            Value::Num(_) => return,
+            Value::Num(_) => (),
             Value::Ref(c) => {
                 let parent_pointer = self.get_pointer(&c);
-                self.spreadsheet[parent_pointer].children.insert(inp_cell.clone());
-                ()
+                self.spreadsheet[parent_pointer].children.insert(*inp_cell);
+                
             },
         }
     }
 
     fn remove_children_helper (&mut self, v: Value, inp_cell: &Cell) {
         match v {
-            Value::Num(_) => return,
+            Value::Num(_) => (),
             Value::Ref(c) => {
                 let parent_pointer = self.get_pointer(&c);
                 self.spreadsheet[parent_pointer].children.remove(inp_cell);
-                ()
+                
             },
         }
     }
@@ -417,13 +412,10 @@ impl SpreadSheet {
             }
             _ => ()
         }
-        match self.check_cycle(form.clone()) {
-            true => return SpreadSheetError::Cycle,
-            false => (),
-        }
+        if self.check_cycle(form.clone()) == true { return SpreadSheetError::Cycle }
 
         
-        self.remove_children(form.inp_cell.clone());
+        self.remove_children(form.inp_cell);
 
         let cell_pointer = self.col*form.inp_cell.row as usize + form.inp_cell.col as usize;
 
@@ -441,20 +433,20 @@ impl SpreadSheet {
             }
 
             _ => {
-                self.exprs.insert(form.inp_cell.clone(), form.expression.clone());
-                self.add_children(form.inp_cell.clone(), form.expression);
-                ()
+                self.exprs.insert(form.inp_cell, form.expression.clone());
+                self.add_children(form.inp_cell, form.expression);
+                
             }
         }
 
-        self.update_children(form.inp_cell.clone());
+        self.update_children(form.inp_cell);
 
-        return SpreadSheetError::Valid;
+        SpreadSheetError::Valid
     }
 
     fn update_children(&mut self, inp_cell: Cell) {
         let mut cell_counts: HashMap<Cell, u32> = HashMap::new();
-        cell_counts.insert(inp_cell.clone(), 0);
+        cell_counts.insert(inp_cell, 0);
 
         let mut stack: Vec<Cell> = Vec::new();
 
@@ -462,17 +454,17 @@ impl SpreadSheet {
 
         let mut k = 0;
 
-        while stack.is_empty() == false {
+        while !stack.is_empty() {
             k += 1;
             let top_cell = stack.pop().expect("Stack is empty!");
             
             let cell_pointer = self.get_pointer(&top_cell);
 
             for i in self.spreadsheet[cell_pointer].children.iter() {
-                if cell_counts.contains_key(i) == false {
-                    stack.push(i.clone());
+                if !cell_counts.contains_key(i) {
+                    stack.push(*i);
                 }
-                cell_counts.insert(i.clone(),   k);   
+                cell_counts.insert(*i,   k);   
             }
         }
 
@@ -481,14 +473,14 @@ impl SpreadSheet {
         sorted_vec.sort_by(|a, b| a.1.cmp(&b.1));
 
         for (i, _) in sorted_vec.iter() {
-            self.update_cell(i.clone());
+            self.update_cell(*i);
         }
 
 
     }
 
     fn belongs_to_expression(&self, expr : &Expression, c: Cell) -> bool {
-        let val = Value::Ref(c.clone());
+        let val = Value::Ref(c);
 
         match expr {
             | Expression::Add(v1, v2)
@@ -514,31 +506,31 @@ impl SpreadSheet {
     }
 
     fn check_cycle (&self, form: Formula) -> bool {
-        let inp_cell = form.inp_cell.clone();
+        let inp_cell = form.inp_cell;
         let expr = form.expression;
 
-        if self.belongs_to_expression(&expr, inp_cell.clone()) {
+        if self.belongs_to_expression(&expr, inp_cell) {
             return true;
         }
 
         let mut visited: HashSet<Cell> = HashSet::new();
-        visited.insert(inp_cell.clone());
+        visited.insert(inp_cell);
 
         let mut stack: Vec<Cell> = Vec::new();
         stack.push(inp_cell);
 
-        while stack.is_empty() == false {
+        while !stack.is_empty() {
             let top_cell = stack.pop().expect("Stack is empty!");
             
             let cell_pointer = self.get_pointer(&top_cell);
 
             for i in self.spreadsheet[cell_pointer].children.iter() {
-                if self.belongs_to_expression(&expr, i.clone()) {
+                if self.belongs_to_expression(&expr, *i) {
                     return true;
                 }
-                if visited.contains(i) == false {
-                    stack.push(i.clone());
-                    visited.insert(i.clone());   
+                if !visited.contains(i) {
+                    stack.push(*i);
+                    visited.insert(*i);   
                 }    
             }
         }

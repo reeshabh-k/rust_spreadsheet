@@ -1,0 +1,1 @@
+/home/vivswan/rust_practice/rust_spreadsheet/rust_spreadsheet/frontend/target/wasm32-unknown-unknown/debug/frontend.wasm: /home/vivswan/rust_practice/rust_spreadsheet/rust_spreadsheet/frontend/helper/src/lib.rs /home/vivswan/rust_practice/rust_spreadsheet/rust_spreadsheet/frontend/src/main.rs

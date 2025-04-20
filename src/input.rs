@@ -1,9 +1,7 @@
 use arrayvec::ArrayVec;
-use std::{f32::consts::E, io::{self, BufRead, Error}, thread::sleep};
+use std::io::BufRead;
 use regex::Regex;
 use once_cell::sync::Lazy;
-use std::io::Cursor;
-use std::fmt::{self, Display, Formatter};
 
 
 use crate::basic::{Cell, Formula, Expression, Value};
@@ -16,7 +14,7 @@ pub struct Col(pub ArrayVec<u8, 3>);
 
 fn parse_row (row_str: &str) -> Option<u32> {
     let row_num = row_str.parse::<u32>().ok()?;
-    if row_num >= 1 && row_num <= 999 {
+    if (1..=999).contains(&row_num) {
         Some(row_num)
     } else {
         None
@@ -24,7 +22,7 @@ fn parse_row (row_str: &str) -> Option<u32> {
 }
 
 fn parse_int (int_str: &str) -> Option<i32> {
-    Some(int_str.parse::<i32>().ok()?)
+    int_str.parse::<i32>().ok()
 }
 
     
@@ -34,7 +32,7 @@ impl Col {
             None
         } else {
             for bt in col_str.as_bytes() {
-                if bt < &b'A' || bt > &b'Z' {
+                if !(&b'A'..=&b'Z').contains(&bt) {
                     return None;
                 } 
             }
@@ -50,7 +48,7 @@ impl Col {
             let mut col_out: ArrayVec<u8, 3> = ArrayVec::new();
 
             for i in (0..=2).rev() {
-                let f: u32 = (26 as u32).pow(i);
+                let f: u32 = 26_u32.pow(i);
                 let mut a = num / f;
 
                 if a > 0 || i == 0 || a > 26 {

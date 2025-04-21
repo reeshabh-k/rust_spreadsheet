@@ -724,6 +724,27 @@ async fn fetch_message() -> Result<String, String> {
     Ok(json["message"].as_str().unwrap_or("No message received").to_string())
 }
 
+async fn update_cell_logic(cell_id: &str, val: &str) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let params = serde_json::json!({
+        "cell": cell_id,
+        "val": val
+    });
+    
+    let resp = client.post("http://localhost:8080/api/get_value")
+        .json(&params)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to send request: {:?}", e))?;
+
+    let json: serde_json::Value = resp.json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {:?}", e))?;
+
+    let x = (json["value"].as_str().unwrap_or("***")).to_string();
+    Ok(x)
+}
+
 #[function_component(App)]
 fn app() -> Html {
     // Store fields in a map for easy access
@@ -1100,6 +1121,14 @@ fn app() -> Html {
                         let fields = fields.clone();
                         
                         Callback::from(move |formula: String| {
+
+                            let cell_values = cell_values.clone();
+                            let on_cell_select = on_cell_select.clone();
+                            let scroll_to_cell = scroll_to_cell.clone();
+                            let fields = fields.clone();
+
+                            wasm_bindgen_futures::spawn_local(async move {
+
                             // Check if this is just a preview update from typing in a cell
                             if formula.starts_with("__preview__") {
                                 // This is just to update the formula field in the UI
@@ -1115,17 +1144,24 @@ fn app() -> Html {
                             } else {
                                 // This is an actual formula submission (Enter was pressed)
                                 // Process formula and update state
-                                if let Some((cell_id, value)) = process_formula(&formula) {
-                                    let mut updated = (*cell_values).clone();
-                                    updated.insert(cell_id.clone(), value);
-                                    cell_values.set(updated);
-                                    // Optionally select the cell after formula apply
-                                    on_cell_select.emit(cell_id.clone());
-                                    
-                                    // Only scroll to cell when Enter is pressed (not during preview)
-                                    scroll_to_cell.emit(cell_id);
+                                if let Some((cell_id, _value)) = process_formula(&formula) {
+                                    match update_cell_logic(cell_id.as_str(), _value.as_str()).await {
+                                        Ok(fetched_value) => {
+                                            web_sys::console::log_1(&format!("Fetched value: {}", fetched_value).into());
+                                            let mut updated = (*cell_values).clone();
+                                            updated.insert(cell_id.clone(), fetched_value);
+                                            cell_values.set(updated);
+                
+                                            on_cell_select.emit(cell_id.clone());
+                                            
+                                        }
+                                        Err(err) => {
+                                            ();
+                                        }
+                                    }
                                 }
                             }
+                        })
                         })
                     }
                     on_scroll_to_cell_ref={Callback::from(move |_| {
@@ -1157,6 +1193,7 @@ fn app() -> Html {
     let message = use_state(|| String::from("Loading..."));
 
     let message_clone = message.clone();
+
     use_effect_with_deps(move |_| {
         spawn_local(async move {
             // Call the API

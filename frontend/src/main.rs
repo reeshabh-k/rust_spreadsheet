@@ -310,7 +310,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                 let display_value = if current_value.starts_with(&format!("{}=", cell_id)) || current_value.starts_with('=') {
                     // Extract the formula part after the equals sign
                     let formula_parts: Vec<&str> = current_value.splitn(2, '=').collect();
-                    if formula_parts.len() > 1 {
+                    if (formula_parts.len() > 1) {
                         formula_parts[1].to_string()
                     } else {
                         current_value
@@ -731,6 +731,9 @@ fn app() -> Html {
         is_error: false,
     });
 
+    // Add a counter to force the toast to reset between identical errors
+    let toast_counter = use_state(|| 0);
+
     // Add visualization state
     let visualization_state = use_state(|| VisualizationState {
         visible: false,
@@ -941,6 +944,7 @@ fn app() -> Html {
         let cell_values = cell_values.clone();
         let scroll_to_cell = scroll_to_cell.clone();
         let toast_state = toast_state.clone();
+        let toast_counter = toast_counter.clone();
         
         Callback::from(move |e: KeyboardEvent| {
             if e.key() == "Enter" {
@@ -1000,12 +1004,32 @@ fn app() -> Html {
                             updated_messages.insert(field_id.clone(), error); 
                             web_sys::console::log_1(&format!("Validation error: {}", error_message).into());
                             
-                            // Show toast notification for validation error
+                            // First, reset the toast to ensure it's hidden
                             toast_state.set(ToastProps {
-                                visible: true,
-                                message: error_message,
-                                is_error: true,
+                                visible: false,
+                                message: String::new(),
+                                is_error: false,
                             });
+                            
+                            // Use setTimeout to force the browser to process the state change
+                            let toast_state_clone = toast_state.clone();
+                            let error_message_clone = error_message.clone();
+                            let counter = *toast_counter + 1;
+                            toast_counter.set(counter);
+                            
+                            let window = web_sys::window().unwrap();
+                            let closure = Closure::once_into_js(move || {
+                                toast_state_clone.set(ToastProps {
+                                    visible: true,
+                                    message: error_message_clone,
+                                    is_error: true,
+                                });
+                            });
+                            
+                            window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                                &closure.into(),
+                                10, // Very short timeout to ensure it happens in the next event loop
+                            ).unwrap();
                         },
                     }
                     messages.set(updated_messages);
@@ -1252,6 +1276,7 @@ fn app() -> Html {
                 visible={toast_state.visible}
                 message={toast_state.message.clone()}
                 is_error={toast_state.is_error}
+                key={*toast_counter} // Add key prop with the counter to force re-render
             />
 
             // Render visualization if visible
@@ -1380,38 +1405,52 @@ fn toast(props: &ToastProps) -> Html {
     let message = use_state(|| props.message.clone());
     let is_error = use_state(|| props.is_error);
     
+    // Add a timestamp state to track when the message was last updated
+    let timestamp = use_state(|| js_sys::Date::now());
+    
     // Update the internal state whenever props change
     {
         let visible = visible.clone();
         let message = message.clone();
         let is_error = is_error.clone();
+        let timestamp = timestamp.clone();
         
         use_effect_with_deps(
             move |(new_visible, new_message, new_is_error)| {
-                visible.set(*new_visible);
-                message.set(new_message.clone());
-                is_error.set(*new_is_error);
+                // Don't create a default cleanup closure, instead initialize with None
+                let mut cleanup_fn = None;
                 
-                // Auto-hide toast after 3 seconds
-                let visible_clone = visible.clone();
-                let timeout_id = if *new_visible {
+                // Always show a new toast when props.visible is true, regardless if the message is the same
+                if *new_visible {
+                    visible.set(true);
+                    message.set(new_message.clone());
+                    is_error.set(*new_is_error);
+                    // Always update timestamp to force re-render even for identical messages
+                    timestamp.set(js_sys::Date::now());
+                    
+                    // Auto-hide toast after 3 seconds
+                    let visible_clone = visible.clone();
                     let window = web_sys::window().unwrap();
-                    Some(window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                    let timeout_id = window.set_timeout_with_callback_and_timeout_and_arguments_0(
                         &Closure::once_into_js(move || {
                             visible_clone.set(false);
                         }).into(),
                         3000,
-                    ).unwrap())
-                } else {
-                    None
-                };
+                    ).unwrap();
+                    
+                    // Create the timeout cleanup closure of the expected type
+                    cleanup_fn = Some(Box::new(move || {
+                        window.clear_timeout_with_handle(timeout_id);
+                    }) as Box<dyn FnOnce()>);
+                } else if !*new_visible && *visible {
+                    // Handle when toast should be hidden
+                    visible.set(false);
+                }
                 
-                // Cleanup function
-                move || {
-                    if let Some(id) = timeout_id {
-                        let window = web_sys::window().unwrap();
-                        window.clear_timeout_with_handle(id);
-                    }
+                // Return the cleanup function or a no-op function of the right type
+                match cleanup_fn {
+                    Some(cleanup) => cleanup,
+                    None => Box::new(|| {}) as Box<dyn FnOnce()>
                 }
             },
             (props.visible, props.message.clone(), props.is_error),
@@ -1429,7 +1468,7 @@ fn toast(props: &ToastProps) -> Html {
     };
     
     html! {
-        <div class={toast_class}>
+        <div class={toast_class} key={(*timestamp).to_string()}>
             {(*message).clone()}
         </div>
     }

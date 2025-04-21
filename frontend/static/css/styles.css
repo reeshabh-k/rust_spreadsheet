@@ -331,6 +331,12 @@ input[type="file"] {
     justify-content: center;
     align-items: center;
     z-index: 1000;
+    animation: fadeIn 0.5s ease-in-out; /* Added fade-in animation for visualization container */
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .visualization-panel {
@@ -342,33 +348,12 @@ input[type="file"] {
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    animation: slideDown 0.5s ease-out; /* Added slide down animation for panel */
 }
 
-.visualization-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
-}
-
-.visualization-header h2 {
-    margin: 0;
-    color: #2c3e50;
-}
-
-.visualization-close {
-    background: none;
-    border: none;
-    color: #777;
-    font-size: 24px;
-    cursor: pointer;
-    padding: 0;
-}
-
-.visualization-close:hover {
-    color: #333;
+@keyframes slideDown {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
 
 /* Chart section styling */
@@ -377,14 +362,12 @@ input[type="file"] {
     margin-bottom: 30px;
     padding-bottom: 20px;
     border-bottom: 1px dashed #ddd;
+    animation: fadeInUp 0.5s ease-out; /* Added fade in up animation for chart sections */
 }
 
-.chart-section h3 {
-    margin-top: 0;
-    margin-bottom: 15px;
-    color: #333;
-    text-align: center;
-    font-size: 1.4rem;
+@keyframes fadeInUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
 
 /* Chart row to display charts in a horizontal line */
@@ -409,6 +392,12 @@ input[type="file"] {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     margin-bottom: 10px;
     height: fit-content;
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Added smooth transition for hover effect */
+}
+
+.chart-column:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .chart-column h4 {
@@ -459,8 +448,19 @@ input[type="file"] {
     background-color: #3498db;
     min-width: 30px; /* Increased minimum width from 25px to 30px */
     position: relative;
-    transition: height 0.5s ease;
     border-radius: 3px 3px 0 0; /* Rounded top corners */
+    animation: barGrow 0.8s ease-out; /* Added growth animation for bars */
+    transform-origin: bottom; /* Make the bar grow from bottom to top */
+}
+
+@keyframes barGrow {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+}
+
+.bar:hover {
+    background-color: #2980b9;
+    box-shadow: 0 0 8px rgba(41, 128, 185, 0.5);
 }
 
 .bar-label {
@@ -495,6 +495,84 @@ input[type="file"] {
     margin: 10px auto;
     position: relative;
     padding: 10px;
+    /* Add perspective for 3D-like animations */
+    perspective: 1000px;
+}
+
+/* Enhanced line chart path animation with more dynamic effect */
+.line-chart path.line {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: drawLine 2.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; /* More natural easing for drawing effect */
+    stroke-width: 2.5px; /* Slightly thicker line for better visibility */
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2)); /* Enhanced shadow for depth */
+}
+
+@keyframes drawLine {
+    0% {
+        stroke-dashoffset: 1000;
+        opacity: 0.3;
+    }
+    40% {
+        opacity: 0.6;
+    }
+    70% {
+        opacity: 0.85;
+    }
+    100% {
+        stroke-dashoffset: 0;
+        opacity: 1;
+    }
+}
+
+/* Improved line chart dots animation with sequential appearance and enhanced pulsing effect */
+.line-chart circle.point {
+    opacity: 0;
+    r: 4; /* Default radius for points */
+    animation: fadeInPoint 0.5s ease-out forwards, pulseDot 2s infinite alternate;
+    animation-delay: calc((var(--index, 0) * 0.1s) + 0.8s); /* Delay to start after line begins drawing */
+    transform-origin: center;
+}
+
+@keyframes fadeInPoint {
+    from { 
+        opacity: 0; 
+        transform: scale(0) translateY(10px); 
+    }
+    50% {
+        transform: scale(1.5) translateY(-5px);
+    }
+    to { 
+        opacity: 1; 
+        transform: scale(1) translateY(0); 
+    }
+}
+
+@keyframes pulseDot {
+    0% { 
+        transform: scale(1); 
+        filter: drop-shadow(0 0 1px rgba(52, 152, 219, 0.5)); 
+    }
+    50% {
+        filter: drop-shadow(0 0 3px rgba(52, 152, 219, 0.7)); 
+    }
+    100% { 
+        transform: scale(1.3); 
+        filter: drop-shadow(0 0 5px rgba(52, 152, 219, 0.9)); 
+    }
+}
+
+/* Enhanced hover effect for line chart points */
+.line-chart circle.point:hover {
+    fill: #ff9800;
+    stroke: white;
+    stroke-width: 2px;
+    transform: scale(1.5);
+    z-index: 10;
+    cursor: pointer;
+    animation-play-state: paused;
+    filter: drop-shadow(0 0 5px rgba(255, 152, 0, 0.8));
+    transition: all 0.3s ease;
 }
 
 /* Heat map styling */
@@ -515,16 +593,23 @@ input[type="file"] {
     justify-content: center;
     align-items: center;
     border-radius: 2px;
-    transition: transform 0.2s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Enhanced transitions */
     cursor: pointer;
     border: 1px solid rgba(255, 255, 255, 0.3);
     box-sizing: border-box;
+    animation: scaleIn 0.5s ease-out;
+    animation-delay: calc(var(--index) * 0.05s); /* Using CSS variable for sequential animation */
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
 }
 
 .heat-map-cell:hover {
-    transform: scale(1.05);
+    transform: scale(1.1);
     z-index: 10;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
 }
 
 .heat-map-value {
@@ -577,6 +662,22 @@ input[type="file"] {
     position: relative; /* Added to contain child elements */
     overflow: hidden; /* Changed to hidden to prevent overflow */
     padding-bottom: 20px; /* Add padding at bottom to ensure all content is visible */
+}
+
+/* Add animation for pie chart segments */
+.pie-chart path {
+    transition: transform 0.3s ease;
+}
+
+.pie-chart path:hover {
+    transform: translateX(5px) translateY(-5px); /* Pie slice separation effect on hover */
+}
+
+/* Add animation to pie chart creation */
+.pie-chart g {
+    opacity: 0;
+    animation: fadeIn 0.6s ease-out forwards;
+    animation-delay: calc(var(--index) * 0.1s); /* Sequential animation for pie segments */
 }
 
 /* Added margins to ensure pie chart elements don't overflow */

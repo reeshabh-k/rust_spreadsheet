@@ -6,7 +6,11 @@ use wasm_bindgen::{JsCast, closure::Closure};
 use serde::{Serialize, Deserialize};
 use std::rc::Rc;
 use std::cell::RefCell;
+use wasm_bindgen_futures::spawn_local;
+use web_sys::console;
 
+
+const API_URL: &str = "http://localhost:8080/api";
 // Visualization state structure for bar charts
 #[derive(Clone, PartialEq)]
 struct VisualizationState {
@@ -709,6 +713,17 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     }
 }
 
+async fn fetch_message() -> Result<String, String> {
+    // Assuming your frontend and backend are served from the same origin
+    let resp = reqwest::get("http://localhost:8080/api/hello").await
+        .map_err(|e| format!("Failed to send request: {:?}", e))?;
+    
+    let json: serde_json::Value = resp.json().await
+        .map_err(|e| format!("Failed to parse response: {:?}", e))?;
+    
+    Ok(json["message"].as_str().unwrap_or("No message received").to_string())
+}
+
 #[function_component(App)]
 fn app() -> Html {
     // Store fields in a map for easy access
@@ -1119,12 +1134,27 @@ fn app() -> Html {
     fn assign_colors(data_len: usize, palette: Vec<String>) -> Vec<String> {
         (0..data_len).map(|i| palette[i % palette.len()].clone()).collect()
     }
+
     
+    let message = use_state(|| String::from("Loading..."));
+
+    let message_clone = message.clone();
+    use_effect_with_deps(move |_| {
+        spawn_local(async move {
+            // Call the API
+            match fetch_message().await {
+                Ok(response) => message_clone.set(response),
+                Err(err) => console::log_1(&format!("Error fetching API: {:?}", err).into()),
+            }
+        });
+        || ()
+    }, ());
+        
     
     // Rest of the code remains the same
     html! {
         <>
-            <h1> {"Rust Spreadsheet"} </h1>
+            <h1> {"Rusty Spreadsheet"}  {(*message).clone()} </h1>
             
             <div class="navigation-bar">
                 <div class="nav-section">

@@ -5,6 +5,36 @@
         <link data-trunk rel="css" href="static/css/styles.css">
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <!-- Dashboard styles and icons -->
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        <style>
+            :root {
+                --primary: #6c5ce7;
+                --secondary: #ff7675;
+                --dark: #2d3436;
+                --light: #f5f6fa;
+                --accent: #fdcb6e;
+                --success: #00b894;
+                --danger: #ff6b6b;
+                --warning: #feca57;
+                --info: #48dbfb;
+            }
+            * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+            body { background-color: #2c3e50; color: white; min-height: 100vh; }
+            .container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 20px; }
+            header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.2); }
+            .logo { display: flex; align-items: center; gap: 10px; font-size: 1.5rem; font-weight: bold; color: var(--light); }
+            .logo-icon { color: var(--primary); font-size: 1.8rem; }
+            .home-icon { color: var(--primary); font-size: 2rem; }
+            .title { text-align: center; font-size: 2rem; margin: 0; }
+            .date-container { display: flex; align-items: center; gap: 10px; }
+            .date-btn { background-color: var(--primary); color: white; border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; font-weight: bold; }
+            .date-input { padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
+            .dashboard { display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; }
+            .card { background-color: #34495e; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
+            .card-title { font-size: 1.2rem; margin-bottom: 15px; color: var(--light); font-weight: 600; }
+            /* ... other styles from finance-dashboard.html ... */
+        </style>
     </head>
     <body>
         <div id="app"></div>

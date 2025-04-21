@@ -11,7 +11,7 @@ body {
 }
 
 h1 {
-    color: #26315c;
+    color: #7b8fdb;
     margin-top: 5px; /* Added a smaller top margin */
     margin-bottom: 10px;
     border-bottom: 3px solid #07f3fb;
@@ -25,7 +25,7 @@ h1 {
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: #2c3e50;
+    background-color: #7b8fdb;
     padding: 6px 12px;
     border-radius: 8px;
     margin-bottom: 20px;
@@ -206,7 +206,7 @@ input[type="file"] {
 /* --- Context Menu --- */
 .context-menu {
     position: absolute;
-    background: white;
+    background: rgb(165, 54, 54);
     border: 1px solid #ccc;
     border-radius: 4px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
@@ -340,7 +340,7 @@ input[type="file"] {
 }
 
 .visualization-panel {
-    background-color: white;
+    background-color: #2c3e50;
     border-radius: 8px;
     padding: 20px;
     width: 95%;

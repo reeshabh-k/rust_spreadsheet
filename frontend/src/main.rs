@@ -724,17 +724,25 @@ async fn fetch_message() -> Result<String, String> {
     Ok(json["message"].as_str().unwrap_or("No message received").to_string())
 }
 
-async fn update_cell_logic() ->Result<String, String>  {
-    let resp = reqwest::get("http://localhost:8080/api/get_value").await
+async fn update_cell_logic(cell_id: &str, val: &str) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let params = serde_json::json!({
+        "cell": cell_id,
+        "val": val
+    });
+    
+    let resp = client.post("http://localhost:8080/api/get_value")
+        .json(&params)
+        .send()
+        .await
         .map_err(|e| format!("Failed to send request: {:?}", e))?;
 
-    let json: serde_json::Value = resp.json().await
+    let json: serde_json::Value = resp.json()
+        .await
         .map_err(|e| format!("Failed to parse response: {:?}", e))?;
 
     let x = (json["value"].as_str().unwrap_or("***")).to_string();
-    println!("x is {:?}", x);
     Ok(x)
-    
 }
 
 #[function_component(App)]
@@ -1119,7 +1127,7 @@ fn app() -> Html {
                                 // This is an actual formula submission (Enter was pressed)
                                 // Process formula and update state
                                 if let Some((cell_id, _value)) = process_formula(&formula) {
-                                    match update_cell_logic().await {
+                                    match update_cell_logic(cell_id.as_str(), _value.as_str()).await {
                                         Ok(fetched_value) => {
                                             web_sys::console::log_1(&format!("Fetched value: {}", fetched_value).into());
                                             let mut updated = (*cell_values).clone();
@@ -1127,7 +1135,7 @@ fn app() -> Html {
                                             cell_values.set(updated);
                 
                                             on_cell_select.emit(cell_id.clone());
-                                            scroll_to_cell.emit(cell_id);
+                                            
                                         }
                                         Err(err) => {
                                             ();

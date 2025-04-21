@@ -7,6 +7,9 @@ use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use std::sync::{Arc, Mutex};
 use axum::extract::State;
+use axum::extract::Query;
+use axum::routing::post;
+use serde::Deserialize;
 
 mod spreadsheet;
 mod basic; 
@@ -14,16 +17,30 @@ mod input;
 
 type SharedSheet = Arc<Mutex<spreadsheet::SpreadSheet>>;
 
+#[derive(Deserialize)]
+struct CellParams {
+    cell: String,
+    val: String,
+}
+
 async fn hello(State(sheet): State<SharedSheet>) -> Json<serde_json::Value> {
     let mut sheet = sheet.lock().unwrap();
     sheet.val[0] = 10;
     Json(json!({ "message": format!("{}", sheet.val[0]) }))
 }
 
-async fn get_value(State(sheet): State<SharedSheet>) -> Json<serde_json::Value> {
-    let mut sheet = sheet.lock().unwrap();
-    sheet.val[0] = 9090909;
-    Json(json!({ "value": format!("{}", sheet.val[0]) }))
+async fn get_value(
+        State(sheet): State<SharedSheet>,
+        Json(params): Json<CellParams>,
+    ) -> Json<serde_json::Value> {
+        let mut sheet = sheet.lock().unwrap();
+
+        
+        
+        sheet.val[0] = 9090909;
+        Json(json!({ 
+            "value": format!("{}-{}-{}", params.cell, params.val, sheet.val[0]) 
+        }))
 }
 
 #[tokio::main]
@@ -35,8 +52,8 @@ async fn main() {
     // Build app with CORS
     let app = Router::new()
         .route("/api/hello", get(hello))
-        .route("/api/get_value", get(get_value))
-        .with_state(spreadsheet.clone())
+        .route("/api/get_value", post(get_value))
+        .with_state(spreadsheet)
         .layer(cors);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));

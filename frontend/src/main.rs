@@ -755,6 +755,7 @@ fn app() -> Html {
         data: Vec::new(),
         title: "Data Analysis".to_string(),
     });
+    let statistics_state = use_state(|| false);
     
     // Get the current number of rows and columns
     let rows = if let Some(rows_field) = (*fields).get("rows") {
@@ -888,6 +889,15 @@ fn app() -> Html {
                     title: main_title,
                 });
             }
+        })
+    };
+    let on_toggle_statistics = {
+        let statistics_state = statistics_state.clone();
+        let cell_values = cell_values.clone();
+        
+        Callback::from(move |_| {
+            // Toggle statistics visibility
+            statistics_state.set(!*statistics_state);
         })
     };
     
@@ -1063,6 +1073,14 @@ fn app() -> Html {
                 data: Vec::new(),
                 title: "Data Analysis".to_string(),
             });
+        })
+    };
+
+    let on_close_statistics = {
+        let statistics_state = statistics_state.clone();
+        
+        Callback::from(move |_: ()| {
+            statistics_state.set(false);
         })
     };
 
@@ -1296,6 +1314,12 @@ fn app() -> Html {
                     >
                         {"Analyze"}
                     </button>
+                    <button
+                        class="nav-button stats-button"
+                        onclick={on_toggle_statistics}
+                    >
+                        {"Statistics"}
+                    </button>
                 </div>
             </div>
             
@@ -1420,6 +1444,16 @@ fn app() -> Html {
                             </div>
                         </div>
                     </div>
+                }
+            } else {
+                html! {}
+            }}
+            { if *statistics_state {
+                html! {
+                    <StatisticsView
+                        data={(*cell_values).clone()}
+                        onclose={on_close_statistics}
+                    />
                 }
             } else {
                 html! {}
@@ -1966,6 +2000,187 @@ fn heat_map(props: &HeatMapProps) -> Html {
                     }
                 </div>
                 <div class="heat-map-legend-max">{format!("{:.1}", max_value)}</div>
+            </div>
+        </div>
+    }
+}
+
+
+// StatisticsView Component Props
+#[derive(Properties, PartialEq)]
+struct StatisticsViewProps {
+    data: HashMap<String, String>,  // Changed from HashMap<String, Vec<(String, f64)>>
+    #[prop_or_default]
+    onclose: Callback<()>,
+}
+
+#[function_component(StatisticsView)]
+fn statistics_view(props: &StatisticsViewProps) -> Html {
+    // Parse data from cell_values
+    let all_data = &props.data;
+    
+    // Extract numeric values and labels for financial data
+    let mut financial_data: HashMap<String, f64> = HashMap::new();
+    let mut income_sources: Vec<(String, f64)> = Vec::new();
+    let mut expenses: Vec<(String, f64)> = Vec::new();
+    
+    // Extract main title from A1
+    let title = all_data.get("A1").cloned().unwrap_or_else(|| "Personal Financial Analysis".to_string());
+    
+    // Process data rows (assuming similar structure to visualization data)
+    for row in 2..=20 {  // Check first 20 rows
+        let row_label_cell = format!("A{}", row);
+        if let Some(row_label) = all_data.get(&row_label_cell) {
+            if row_label.trim().is_empty() || row_label == "0" {
+                continue;
+            }
+            
+            // Process data in this row (columns B-F)
+            for col in 2..=6 {
+                let cell_id = format!("{}{}", get_column_label(col), row);
+                if let Some(value_str) = all_data.get(&cell_id) {
+                    if let Ok(value) = value_str.parse::<f64>() {
+                        if value != 0.0 {
+                            if row <= 1 {
+                                // First few rows might be income
+                                income_sources.push((row_label.clone(), value));
+                            } else {
+                                // Later rows likely expenses
+                                expenses.push((row_label.clone(), value));
+                            }
+                            
+                            financial_data.insert(row_label.clone(), value);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Sort expenses by value for top expenses
+    expenses.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    
+    // Calculate financial summary
+    let total_income: f64 = income_sources.iter().map(|(_, value)| *value).sum();
+    let total_expenses: f64 = expenses.iter().map(|(_, value)| *value).sum();
+    let net_amount = total_income - total_expenses;
+    
+    html! {
+        <div class="statistics-overlay">
+            <div class="statistics-container">
+                <header>
+                    <div class="logo">
+                        <i class="fas fa-chart-line logo-icon"></i>
+                        <span>{"Finance"}</span>
+                    </div>
+                    <h1 class="statistics-title">{title}</h1>
+                    <div class="date-container">
+                        <button class="close-button" onclick={props.onclose.reform(|_| ())}>{"×"}</button>
+                    </div>
+                </header>
+                
+                <div class="dashboard">
+                    <div class="card expenses-by-category">
+                        <h2 class="card-title">{"Expenses by Category"}</h2>
+                        <div class="chart-container">
+                            <div id="expenses-chart" class="chart-placeholder">
+                                {
+                                    expenses.iter().take(6).map(|(category, value)| {
+                                        let max_value = expenses.iter().map(|(_, v)| *v).fold(0.0, f64::max);
+                                        let width_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
+                                        
+                                        html! {
+                                            <div class="chart-bar">
+                                                <div class="chart-bar-label">{category}</div>
+                                                <div class="chart-bar-value" style={format!("width: {}%;", width_percent)}></div>
+                                                <div class="chart-bar-amount">{format!("${:.2}", value)}</div>
+                                            </div>
+                                        }
+                                    }).collect::<Html>()
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card top-expenses">
+                        <h2 class="card-title">{"Top 5 Expenses"}</h2>
+                        <div>
+                            {
+                                expenses.iter().take(5).map(|(category, value)| {
+                                    let max_value = expenses.iter().take(5).map(|(_, v)| *v).fold(0.0, f64::max);
+                                    let width_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
+                                    
+                                    html! {
+                                        <div class="expense-bar">
+                                            <div class="expense-bar-label">{category}</div>
+                                            <div class="expense-bar-value" style={format!("width: {}%;", width_percent)}></div>
+                                            <div class="expense-bar-amount">{format!("${:.2}", value)}</div>
+                                        </div>
+                                    }
+                                }).collect::<Html>()
+                            }
+                        </div>
+                    </div>
+
+                    <div class="card net-amount">
+                        <h2 class="card-title">{"Financial Summary"}</h2>
+                        <div class="finance-summary">
+                            <div class="summary-column" style="background-color: var(--primary);">
+                                <div class="summary-amount">{format!("${:.2}", net_amount)}</div>
+                                <div class="summary-label">{"Net Amount"}</div>
+                            </div>
+                            <div class="summary-column" style="background-color: #7f8c8d;">
+                                <div class="summary-amount">{format!("${:.2}", total_income)}</div>
+                                <div class="summary-label">{"Credit"}</div>
+                            </div>
+                            <div class="summary-column" style="background-color: #e74c3c;">
+                                <div class="summary-amount">{format!("${:.2}", total_expenses)}</div>
+                                <div class="summary-label">{"Debit"}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card cashflow">
+                        <h2 class="card-title">{"CashFlow (Income)"}</h2>
+                        <div class="donut-chart-container">
+                            <div class="donut-chart" style={format!("--percentage: {};", if total_income + total_expenses > 0.0 { (total_income / (total_income + total_expenses)) * 100.0 } else { 50.0 })}></div>
+                            <div class="donut-label">{format!("{:.0}%", if total_income + total_expenses > 0.0 { (total_income / (total_income + total_expenses)) * 100.0 } else { 0.0 })}</div>
+                        </div>
+                        {
+                            income_sources.iter().take(3).map(|(source, value)| {
+                                html! {
+                                    <div class="income-source">
+                                        <div>{source}</div>
+                                        <div>{format!("${:.2}", value)}</div>
+                                    </div>
+                                }
+                            }).collect::<Html>()
+                        }
+                    </div>
+                    
+                    // Expense cards - use expense data from spreadsheet
+                    {
+                        expenses.iter().take(6).enumerate().map(|(i, (category, value))| {
+                            // Assign different colors and icons based on category types
+                            let (bg_color, icon) = match i % 6 {
+                                0 => ("#ff7675", "fas fa-home"),
+                                1 => ("#34495e", "fas fa-utensils"),
+                                2 => ("#34495e", "fas fa-hand-holding-heart"),
+                                3 => ("#34495e", "fas fa-briefcase-medical"),
+                                4 => ("#34495e", "fas fa-shopping-bag"),
+                                _ => ("#6c5ce7", "fas fa-car"),
+                            };
+                            
+                            html! {
+                                <div class="expense-card" style={format!("background-color: {}", bg_color)}>
+                                    <i class={format!("{} expense-card-icon", icon)}></i>
+                                    <div class="expense-card-title">{category}</div>
+                                    <div class="expense-card-amount">{format!("${:.2}", value)}</div>
+                                </div>
+                            }
+                        }).collect::<Html>()
+                    }
+                </div>
             </div>
         </div>
     }

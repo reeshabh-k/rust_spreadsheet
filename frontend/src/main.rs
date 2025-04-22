@@ -1,4 +1,5 @@
 use yew::prelude::*;
+use serde_json::json;
 use web_sys::{HtmlInputElement, InputEvent, KeyboardEvent, HtmlElement, MouseEvent, WheelEvent, Event};
 use std::collections::HashMap;
 use helper::*;
@@ -8,6 +9,8 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::console;
+use std::fs::OpenOptions;
+use std::io::Write;
 
 
 const API_URL: &str = "http://localhost:8080/api";
@@ -746,6 +749,33 @@ async fn update_cell_logic(cell_id: &str, val: &str) -> Result<(String, String),
     Ok((x, y))
 }
 
+async fn ask_cohere(prompt: &str) -> Result<String, String>  {
+    // self.conversation.push(format!("User: {}", prompt));
+    // let full_prompt = self.conversation.join("\n");
+    // println!("Full prompt: {}", full_prompt);  // Print the full prompt
+    let client = reqwest::Client::new();
+    let api_key = "tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi"; // Replace with your actual API key
+    let response = client.post("https://api.cohere.ai/generate")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .json(&json!({
+            "prompt": prompt,
+            "max_tokens": 200,
+            "stop_sequences": ["\n"],
+            "temperature": 0.5,
+        })).send()
+        .await
+        .unwrap();
+    let json : serde_json::Value = response.json().await.unwrap();
+    if let Some(text) = json["text"].as_str() {
+        // self.conversation.push(format!("Cohere: {}", text));
+        println!("Cohere: {}", text);  // Print the response text
+        Ok(text.to_string())
+    } else {
+        Err("Failed to extract response text".to_string())
+        
+    }
+}
+
 #[function_component(App)]
 fn app() -> Html {
     // Store fields in a map for easy access
@@ -1034,6 +1064,7 @@ fn app() -> Html {
                                 // Use the shared process_formula function from helper library
                                 if let Some((cell_id, _value)) = process_formula(&formula) {
                                     // Update our local state with the processed formula result
+
                                     match update_cell_logic(cell_id.as_str(), _value.as_str()).await {
                                         Ok((row_str, val_str)) => {
                                             web_sys::console::log_1(&format!("Fetched value: {:?} {:?}", row_str, val_str).into());
@@ -1641,12 +1672,29 @@ fn app() -> Html {
                     />
                     <button 
                         class="nav-button ai-suggestions-button"
+                        
                         onclick={
                             Callback::from(move |_| {
-                                // For now, this button doesn't do anything
-                                // Future functionality can be added here
+                                
+                                // let is_loading = use_state(|| false);
+                                // is_loading.set(true);
+
+                                spawn_local(async move {
+                                    // Call the AI API here
+                                    let prompt = "hi how are you doing?"; // Replace with actual prompt
+                                    
+                                    let ai_response = match ask_cohere(prompt).await {
+                                        Ok(response) => response,
+                                        Err(e) => e
+                                    }; //ikr this is messed up, but ...
+
+                                    // is_loading.set(false);
+                                    web_sys::console::log_1(&format!("AI Response: {}", ai_response).into());
+                                });
                             })
                         }
+                                // For now, this button doesn't do anything
+                                // Future functionality can be added here
                     >
                         {"AI Suggestions"}
                     </button>

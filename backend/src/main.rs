@@ -30,37 +30,6 @@ struct CellParams {
     cell: String,
     val: String,
 }
-
-#[derive(Clone)]
-struct AppState {
-    sheet: SharedSheet,
-    formula_stack: Arc<Mutex<Vec<String>>>,
-    cohere: Arc<Mutex<ai::CohereChat>>,
-}
-
-
-async fn get_formula_from_ai(
-    State(state): State<AppState>,
-    Json(params): Json<CellParams>,
-) -> Json<serde_json::Value> {
-    let formula_stack = state.formula_stack.lock().unwrap();
-    let prompt = formula_stack.join("\n");
-    let default_prompt = "You are a spreadsheet formula generator. Given the following formulas, generate a new formula that is similar in style and complexity.";
-    let prompt = if prompt.is_empty() {
-        default_prompt.to_string()
-    } else {
-        format!("{}:\n{}", default_prompt, prompt)
-    };
-    let response = {
-        // Separate scope for the mutable operation
-        let mut cohere = state.cohere.lock().unwrap();
-        cohere.ask_cohere(&prompt).await
-    };
-    // format!("{}", response);
-    let response = format!("");
-    Json(json!({ "response": response }))
-}
-
 async fn get_value(
     State(state): State<AppState>,
     Json(params): Json<CellParams>,

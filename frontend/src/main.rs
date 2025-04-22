@@ -1105,6 +1105,7 @@ fn app() -> Html {
             statistics_state.set(false);
         })
     };
+    let toast_state_clone = toast_state.clone();
 
     // Render content based on dimensions validity
     let content = if dimensions_valid {
@@ -1120,6 +1121,7 @@ fn app() -> Html {
                         let on_cell_select = on_cell_select.clone();
                         let scroll_to_cell = scroll_to_cell.clone();
                         let fields = fields.clone();
+                        let toast_state = toast_state_clone.clone();
                         
                         Callback::from(move |formula: String| {
 
@@ -1127,7 +1129,8 @@ fn app() -> Html {
                             let on_cell_select = on_cell_select.clone();
                             let scroll_to_cell = scroll_to_cell.clone();
                             let fields = fields.clone();
-
+                            let toast_state = toast_state.clone();
+                            
                             wasm_bindgen_futures::spawn_local(async move {
 
                             // Check if this is just a preview update from typing in a cell
@@ -1154,11 +1157,62 @@ fn app() -> Html {
                                             let row_parts: Vec<&str> = row_str.split_whitespace().collect();
                                             let val_parts: Vec<&str> = val_str.split_whitespace().collect();
 
-                                            if row_str == ""  {
-                                                updated.insert(cell_id.clone(), _value);
+                                            if row_str == "IV" && &_value[0..1] == "\"" && &_value[_value.len()-1..] == "\""  {
+                                                updated.insert(cell_id.clone(), _value[1.._value.len()-1].to_string());
                                                 web_sys::console::log_1(&format!("Went into IF statement!").into());
                                                 cell_values.set(updated);
-                                            } else {
+                                            } else if row_str == "IV" {
+                                                toast_state.set(ToastProps {
+                                                    visible: false,
+                                                    message: String::new(),
+                                                    is_error: false,
+                                                });
+                                                
+                                                // Use setTimeout to force the browser to process the state change
+                                                let toast_state_clone = toast_state.clone();
+                                                let error_message_clone = "Invalid Formula".to_string();
+                                                
+                                                
+                                                let window = web_sys::window().unwrap();
+                                                let closure = Closure::once_into_js(move || {
+                                                    toast_state_clone.set(ToastProps {
+                                                        visible: true,
+                                                        message: error_message_clone,
+                                                        is_error: true,
+                                                    });
+                                                });
+                                                
+                                                window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                                                    &closure.into(),
+                                                    10, // Very short timeout to ensure it happens in the next event loop
+                                                ).unwrap();
+                                            } else if row_str == "CY" {
+                                                toast_state.set(ToastProps {
+                                                    visible: false,
+                                                    message: String::new(),
+                                                    is_error: false,
+                                                });
+                                                
+                                                // Use setTimeout to force the browser to process the state change
+                                                let toast_state_clone = toast_state.clone();
+                                                let error_message_clone = "Cycle Detected, Formula Rejected".to_string();
+                                                
+                                                
+                                                let window = web_sys::window().unwrap();
+                                                let closure = Closure::once_into_js(move || {
+                                                    toast_state_clone.set(ToastProps {
+                                                        visible: true,
+                                                        message: error_message_clone,
+                                                        is_error: true,
+                                                    });
+                                                });
+                                                
+                                                window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                                                    &closure.into(),
+                                                    10, // Very short timeout to ensure it happens in the next event loop
+                                                ).unwrap();
+                                            }
+                                            else {
                                                 for i in 0..row_parts.len() {
                                                     updated.insert((row_parts[i].to_string()), val_parts[i].to_string());
                                                 }

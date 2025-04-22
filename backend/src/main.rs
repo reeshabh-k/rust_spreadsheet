@@ -27,11 +27,7 @@ struct CellParams {
     val: String,
 }
 
-async fn hello(State(sheet): State<SharedSheet>) -> Json<serde_json::Value> {
-    let mut sheet = sheet.lock().unwrap();
-    sheet.val[0] = 10;
-    Json(json!({ "message": format!("{}", sheet.val[0]) }))
-}
+
 
 async fn get_value(
         State(sheet): State<SharedSheet>,
@@ -58,7 +54,6 @@ async fn main() {
 
     // Build app with CORS
     let app = Router::new()
-        .route("/api/hello", get(hello))
         .route("/api/get_value", post(get_value))
         .with_state(spreadsheet)
         .layer(cors);

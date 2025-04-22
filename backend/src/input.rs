@@ -386,6 +386,7 @@ mod col_tests {
     fn create_a() {
         let col_str = "A";
         let col_out = Col::from_str(col_str).expect("Invalid String");
+        
         let mut col_exp: ArrayVec<u8, 3> = ArrayVec::<u8, 3>::new();
         col_exp.push(b'A');
         let col_exp = Col(col_exp);

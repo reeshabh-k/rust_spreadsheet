@@ -1130,16 +1130,24 @@ fn app() -> Html {
                                 if let Some((cell_id, _value)) = process_formula(&formula) {
                                     match update_cell_logic(cell_id.as_str(), _value.as_str()).await {
                                         Ok((row_str, val_str)) => {
-                                            web_sys::console::log_1(&format!("Fetched value: {} {}", row_str, val_str).into());
+                                            web_sys::console::log_1(&format!("Fetched value: {:?} {:?}", row_str, val_str).into());
                                             let mut updated = (*cell_values).clone();
 
                                             let row_parts: Vec<&str> = row_str.split_whitespace().collect();
                                             let val_parts: Vec<&str> = val_str.split_whitespace().collect();
 
-                                            for i in 0..row_parts.len() {
-                                                updated.insert((row_parts[i].to_string()), val_parts[i].to_string());
+                                            if row_str == ""  {
+                                                updated.insert(cell_id.clone(), _value);
+                                                web_sys::console::log_1(&format!("Went into IF statement!").into());
+                                                cell_values.set(updated);
+                                            } else {
+                                                for i in 0..row_parts.len() {
+                                                    updated.insert((row_parts[i].to_string()), val_parts[i].to_string());
+                                                }
+                                                cell_values.set(updated);
                                             }
-                                            cell_values.set(updated);
+
+                                            
                 
                                             on_cell_select.emit(cell_id.clone());
                                             

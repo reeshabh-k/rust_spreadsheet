@@ -763,8 +763,8 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String
     let mut formulas = formulas.lock().unwrap();
     let client = reqwest::Client::new();
     let api_key = "tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi"; // Replace with your actual API key
-    let default_prompt = "you are a spreadsheet assistant, i will give you some formulas, and you have to predict the next formula.
-    The next formula should be of similar type and complexity as the previous ones.".to_string();
+    let default_prompt = "you are a math assistant, i will give you some formulas, and you have to predict the next formula. The formulas would contain a right hand side an equals sign and a left hand side, the formula could contain cell names as in excel sheet cell names, for example : A1, B3, etc.
+    The next formula should be of similar type and complexity as the previous ones. Each line would contain a different formula. Just give the formula, no explanation: \n".to_string();
     let mut prompt_list = vec![];
     let mut i = 0;
     while formulas.len() > 0 && i < 5{
@@ -774,7 +774,7 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String
     let reverse_prompt_list = prompt_list.iter().rev().cloned().collect::<Vec<String>>();
     let mut prompt = default_prompt;
     for formula in reverse_prompt_list {
-        prompt.push_str(&format!("{}", formula));
+        prompt.push_str(&format!("\n{}, ", formula));
     }
 
     let response = client.post("https://api.cohere.ai/generate")
@@ -790,7 +790,9 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String
     if let Some(text) = json["text"].as_str() {
         // self.conversation.push(format!("Cohere: {}", text));
         println!("Cohere: {}", text);  // Print the response text
-        Ok(text.to_string())
+        let mut resp = text.to_string();
+        // resp.push_str(&format!("\nPrompt: {}", prompt));
+        Ok(resp)
     } else {
         Err("Failed to extract response text".to_string())
         
@@ -801,7 +803,7 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String
 fn app() -> Html {
     // Store fields in a map for easy access
 
-    let formulas = use_state(|| Arc::new(Mutex::new(vec![String::from("This is a test query")])));
+    let formulas = use_state(|| Arc::new(Mutex::new(vec![])));
 
     let fields = use_state(|| {
         let mut map: HashMap<String, Box<dyn FormField>> = HashMap::new();

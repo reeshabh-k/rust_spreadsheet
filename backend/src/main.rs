@@ -53,7 +53,7 @@ async fn main() {
     let mut statey = AppState {
         sheet: Arc::new(Mutex::new(spreadsheet::SpreadSheet::new(100, 55))),
         formula_stack: Arc::new(Mutex::new(vec![])),
-        cohere: Arc::new(Mutex::new(ai::CohereChat::new("tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi"))),
+        // cohere: Arc::new(Mutex::new(ai::CohereChat::new("tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi"))),
     };
 
     // let spreadsheet: SharedSheet = Arc::new(Mutex::new(spreadsheet::SpreadSheet::new(100, 55)));

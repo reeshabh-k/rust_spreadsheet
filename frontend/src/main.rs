@@ -8,6 +8,9 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::console;
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::sync::{Arc, Mutex};
 
 
 const API_URL: &str = "http://localhost:8080/api";
@@ -82,6 +85,8 @@ struct ToastProps {
     message: String,
     is_error: bool,
 }
+
+
 
 // Function to convert column number to label (1->A, 2->B, ..., 27->AA, 28->AB, etc.)
 fn get_column_label(col: u32) -> String {
@@ -724,12 +729,16 @@ async fn fetch_message() -> Result<String, String> {
     Ok(json["message"].as_str().unwrap_or("No message received").to_string())
 }
 
-async fn update_cell_logic(cell_id: &str, val: &str) -> Result<(String, String), String> {
+async fn update_cell_logic(cell_id: &str, val: &str, formulas: Arc<Mutex<Vec<String>>>) -> Result<(String, String), String> {
     let client = reqwest::Client::new();
     let params = serde_json::json!({
         "cell": cell_id,
         "val": val
     });
+    {
+        let mut stack = formulas.lock().unwrap();
+        stack.push(format!("{} = {}", cell_id, val));
+    }
     
     let resp = client.post("http://localhost:8080/api/get_value")
         .json(&params)
@@ -746,9 +755,53 @@ async fn update_cell_logic(cell_id: &str, val: &str) -> Result<(String, String),
     Ok((x, y))
 }
 
+async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String>  {
+    // self.conversation.push(format!("User: {}", prompt));
+    // let full_prompt = self.conversation.join("\n");
+    // println!("Full prompt: {}", full_prompt);  // Print the full prompt
+    let mut formulas = formulas.lock().unwrap();
+    let client = reqwest::Client::new();
+    let api_key = "tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi"; // Replace with your actual API key
+    let default_prompt = "you are a spreadsheet assistant, i will give you some formulas, and you have to predict the next formula.
+    The next formula should be of similar type and complexity as the previous ones.".to_string();
+    let mut prompt_list = vec![];
+    let mut i = 0;
+    while formulas.len() > 0 && i < 5{
+        prompt_list.push(formulas.pop().unwrap());
+        i += 1;
+    }
+    let reverse_prompt_list = prompt_list.iter().rev().cloned().collect::<Vec<String>>();
+    let mut prompt = default_prompt;
+    for formula in reverse_prompt_list {
+        prompt.push_str(&format!("{}", formula));
+    }
+
+    let response = client.post("https://api.cohere.ai/generate")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .json(&json!({
+            "prompt": prompt,
+            "max_tokens": 2000,
+            "temperature": 0.5,
+        })).send()
+        .await
+        .unwrap();
+    let json : serde_json::Value = response.json().await.unwrap();
+    if let Some(text) = json["text"].as_str() {
+        // self.conversation.push(format!("Cohere: {}", text));
+        println!("Cohere: {}", text);  // Print the response text
+        Ok(text.to_string())
+    } else {
+        Err("Failed to extract response text".to_string())
+        
+    }
+}
+
 #[function_component(App)]
 fn app() -> Html {
     // Store fields in a map for easy access
+
+    let formulas = use_state(|| Arc::new(Mutex::new(vec![String::from("This is a test query")])));
+
     let fields = use_state(|| {
         let mut map: HashMap<String, Box<dyn FormField>> = HashMap::new();
         map.insert("rows".to_string(), Box::new(RowsField { value: "100".to_string() })); // Max rows
@@ -993,6 +1046,7 @@ fn app() -> Html {
         let toast_state = toast_state.clone();
         let toast_counter = toast_counter.clone();
         let on_cell_select = on_cell_select.clone();
+        let formulas = formulas.clone();
         
         Callback::from(move |e: KeyboardEvent| {
             if e.key() == "Enter" {
@@ -1010,6 +1064,7 @@ fn app() -> Html {
                 let toast_state = toast_state.clone();
                 let on_cell_select = on_cell_select.clone();
                 let toast_counter = toast_counter.clone();
+                let formulas = formulas.clone();
                 wasm_bindgen_futures::spawn_local(async move {
                 
                 // For rows and cols fields, update their values on Enter key press
@@ -1034,7 +1089,8 @@ fn app() -> Html {
                                 // Use the shared process_formula function from helper library
                                 if let Some((cell_id, _value)) = process_formula(&formula) {
                                     // Update our local state with the processed formula result
-                                    match update_cell_logic(cell_id.as_str(), _value.as_str()).await {
+
+                                    match update_cell_logic(cell_id.as_str(), _value.as_str(), (*formulas).clone()).await {
                                         Ok((row_str, val_str)) => {
                                             web_sys::console::log_1(&format!("Fetched value: {:?} {:?}", row_str, val_str).into());
                                             let mut updated = (*cell_values).clone();
@@ -1207,9 +1263,11 @@ fn app() -> Html {
                         let scroll_to_cell = scroll_to_cell.clone();
                         let fields = fields.clone();
                         let toast_state = toast_state_clone.clone();
+                        let formulas = formulas.clone();
                         
                         Callback::from(move |formula: String| {
 
+                            let formulas = formulas.clone();
                             let cell_values = cell_values.clone();
                             let on_cell_select = on_cell_select.clone();
                             let scroll_to_cell = scroll_to_cell.clone();
@@ -1234,7 +1292,7 @@ fn app() -> Html {
                                 // This is an actual formula submission (Enter was pressed)
                                 // Process formula and update state
                                 if let Some((cell_id, _value)) = process_formula(&formula) {
-                                    match update_cell_logic(cell_id.as_str(), _value.as_str()).await {
+                                    match update_cell_logic(cell_id.as_str(), _value.as_str(), (*formulas).clone()).await {
                                         Ok((row_str, val_str)) => {
                                             web_sys::console::log_1(&format!("Fetched value: {:?} {:?}", row_str, val_str).into());
                                             let mut updated = (*cell_values).clone();
@@ -1364,6 +1422,7 @@ fn app() -> Html {
                 let cell_values = cell_values.clone();
                 let toast_state = toast_state.clone();
                 let toast_counter = toast_counter.clone();
+                let formulas = formulas.clone();
                 
                 Callback::from(move |e: Event| {
                     let input: HtmlInputElement = e.target_unchecked_into();
@@ -1374,6 +1433,7 @@ fn app() -> Html {
                             let cell_values_clone = cell_values.clone();
                             let toast_state_clone = toast_state.clone();
                             let toast_counter_clone = toast_counter.clone();
+                            let formulas = formulas.clone();
                             
                             // let onload = Closure::once(move |_: web_sys::Event| {
                             //     let result = file_reader.result().unwrap();
@@ -1422,13 +1482,14 @@ fn app() -> Html {
                                 let toast_state_inner = toast_state_clone;
                                 let toast_counter_inner = toast_counter_clone;
                                 let parsed_data_inner = parsed_data.clone();
+                                let formulas = formulas.clone();
                                 
                                 wasm_bindgen_futures::spawn_local(async move {
                                     let mut updated_cells = HashMap::new();
                                     let mut processed = 0;
                                     
                                     for (cell_id, value) in parsed_data_inner.iter() {
-                                        match update_cell_logic(cell_id, value).await {
+                                        match update_cell_logic(cell_id, value, (*formulas).clone()).await {
                                             Ok((row_str, val_str)) => {
                                                 let row_parts: Vec<&str> = row_str.split_whitespace().collect();
                                                 let val_parts: Vec<&str> = val_str.split_whitespace().collect();
@@ -1665,6 +1726,7 @@ fn app() -> Html {
                         let cell_values = cell_values.clone();
                         let toast_state = toast_state.clone();
                         let toast_counter = toast_counter.clone();
+                        let formulas = formulas.clone();
                         
                         Callback::from(move |e: Event| {
                             let input: HtmlInputElement = e.target_unchecked_into();
@@ -1674,6 +1736,7 @@ fn app() -> Html {
                                     let cell_values_clone = cell_values.clone();
                                     let toast_state_clone = toast_state.clone();
                                     let toast_counter_clone = toast_counter.clone();
+                                    let formulas = formulas.clone();
                                     
                                     // Set up onload handler
                                     let onload_callback = Closure::wrap(Box::new(move |e: Event| {
@@ -1696,6 +1759,7 @@ fn app() -> Html {
                                                 let toast_state_inner = toast_state_clone.clone();
                                                 let toast_counter_inner = toast_counter_clone.clone();
                                                 let loaded_data_inner = loaded_data.clone();
+                                                let formulas = formulas.clone();
                                                 
                                                 wasm_bindgen_futures::spawn_local(async move {
                                                     let mut updated_cells = HashMap::new();
@@ -1705,7 +1769,7 @@ fn app() -> Html {
                                                         // Apply formula for each cell
                                                         let formula = format!("{}={}", cell_id, value);
                                                         
-                                                        match update_cell_logic(cell_id, value).await {
+                                                        match update_cell_logic(cell_id, value, (*formulas).clone()).await {
                                                             Ok((row_str, val_str)) => {
                                                                 let row_parts: Vec<&str> = row_str.split_whitespace().collect();
                                                                 let val_parts: Vec<&str> = val_str.split_whitespace().collect();
@@ -1800,7 +1864,28 @@ fn app() -> Html {
                     <button 
                         class="nav-button ai-suggestions-button"
                         onclick={
+                            let formulas = formulas.clone();
                             Callback::from(move |_| {
+                                let formulas = formulas.clone();
+                                
+                                // let is_loading = use_state(|| false);
+                                // is_loading.set(true);
+
+                                spawn_local(async move {
+                                    let formulas = formulas.clone();
+                                    // Call the AI API here
+                                    let prompt = "hi how are you doing?"; // Replace with actual prompt
+                                    
+                                    let ai_response = match ask_cohere((*formulas).clone()).await {
+                                        Ok(response) => response,
+                                        Err(e) => e
+                                    }; //ikr this is messed up, but ...
+
+                                    // is_loading.set(false);
+                                    web_sys::console::log_1(&format!("AI Response: {}", ai_response).into());
+                                });
+                            })
+                        }
                                 // For now, this button doesn't do anything
                                 // Future functionality can be added here
                             })

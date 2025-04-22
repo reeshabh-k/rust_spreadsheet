@@ -25,6 +25,12 @@ type SharedSheet = Arc<Mutex<spreadsheet::SpreadSheet>>;
 
 type FormulaStack = Arc<Mutex<Vec<String>>>;
 
+#[derive(Clone)]
+pub struct AppState {
+    sheet: SharedSheet,
+    formula_stack: FormulaStack,
+}
+
 #[derive(Deserialize)]
 struct CellParams {
     cell: String,
@@ -47,13 +53,13 @@ async fn get_value(
     Json(json!({ "row": x, "col": y, "val": z }))
 }
 
+
 #[tokio::main]
 async fn main() {
 
-    let mut statey = AppState {
+    let mut state = AppState {
         sheet: Arc::new(Mutex::new(spreadsheet::SpreadSheet::new(100, 55))),
         formula_stack: Arc::new(Mutex::new(vec![])),
-        cohere: Arc::new(Mutex::new(ai::CohereChat::new("tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi"))),
     };
 
     // let spreadsheet: SharedSheet = Arc::new(Mutex::new(spreadsheet::SpreadSheet::new(100, 55)));
@@ -70,9 +76,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/api/get_value", post(get_value))
-        .with_state(statey)
-        .route("/api/ai_formula", post(get_formula_from_ai))
-        .with_state(statey)
+        .with_state(state)
         .layer(cors);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));

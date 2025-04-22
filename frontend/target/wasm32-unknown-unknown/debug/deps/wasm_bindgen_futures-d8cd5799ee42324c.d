@@ -1,9 +1,0 @@
-/home/vivswan/rust_practice/rust_spreadsheet/rust_spreadsheet/frontend/target/wasm32-unknown-unknown/debug/deps/libwasm_bindgen_futures-d8cd5799ee42324c.rmeta: /home/vivswan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-futures-0.4.50/src/lib.rs /home/vivswan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-futures-0.4.50/src/queue.rs /home/vivswan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-futures-0.4.50/src/task/singlethread.rs
-
-/home/vivswan/rust_practice/rust_spreadsheet/rust_spreadsheet/frontend/target/wasm32-unknown-unknown/debug/deps/libwasm_bindgen_futures-d8cd5799ee42324c.rlib: /home/vivswan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-futures-0.4.50/src/lib.rs /home/vivswan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-futures-0.4.50/src/queue.rs /home/vivswan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-futures-0.4.50/src/task/singlethread.rs
-
-/home/vivswan/rust_practice/rust_spreadsheet/rust_spreadsheet/frontend/target/wasm32-unknown-unknown/debug/deps/wasm_bindgen_futures-d8cd5799ee42324c.d: /home/vivswan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-futures-0.4.50/src/lib.rs /home/vivswan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-futures-0.4.50/src/queue.rs /home/vivswan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-futures-0.4.50/src/task/singlethread.rs
-
-/home/vivswan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-futures-0.4.50/src/lib.rs:
-/home/vivswan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-futures-0.4.50/src/queue.rs:
-/home/vivswan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wasm-bindgen-futures-0.4.50/src/task/singlethread.rs:

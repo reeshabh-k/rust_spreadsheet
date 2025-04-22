@@ -1190,6 +1190,7 @@ fn app() -> Html {
         })
     };
     let toast_state_clone = toast_state.clone();
+    let file_input_ref = use_node_ref();
 
     // Render content based on dimensions validity
     let content = if dimensions_valid {
@@ -1350,6 +1351,89 @@ fn app() -> Html {
     html! {
         <>
             <h1> {"Rusty Spreadsheet"} </h1>
+
+            // Inside your html! macro, usually at the root level
+            <input
+            type="file"
+            accept=".csv"
+            id="csv-upload"
+            ref={file_input_ref.clone()}
+            onchange={
+                let cell_values = cell_values.clone();
+                let toast_state = toast_state.clone();
+                let toast_counter = toast_counter.clone();
+                
+                Callback::from(move |e: Event| {
+                    let input: HtmlInputElement = e.target_unchecked_into();
+                    
+                    if let Some(file_list) = input.files() {
+                        if let Some(file) = file_list.get(0) {
+                            let file_reader = web_sys::FileReader::new().unwrap();
+                            let file_reader_clone = file_reader.clone();
+                            let cell_values = cell_values.clone();
+                            let toast_state = toast_state.clone();
+                            let toast_counter = toast_counter.clone();
+                            
+                            // Create onload callback to process file when ready
+                            let onload = Closure::once(move |_: web_sys::Event| {
+                                let result = file_reader_clone.result().unwrap();
+                                let text = result.as_string().unwrap();
+                                
+                                // Parse CSV and update spreadsheet
+                                let mut updated = (*cell_values).clone();
+                                updated.clear(); // Clear existing data
+                                
+                                // Parse CSV content
+                                let lines: Vec<&str> = text.split('\n').collect();
+                                
+                                for (row_idx, line) in lines.iter().enumerate() {
+                                    if line.trim().is_empty() { continue; }
+                                    
+                                    let row_num = row_idx + 1;
+                                    let values: Vec<&str> = line.split(',').collect();
+                                    
+                                    for (col_idx, value) in values.iter().enumerate() {
+                                        let col_num = col_idx + 1;
+                                        let cell_id = format!("{}{}", get_column_label(col_num as u32), row_num);
+                                        
+                                        // Handle quoted values
+                                        let mut cell_value = value.to_string();
+                                        if cell_value.starts_with('"') && cell_value.ends_with('"') && cell_value.len() >= 2 {
+                                            cell_value = cell_value[1..cell_value.len()-1].to_string();
+                                            cell_value = cell_value.replace("\"\"", "\""); // Fix escaped quotes
+                                        }
+                                        
+                                        updated.insert(cell_id, cell_value);
+                                    }
+                                }
+                                
+                                // Update cell values
+                                cell_values.set(updated);
+                                
+                                // Show success notification
+                                let mut t = (*toast_counter).clone();
+                                t += 1;
+                                toast_counter.set(t);
+                                
+                                toast_state.set(ToastProps {
+                                    visible: true,
+                                    message: "CSV file loaded successfully".to_string(),
+                                    is_error: false,
+                                });
+                            });
+                            
+                            file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
+                            file_reader.read_as_text(&file).expect("Failed to read file");
+                            onload.forget(); // Prevent closure from being dropped
+                        }
+                    }
+                    
+                    // Reset the input value so the same file can be selected again
+                    input.set_value("");
+                })
+            }
+            style="display: none;"
+            />
             
             <div class="navigation-bar">
                 <div class="nav-section">
@@ -1555,7 +1639,17 @@ fn app() -> Html {
                             })
                         }
                     />
-                    
+                    <button 
+                        class="nav-button ai-suggestions-button"
+                        onclick={
+                            Callback::from(move |_| {
+                                // For now, this button doesn't do anything
+                                // Future functionality can be added here
+                            })
+                        }
+                    >
+                        {"AI Suggestions"}
+                    </button>
                     <button 
                         class="nav-button graph-button"
                         onclick={on_analyze}
@@ -2380,10 +2474,13 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                                     let width_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
                                     
                                     html! {
+                                        // In your StatisticsView function component
                                         <div class="expense-bar">
-                                            <div class="expense-bar-label">{category}</div>
+                                        <div class="expense-bar-label">{category}</div>
+                                        <div class="expense-bar-background">
                                             <div class="expense-bar-value" style={format!("width: {}%;", width_percent)}></div>
-                                            <div class="expense-bar-amount">{format!("${:.2}", value)}</div>
+                                        </div>
+                                        <div class="expense-bar-amount">{format!("${:.2}", value)}</div>
                                         </div>
                                     }
                                 }).collect::<Html>()

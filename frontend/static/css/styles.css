@@ -31,7 +31,7 @@ h1 {
     margin-bottom: 20px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     width: 100%;
-    max-width: 1200px;
+    max-width: 1400px;
     color: white;
 }
 
@@ -64,6 +64,22 @@ h1 {
 .upload-button:hover { background-color: #e67e22; }
 .graph-button:hover { background-color: #27ae60; }
 .save-csv-button:hover { background-color: #11517b; }
+
+.upload-csv-button {
+    background-color: #9c27b0; /* Purple for CSV upload */
+    color: white;
+    border: none;
+    padding: 4px 12px;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+    min-width: 60px;
+}
+
+.upload-csv-button:hover {
+    background-color: #7b1fa2;
+}
 
 /* --- Input Fields in Nav --- */
 .navigation-bar .input-field {
@@ -849,13 +865,39 @@ input[type="file"] {
     box-shadow: none;
 }
 
+/* Fix 1: Remove the excessive top margin on the first bar */
+.card.top-expenses .expense-bar:first-child {
+    margin-top: 50px; /* Changed from 50px to 10px */
+}
+
+/* Fix 2: Better container for the bar chart */
+.card.top-expenses > div {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 8px; /* Small consistent gap between bars */
+    padding: 10px 0; /* Add padding top and bottom */
+}
+
+/* Fix 3: Make the bar background elements clearer */
 .card.top-expenses .expense-bar {
     display: flex;
     align-items: center;
     width: 100%;
-    margin: 8px 0 0 0; /* Reduce bottom margin */
-    gap: 20px;
-    height: 32px; /* Make bars taller if you want */
+    margin: 5px; /* Remove margin, use gap instead */
+    gap: 12px; /* Reduced from 20px */
+    height: 28px; /* Slightly reduced height */
+}
+
+/* Fix 4: Add a clearer background to show bar progress */
+.card.top-expenses .expense-bar-background {
+    flex: 1;
+    background: #34495e; /* Light background */
+    border-radius: 8px;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
 }
 
 .card.top-expenses .expense-bar-label {
@@ -886,7 +928,7 @@ input[type="file"] {
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: center; /* Center bars vertically */
+    justify-content: flex-start; /* Center bars vertically */
     gap: 0; /* Remove extra gap between bars */
     padding: 0;
 }
@@ -1066,4 +1108,20 @@ input[type="file"] {
 
 .weekly-savings {
     grid-column: span 4;
+}
+
+.ai-suggestions-button {
+    background-color: #8e44ad; /* Purple color for AI */
+    color: white;
+    border: none;
+    padding: 4px 12px;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+    min-width: 60px;
+}
+
+.ai-suggestions-button:hover {
+    background-color: #673ab7;
 }

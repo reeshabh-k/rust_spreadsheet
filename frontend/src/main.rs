@@ -1384,6 +1384,8 @@ fn app() -> Html {
             <h1> {"Rusty Spreadsheet"} </h1>
 
             // Inside your html! macro, usually at the root level
+            // Replace the existing CSV file upload handler
+
             <input
             type="file"
             accept=".csv"
@@ -1399,23 +1401,25 @@ fn app() -> Html {
                     
                     if let Some(file_list) = input.files() {
                         if let Some(file) = file_list.get(0) {
-                            let file_reader = web_sys::FileReader::new().unwrap();
-                            let file_reader_clone = file_reader.clone();
-                            let cell_values = cell_values.clone();
-                            let toast_state = toast_state.clone();
-                            let toast_counter = toast_counter.clone();
+                            // let file_reader = web_sys::FileReader::new().unwrap();
+                            let cell_values_clone = cell_values.clone();
+                            let toast_state_clone = toast_state.clone();
+                            let toast_counter_clone = toast_counter.clone();
                             
-                            // Create onload callback to process file when ready
+                            // let onload = Closure::once(move |_: web_sys::Event| {
+                            //     let result = file_reader.result().unwrap();
+                            //     let text = result.as_string().unwrap();
+                            let file_reader = web_sys::FileReader::new().unwrap();
+                            let file_reader_clone = file_reader.clone(); // Clone it before moving into closure
+
                             let onload = Closure::once(move |_: web_sys::Event| {
-                                let result = file_reader_clone.result().unwrap();
+                                let result = file_reader_clone.result().unwrap(); // Use the clone inside the closure
                                 let text = result.as_string().unwrap();
                                 
-                                // Parse CSV and update spreadsheet
-                                let mut updated = (*cell_values).clone();
-                                updated.clear(); // Clear existing data
-                                
-                                // Parse CSV content
+                                // Parse CSV data
                                 let lines: Vec<&str> = text.split('\n').collect();
+                                let mut parsed_data = HashMap::new();
+                                let mut cell_count = 0;
                                 
                                 for (row_idx, line) in lines.iter().enumerate() {
                                     if line.trim().is_empty() { continue; }
@@ -1427,39 +1431,96 @@ fn app() -> Html {
                                         let col_num = col_idx + 1;
                                         let cell_id = format!("{}{}", get_column_label(col_num as u32), row_num);
                                         
-                                        // Handle quoted values
                                         let mut cell_value = value.to_string();
                                         if cell_value.starts_with('"') && cell_value.ends_with('"') && cell_value.len() >= 2 {
                                             cell_value = cell_value[1..cell_value.len()-1].to_string();
-                                            cell_value = cell_value.replace("\"\"", "\""); // Fix escaped quotes
+                                            cell_value = cell_value.replace("\"\"", "\"");
                                         }
                                         
-                                        updated.insert(cell_id, cell_value);
+                                        parsed_data.insert(cell_id, cell_value);
+                                        cell_count += 1;
                                     }
                                 }
                                 
-                                // Update cell values
-                                cell_values.set(updated);
-                                
-                                // Show success notification
-                                let mut t = (*toast_counter).clone();
-                                t += 1;
-                                toast_counter.set(t);
-                                
-                                toast_state.set(ToastProps {
+                                // Start processing with the backend
+                                toast_state_clone.set(ToastProps {
                                     visible: true,
-                                    message: "CSV file loaded successfully".to_string(),
+                                    message: format!("Processing {} cells...", cell_count),
                                     is_error: false,
+                                });
+                                
+                                let cell_values_inner = cell_values_clone;
+                                let toast_state_inner = toast_state_clone;
+                                let toast_counter_inner = toast_counter_clone;
+                                let parsed_data_inner = parsed_data.clone();
+                                
+                                wasm_bindgen_futures::spawn_local(async move {
+                                    let mut updated_cells = HashMap::new();
+                                    let mut processed = 0;
+                                    
+                                    for (cell_id, value) in parsed_data_inner.iter() {
+                                        match update_cell_logic(cell_id, value).await {
+                                            Ok((row_str, val_str)) => {
+                                                let row_parts: Vec<&str> = row_str.split_whitespace().collect();
+                                                let val_parts: Vec<&str> = val_str.split_whitespace().collect();
+                                                
+                                                // Update cells based on backend response
+                                                for i in 0..row_parts.len().min(val_parts.len()) {
+                                                    updated_cells.insert(row_parts[i].to_string(), val_parts[i].to_string());
+                                                }
+                                            },
+                                            Err(_) => {
+                                                // For failed cells, use the raw value
+                                                updated_cells.insert(cell_id.clone(), value.clone());
+                                            }
+                                        }
+                                        
+                                        processed += 1;
+                                        if processed % 20 == 0 {
+                                            let progress = (processed as f64 / cell_count as f64) * 100.0;
+                                            toast_state_inner.set(ToastProps {
+                                                visible: true,
+                                                message: format!("Processing: {:.0}% complete", progress),
+                                                is_error: false,
+                                            });
+                                            
+                                            // Allow UI to update
+                                            wasm_bindgen_futures::JsFuture::from(js_sys::Promise::new(
+                                                &mut |resolve, _| {
+                                                    web_sys::window()
+                                                        .unwrap()
+                                                        .set_timeout_with_callback_and_timeout_and_arguments_0(
+                                                            &resolve, 0
+                                                        )
+                                                        .unwrap();
+                                                }
+                                            )).await.unwrap();
+                                        }
+                                    }
+                                    
+                                    // Final update of cell values
+                                    cell_values_inner.set(updated_cells);
+                                    
+                                    // Update toast counter to force re-render
+                                    let mut t = (*toast_counter_inner).clone();
+                                    t += 1;
+                                    toast_counter_inner.set(t);
+                                    
+                                    // Show completion notification
+                                    toast_state_inner.set(ToastProps {
+                                        visible: true,
+                                        message: "CSV file processed and synced with backend".to_string(),
+                                        is_error: false,
+                                    });
                                 });
                             });
                             
                             file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
                             file_reader.read_as_text(&file).expect("Failed to read file");
-                            onload.forget(); // Prevent closure from being dropped
+                            onload.forget();
                         }
                     }
                     
-                    // Reset the input value so the same file can be selected again
                     input.set_value("");
                 })
             }
@@ -1626,50 +1687,147 @@ fn app() -> Html {
                     </button>
                     // Completely hide the default file input and use only the custom button
                     <label for="spreadsheet-upload" class="upload-button">{"Upload"}</label>
+                    // Replace the existing JSON file upload handler
                     <input
-                        id="spreadsheet-upload"
-                        type="file"
-                        accept=".json"
-                        // native file input is hidden via CSS
-                        onchange={
-                            let cell_values = cell_values.clone();
-                            Callback::from(move |e: Event| {
-                                let input: HtmlInputElement = e.target_unchecked_into();
-                                if let Some(file_list) = input.files() {
-                                    if let Some(file) = file_list.get(0) {
-                                        let file_reader = web_sys::FileReader::new().unwrap();
-                                        let cell_values_clone = cell_values.clone();
+                    id="spreadsheet-upload"
+                    type="file"
+                    accept=".json"
+                    onchange={
+                        let cell_values = cell_values.clone();
+                        let toast_state = toast_state.clone();
+                        let toast_counter = toast_counter.clone();
+                        
+                        Callback::from(move |e: Event| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            if let Some(file_list) = input.files() {
+                                if let Some(file) = file_list.get(0) {
+                                    let file_reader = web_sys::FileReader::new().unwrap();
+                                    let cell_values_clone = cell_values.clone();
+                                    let toast_state_clone = toast_state.clone();
+                                    let toast_counter_clone = toast_counter.clone();
+                                    
+                                    // Set up onload handler
+                                    let onload_callback = Closure::wrap(Box::new(move |e: Event| {
+                                        let target: web_sys::FileReader = e.target().unwrap().dyn_into().unwrap();
+                                        let result = target.result().unwrap();
+                                        let json_str = result.as_string().unwrap();
                                         
-                                        // Set up onload handler
-                                        let onload_callback = Closure::wrap(Box::new(move |e: Event| {
-                                            let target: web_sys::FileReader = e.target().unwrap().dyn_into().unwrap();
-                                            let result = target.result().unwrap();
-                                            let json_str = result.as_string().unwrap();
-                                            
-                                            // Parse JSON to HashMap
-                                            match serde_json::from_str::<HashMap<String, String>>(&json_str) {
-                                                Ok(loaded_data) => {
-                                                    // Update cell values state with loaded data
-                                                    cell_values_clone.set(loaded_data);
-                                                },
-                                                Err(err) => {
-                                                    web_sys::console::error_1(&format!("Error parsing JSON: {}", err).into());
-                                                    // Optionally display error to user
-                                                }
+                                        // Parse JSON to HashMap
+                                        match serde_json::from_str::<HashMap<String, String>>(&json_str) {
+                                            Ok(loaded_data) => {
+                                                // Process data asynchronously
+                                                let cells_count = loaded_data.len();
+                                                toast_state_clone.set(ToastProps {
+                                                    visible: true,
+                                                    message: format!("Processing {} cells...", cells_count),
+                                                    is_error: false,
+                                                });
+                                                
+                                                let cell_values_inner = cell_values_clone.clone();
+                                                let toast_state_inner = toast_state_clone.clone();
+                                                let toast_counter_inner = toast_counter_clone.clone();
+                                                let loaded_data_inner = loaded_data.clone();
+                                                
+                                                wasm_bindgen_futures::spawn_local(async move {
+                                                    let mut updated_cells = HashMap::new();
+                                                    let mut processed = 0;
+                                                    
+                                                    for (cell_id, value) in loaded_data_inner.iter() {
+                                                        // Apply formula for each cell
+                                                        let formula = format!("{}={}", cell_id, value);
+                                                        
+                                                        match update_cell_logic(cell_id, value).await {
+                                                            Ok((row_str, val_str)) => {
+                                                                let row_parts: Vec<&str> = row_str.split_whitespace().collect();
+                                                                let val_parts: Vec<&str> = val_str.split_whitespace().collect();
+                                                                
+                                                                // Update cells based on backend response
+                                                                for i in 0..row_parts.len().min(val_parts.len()) {
+                                                                    updated_cells.insert(row_parts[i].to_string(), val_parts[i].to_string());
+                                                                }
+                                                            },
+                                                            Err(_) => {
+                                                                // For failed cells, use the raw value
+                                                                updated_cells.insert(cell_id.clone(), value.clone());
+                                                            }
+                                                        }
+                                                        
+                                                        processed += 1;
+                                                        if processed % 20 == 0 {
+                                                            let progress = (processed as f64 / cells_count as f64) * 100.0;
+                                                            toast_state_inner.set(ToastProps {
+                                                                visible: true,
+                                                                message: format!("Processing: {:.0}% complete", progress),
+                                                                is_error: false,
+                                                            });
+                                                            
+                                                            // Allow UI to update
+                                                            wasm_bindgen_futures::JsFuture::from(js_sys::Promise::new(
+                                                                &mut |resolve, _| {
+                                                                    web_sys::window()
+                                                                        .unwrap()
+                                                                        .set_timeout_with_callback_and_timeout_and_arguments_0(
+                                                                            &resolve, 0
+                                                                        )
+                                                                        .unwrap();
+                                                                }
+                                                            )).await.unwrap();
+                                                        }
+                                                    }
+                                                    
+                                                    // Final update of cell values
+                                                    cell_values_inner.set(updated_cells);
+                                                    
+                                                    // Update toast counter to force re-render
+                                                    let mut t = (*toast_counter_inner).clone();
+                                                    t += 1;
+                                                    toast_counter_inner.set(t);
+                                                    
+                                                    // Show completion notification
+                                                    toast_state_inner.set(ToastProps {
+                                                        visible: true,
+                                                        message: "File processed and synced with backend".to_string(),
+                                                        is_error: false,
+                                                    });
+                                                });
+                                            },
+                                            Err(err) => {
+                                                web_sys::console::error_1(&format!("Error parsing JSON: {}", err).into());
+                                                toast_state_clone.set(ToastProps {
+                                                    visible: true,
+                                                    message: format!("Error parsing JSON file: {}", err),
+                                                    is_error: true,
+                                                });
                                             }
-                                        }) as Box<dyn FnMut(Event)>);
-                                        
-                                        // Attach event listener and trigger file read
-                                        file_reader.set_onload(Some(onload_callback.as_ref().unchecked_ref()));
-                                        file_reader.read_as_text(&file).unwrap();
-                                        
-                                        // Keep callback alive
-                                        onload_callback.forget();
-                                    }
+                                        }
+                                    }) as Box<dyn FnMut(Event)>);
+                                    
+                                    file_reader.set_onload(Some(onload_callback.as_ref().unchecked_ref()));
+                                    file_reader.read_as_text(&file).unwrap();
+                                    onload_callback.forget();
                                 }
-                            })
-                        }
+                            }
+                            
+                            // Reset input value
+                            input.set_value("");
+                        })
+                    }
                     />
+                    // Inside your navigation-bar div
+
+                    <button 
+                    class="nav-button upload-csv-button"
+                    onclick={
+                        let file_input_ref = file_input_ref.clone();
+                        Callback::from(move |_| {
+                            if let Some(input) = file_input_ref.cast::<HtmlInputElement>() {
+                                input.click();
+                            }
+                        })
+                    }
+                    >
+                    {"Upload CSV"}
+                    </button>
                     <button 
                         class="nav-button ai-suggestions-button"
                         

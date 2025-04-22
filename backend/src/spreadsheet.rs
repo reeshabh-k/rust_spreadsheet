@@ -478,7 +478,7 @@ impl SpreadSheet {
             y.push_str((format!("{} ", i.col)).as_str());
             match num {
                 CellVal::Int_c(v) => z.push_str((format!("{} ", v)).as_str()),
-                CellVal::Str_c(s) => z.push_str((format!("{}", s)).as_str()),
+                CellVal::Str_c(s) => z.push_str((format!("{} ", s)).as_str()),
             }
             
         }

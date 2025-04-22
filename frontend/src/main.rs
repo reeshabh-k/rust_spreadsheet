@@ -1179,26 +1179,13 @@ fn app() -> Html {
     }
 
     
-    let message = use_state(|| String::from("Loading..."));
 
-    let message_clone = message.clone();
-
-    use_effect_with_deps(move |_| {
-        spawn_local(async move {
-            // Call the API
-            match fetch_message().await {
-                Ok(response) => message_clone.set(response),
-                Err(err) => console::log_1(&format!("Error fetching API: {:?}", err).into()),
-            }
-        });
-        || ()
-    }, ());
         
     
     // Rest of the code remains the same
     html! {
         <>
-            <h1> {"Rusty Spreadsheet"}  {(*message).clone()} </h1>
+            <h1> {"Rusty Spreadsheet"} </h1>
             
             <div class="navigation-bar">
                 <div class="nav-section">

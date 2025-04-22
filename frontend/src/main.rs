@@ -2098,7 +2098,7 @@ fn toast(props: &ToastProps) -> Html {
                         &Closure::once_into_js(move || {
                             visible_clone.set(false);
                         }).into(),
-                        3000,
+                        5000,
                     ).unwrap();
                     
                     // Create the timeout cleanup closure of the expected type

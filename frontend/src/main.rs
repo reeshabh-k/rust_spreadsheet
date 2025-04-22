@@ -958,14 +958,14 @@ fn app() -> Html {
                         // From CSS: .cell { min-width: 80px; height: 35px; }
                         // From CSS: .row-header, .column-header are in similar dimensions
                         let cell_width = 80;       // Exact width from CSS
-                        let cell_height = 35;      // Exact height from CSS
+                        let cell_height = 35.11;      // Exact height from CSS
                         let row_header_width = 40; // Width of the row headers (1, 2, 3...)
                         let col_header_height = 35; // Height of the column headers (A, B, C...)
                         
                         // Calculate the exact pixel offset
                         // Subtract header sizes to account for the fixed headers
                         // Start exact at top-left corner of the target cell
-                        let scroll_top = ((row - 1) * cell_height) ;  // No extra offset needed vertically
+                        let scroll_top = ((row - 1) as f64 * cell_height) as i32 ;  // No extra offset needed vertically
                         let scroll_left = ((col_num - 1) * cell_width) + 0; // No extra offset needed horizontally
                         
                         // Set scroll position
@@ -1184,11 +1184,11 @@ fn app() -> Html {
                     })}
                 />
                 
-                <div class="api-info">
-                    <p class="note">{"Note: In the future, this spreadsheet will connect to a backend API to process formulas and update cell values."}</p>
-                    <p class="instructions">{"To use the spreadsheet: Click on a cell to select it, then enter a formula like \"A1=10+B2\" and press Enter."}</p>
-                    <p class="instructions">{"You can also type a cell reference (like A1) in the \"Enter cell\" field and press Enter to quickly navigate to that cell."}</p>
-                </div>
+                // <div class="api-info">
+                //     <p class="note">{"Note: In the future, this spreadsheet will connect to a backend API to process formulas and update cell values."}</p>
+                //     <p class="instructions">{"To use the spreadsheet: Click on a cell to select it, then enter a formula like \"A1=10+B2\" and press Enter."}</p>
+                //     <p class="instructions">{"You can also type a cell reference (like A1) in the \"Enter cell\" field and press Enter to quickly navigate to that cell."}</p>
+                // </div>
             </div>
         }
     } else {
@@ -1299,7 +1299,78 @@ fn app() -> Html {
                     >
                         {"Save"}
                     </button>
-                    
+                    // ...inside your html! for the navigation bar...
+                    <button 
+                    class="nav-button save-csv-button"
+                    onclick={
+                        let cell_values = cell_values.clone();
+                        Callback::from(move |_| {
+                            // Convert cell_values to CSV and save as file
+                            let mut csv_data = String::new();
+
+                            // Collect all cell keys and sort them
+                            let mut keys: Vec<_> = cell_values.keys().collect();
+                            keys.sort();
+
+                            // Find max row and col
+                            let mut max_row = 1;
+                            let mut max_col = 1;
+                            for key in &keys {
+                                let col: String = key.chars().take_while(|c| c.is_ascii_alphabetic()).collect();
+                                let row: String = key.chars().skip_while(|c| c.is_ascii_alphabetic()).collect();
+                                let col_num = get_column_number(&col);
+                                let row_num = row.parse::<u32>().unwrap_or(1);
+                                if col_num > max_col { max_col = col_num; }
+                                if row_num > max_row { max_row = row_num; }
+                            }
+
+                            // Write CSV rows
+                            for row in 1..=max_row {
+                                let mut row_cells = Vec::new();
+                                for col in 1..=max_col {
+                                    let cell_id = format!("{}{}", get_column_label(col), row);
+                                    let val = cell_values.get(&cell_id).cloned().unwrap_or_default();
+                                    // Escape double quotes
+                                    let val = val.replace('"', "\"\"");
+                                    // Wrap in quotes if needed
+                                    let val = if val.contains(',') || val.contains('"') { format!("\"{}\"", val) } else { val };
+                                    row_cells.push(val);
+                                }
+                                csv_data.push_str(&row_cells.join(","));
+                                csv_data.push('\n');
+                            }
+
+                            // Use web_sys to create and download a file
+                            let window = web_sys::window().unwrap();
+                            let document = window.document().unwrap();
+                            let element = document.create_element("a").unwrap();
+                            let element = element.dyn_into::<web_sys::HtmlElement>().unwrap();
+
+                            // Create a blob URL for the CSV data
+                            let mut binding = web_sys::BlobPropertyBag::new();
+                            let blob_props = binding.type_("text/csv");
+                            let blob = web_sys::Blob::new_with_str_sequence_and_options(
+                                &js_sys::Array::of1(&wasm_bindgen::JsValue::from_str(&csv_data)),
+                                &blob_props
+                            ).unwrap();
+                            let url = web_sys::Url::create_object_url_with_blob(&blob).unwrap();
+
+                            // Set up the download link
+                            element.set_attribute("href", &url).unwrap();
+                            element.set_attribute("download", "spreadsheet.csv").unwrap();
+                            element.style().set_css_text("display: none");
+
+                            // Append to document, click, and clean up
+                            let body = document.body().unwrap();
+                            body.append_child(&element).unwrap();
+                            element.click();
+                            body.remove_child(&element).unwrap();
+                            web_sys::Url::revoke_object_url(&url).unwrap();
+                        })
+                    }
+                    >
+                    {"Download CSV"}
+                    </button>
                     // Completely hide the default file input and use only the custom button
                     <label for="spreadsheet-upload" class="upload-button">{"Upload"}</label>
                     <input
@@ -2067,32 +2138,50 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
     let title = all_data.get("A1").cloned().unwrap_or_else(|| "Personal Financial Analysis".to_string());
     
     // Process data rows (assuming similar structure to visualization data)
-    for row in 2..=20 {  // Check first 20 rows
+    for row in 2..=3 {  // Check first 20 rows
         let row_label_cell = format!("A{}", row);
         if let Some(row_label) = all_data.get(&row_label_cell) {
             if row_label.trim().is_empty() || row_label == "0" {
                 continue;
             }
             
-            // Process data in this row (columns B-F)
-            for col in 2..=6 {
-                let cell_id = format!("{}{}", get_column_label(col), row);
-                if let Some(value_str) = all_data.get(&cell_id) {
-                    if let Ok(value) = value_str.parse::<f64>() {
-                        if value != 0.0 {
-                            if row <= 1 {
-                                // First few rows might be income
-                                income_sources.push((row_label.clone(), value));
-                            } else {
-                                // Later rows likely expenses
-                                expenses.push((row_label.clone(), value));
+            // Process data in this row (columns B-I)
+            for col in 2..=10 {
+                let column_label_cell = format!("{}1", get_column_label(col));
+                if let Some(col_label) = all_data.get(&column_label_cell) {
+                    
+                    let cell_id = format!("{}{}", get_column_label(col), row);
+                    if let Some(value_str) = all_data.get(&cell_id) {
+                        if let Ok(value) = value_str.parse::<f64>() {
+                            if value != 0.0 {
+                                if row == 2 {
+                                    // First few rows might be income
+                                    income_sources.push((col_label.clone(), value));
+                                } else {
+                                    // Later rows likely expenses
+                                    expenses.push((col_label.clone(), value));
+                                }
+                                
+                                financial_data.insert(col_label.clone(), value);
                             }
-                            
-                            financial_data.insert(row_label.clone(), value);
                         }
                     }
                 }
             }
+        }
+    }
+
+    // Build savings using header values as keys
+    let mut savings: Vec<(String, f64)> = Vec::new();
+    for col in 2..=10 {
+        let col_label = get_column_label(col);
+        let header = all_data.get(&format!("{}1", col_label)).cloned().unwrap_or_default();
+        if header.is_empty() { continue; }
+        let income = income_sources.iter().find(|(label, _)| label == &header).map(|(_, v)| *v).unwrap_or(0.0);
+        let expense = expenses.iter().find(|(label, _)| label == &header).map(|(_, v)| *v).unwrap_or(0.0);
+        let saving = income - expense;
+        if income != 0.0 || expense != 0.0 {
+            savings.push((header, saving));
         }
     }
     
@@ -2120,19 +2209,22 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                 
                 <div class="dashboard">
                     <div class="card expenses-by-category">
-                        <h2 class="card-title">{"Expenses by Category"}</h2>
+                        <h2 class="card-title">{"Expenses"}</h2>
                         <div class="chart-container">
                             <div id="expenses-chart" class="chart-placeholder">
                                 {
+                                    // let max_value = expenses.iter().map(|(_, v)| *v).fold(0.0, f64::max);
                                     expenses.iter().take(6).map(|(category, value)| {
                                         let max_value = expenses.iter().map(|(_, v)| *v).fold(0.0, f64::max);
                                         let width_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
                                         
                                         html! {
-                                            <div class="chart-bar">
-                                                <div class="chart-bar-label">{category}</div>
-                                                <div class="chart-bar-value" style={format!("width: {}%;", width_percent)}></div>
-                                                <div class="chart-bar-amount">{format!("${:.2}", value)}</div>
+                                            <div class="chart-bar-row">
+                                                <span class="chart-bar-label">{category}</span>
+                                                <div class="chart-bar-outer">
+                                                    <div class="chart-bar-value" style={format!("width: {}%;", width_percent)}></div>
+                                                </div>
+                                                <span class="chart-bar-amount">{format!("${:.2}", value)}</span>
                                             </div>
                                         }
                                     }).collect::<Html>()
@@ -2198,27 +2290,41 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                     </div>
                     
                     // Expense cards - use expense data from spreadsheet
-                    {
-                        expenses.iter().take(6).enumerate().map(|(i, (category, value))| {
-                            // Assign different colors and icons based on category types
-                            let (bg_color, icon) = match i % 6 {
-                                0 => ("#ff7675", "fas fa-home"),
-                                1 => ("#34495e", "fas fa-utensils"),
-                                2 => ("#34495e", "fas fa-hand-holding-heart"),
-                                3 => ("#34495e", "fas fa-briefcase-medical"),
-                                4 => ("#34495e", "fas fa-shopping-bag"),
-                                _ => ("#6c5ce7", "fas fa-car"),
-                            };
+                    // {
+                    //     expenses.iter().take(6).enumerate().map(|(i, (category, value))| {
+                    //         // Assign different colors and icons based on category types
+                    //         let (bg_color, icon) = match i % 6 {
+                    //             0 => ("#ff7675", "fas fa-home"),
+                    //             1 => ("#34495e", "fas fa-utensils"),
+                    //             2 => ("#34495e", "fas fa-hand-holding-heart"),
+                    //             3 => ("#34495e", "fas fa-briefcase-medical"),
+                    //             4 => ("#34495e", "fas fa-shopping-bag"),
+                    //             _ => ("#6c5ce7", "fas fa-car"),
+                    //         };
                             
-                            html! {
-                                <div class="expense-card" style={format!("background-color: {}", bg_color)}>
-                                    <i class={format!("{} expense-card-icon", icon)}></i>
-                                    <div class="expense-card-title">{category}</div>
-                                    <div class="expense-card-amount">{format!("${:.2}", value)}</div>
-                                </div>
+                    //         html! {
+                    //             <div class="expense-card" style={format!("background-color: {}", bg_color)}>
+                    //                 <i class={format!("{} expense-card-icon", icon)}></i>
+                    //                 <div class="expense-card-title">{category}</div>
+                    //                 <div class="expense-card-amount">{format!("${:.2}", value)}</div>
+                    //             </div>
+                    //         }
+                    //     }).collect::<Html>()
+                    // }
+                    <div class="card weekly-savings">
+                        <h2 class="card-title">{"Weekly Savings"}</h2>
+                        <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
+                            {
+                                savings.iter().map(|(label, value)| {
+                                    html! {
+                                        <div style="background: #27ae60; color: #fff; padding: 8px 18px; border-radius: 6px; font-weight: bold;">
+                                            {format!("{}: ${:.2}", label, value)}
+                                        </div>
+                                    }
+                                }).collect::<Html>()
                             }
-                        }).collect::<Html>()
-                    }
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

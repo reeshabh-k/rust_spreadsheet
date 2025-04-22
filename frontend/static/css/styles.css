@@ -4,7 +4,7 @@ body {
     background: #f5f7fa;
     color: #2c3e50;
     margin: 0;
-    padding: 8px 20px 20px 20px; /* Reduced top padding from 20px to 8px */
+    padding: 0px 0px 0px 0px; /* Reduced top padding from 20px to 8px */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -43,8 +43,9 @@ h1 {
 
 .nav-button,
 .upload-button,
+.save-csv-button,
 .graph-button {
-    background-color: #3498db;
+    background-color: #a8e214;
     color: white;
     border: none;
     padding: 4px 12px;
@@ -57,10 +58,12 @@ h1 {
 
 .upload-button { background-color: #ff9800; }
 .graph-button { background-color: #2ecc71; }
+.save-csv-button { background-color: #9b14ac; }
 
 .nav-button:hover { background-color: #2980b9; }
 .upload-button:hover { background-color: #e67e22; }
 .graph-button:hover { background-color: #27ae60; }
+.save-csv-button:hover { background-color: #11517b; }
 
 /* --- Input Fields in Nav --- */
 .navigation-bar .input-field {
@@ -95,8 +98,8 @@ input[type="file"] {
 /* --- Spreadsheet Container --- */
 .spreadsheet-container {
     position: relative;
-    max-height: 70vh;
-    max-width: 95vw;
+    max-height: 83vh;
+    max-width: 98vw;
     overflow: auto;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
@@ -155,7 +158,7 @@ input[type="file"] {
 }
 
 .spreadsheet th.row-header {
-    background: linear-gradient(to right, #9b59b6, #8e44ad);
+    background: linear-gradient(to right, #9b59b6, #8c3ead);
     color: white;
     font-weight: 600;
     border-right: 2px solid #6c3483;
@@ -203,38 +206,7 @@ input[type="file"] {
     color: #2c3e50;
 }
 
-/* --- Context Menu --- */
-.context-menu {
-    position: absolute;
-    background: rgb(165, 54, 54);
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    padding: 10px;
-    z-index: 100;
-    min-width: 200px;
-}
 
-.context-menu input {
-    width: 100%;
-    padding: 6px;
-    margin-bottom: 8px;
-    box-sizing: border-box;
-}
-
-.context-menu button {
-    width: 100%;
-    padding: 6px;
-    border: none;
-    background: #4CAF50;
-    color: white;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.context-menu button:hover {
-    background: #45a049;
-}
 
 /* --- Utility & Responsive --- */
 * { box-sizing: border-box; }
@@ -242,42 +214,6 @@ input[type="file"] {
     .navigation-bar { flex-wrap: wrap; }
     .nav-section { gap: 6px; }
     .navigation-bar input, .nav-button, .upload-button, .graph-button { font-size: 12px; }
-}
-
-/* Toast notification styles */
-.toast {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    padding: 12px 20px;
-    border-radius: 4px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    z-index: 1000;
-    transition: opacity 0.3s, transform 0.3s;
-    max-width: 300px;
-}
-
-.toast-hidden {
-    opacity: 0;
-    transform: translateY(20px);
-    pointer-events: none;
-}
-
-.toast-visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.toast-error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border-left: 4px solid #dc3545;
-}
-
-.toast-success {
-    background-color: #d4edda;
-    color: #155724;
-    border-left: 4px solid #28a745;
 }
 
 /* Toast Notification Styles */
@@ -317,6 +253,46 @@ input[type="file"] {
     opacity: 0;
     transform: translateX(-50%) translateY(20px);
     pointer-events: none;
+}
+
+/* Toast pop-in and fade-out animation */
+@keyframes toast-pop-in {
+    0% {
+        opacity: 0;
+        transform: translateX(-50%) scale(0.8);
+    }
+    60% {
+        opacity: 1;
+        transform: translateX(-50%) scale(1.05);
+    }
+    80% {
+        transform: translateX(-50%) scale(0.97);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
+    }
+}
+
+@keyframes toast-fade-out {
+    from {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-50%) scale(0.8);
+    }
+}
+
+/* Apply pop-in when toast becomes visible */
+.toast.toast-visible {
+    animation: toast-pop-in 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Optionally, apply fade-out when toast is hidden */
+.toast.toast-hidden {
+    animation: toast-fade-out 10.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 /* --- Visualization Styles --- */
@@ -864,30 +840,55 @@ input[type="file"] {
     margin-top: 10px;
 }
 
-.expense-bar {
-    height: 20px;
-    border-radius: 4px;
-    margin-bottom: 10px;
+.card.top-expenses .chart-container {
+    height: auto !important;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    background: none;
+    box-shadow: none;
+}
+
+.card.top-expenses .expense-bar {
     display: flex;
     align-items: center;
+    width: 100%;
+    margin: 8px 0 0 0; /* Reduce bottom margin */
+    gap: 20px;
+    height: 32px; /* Make bars taller if you want */
 }
 
-.expense-bar-label {
-    flex: 1;
-    text-align: right;
-    padding-right: 10px;
+.card.top-expenses .expense-bar-label {
+    min-width: 80px;
     font-weight: 500;
+    color: #2ca428;
+    text-align: right;
+    margin-right: 8px;
 }
 
-.expense-bar-value {
-    background-color: #6c5ce7;
-    height: 100%;
-    border-radius: 4px;
+.card.top-expenses .expense-bar-value {
+    flex: 1;
+    height: 24px;
+    background: #7266e6;
+    border-radius: 8px;
+    transition: width 0.6s cubic-bezier(.4,2,.6,1);
 }
 
-.expense-bar-amount {
-    padding-left: 10px;
+.card.top-expenses .expense-bar-amount {
+    min-width: 70px;
     font-weight: bold;
+    color: #a83636;
+    text-align: left;
+    margin-left: 8px;
+}
+
+.card.top-expenses > div {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Center bars vertically */
+    gap: 0; /* Remove extra gap between bars */
+    padding: 0;
 }
 
 .chart-bar {
@@ -951,6 +952,20 @@ input[type="file"] {
     color: white;
 }
 
+.income-source:nth-child(5) {
+    background-color: #42b515;
+    color: white;
+}
+
+.income-source:nth-child(6) {
+    background-color: #9b59b6;
+    color: white;
+}
+.income-source:nth-child(7) {
+    background-color: #e67e22;
+    color: white;
+}
+
 /* Donut chart with CSS only */
 .donut-chart-container {
     position: relative;
@@ -1011,4 +1026,44 @@ input[type="file"] {
     .expense-card {
         grid-column: span 3;
     }
+}
+
+.chart-bar-row {
+    display: flex;
+    align-items: center;
+    margin: 18px 0 10px 0;
+    gap: 12px;
+}
+.chart-bar-label {
+    min-width: 110px;
+    font-weight: 500;
+    color: #444;
+    text-align: right;
+    margin-right: 8px;
+}
+.chart-bar-outer {
+    flex: 1;
+    background: #ececff;
+    border-radius: 8px;
+    height: 24px;
+    margin-right: 8px;
+    position: relative;
+    overflow: hidden;
+}
+.chart-bar-value {
+    height: 100%;
+    background: #7266e6;
+    border-radius: 8px;
+    transition: width 0.6s cubic-bezier(.4,2,.6,1);
+}
+.chart-bar-amount {
+    min-width: 70px;
+    font-weight: bold;
+    color: #333;
+    text-align: left;
+    margin-left: 8px;
+}
+
+.weekly-savings {
+    grid-column: span 4;
 }

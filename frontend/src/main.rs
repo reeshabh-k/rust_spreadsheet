@@ -11,6 +11,7 @@ use web_sys::console;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
+use serde_json::json;
 
 
 const API_URL: &str = "http://localhost:8080/api";
@@ -1865,29 +1866,42 @@ fn app() -> Html {
                         class="nav-button ai-suggestions-button"
                         onclick={
                             let formulas = formulas.clone();
+                            let toast_state = toast_state.clone();
+                            let toast_counter = toast_counter.clone();
+                            
                             Callback::from(move |_| {
                                 let formulas = formulas.clone();
+                                let toast_state = toast_state.clone();
+                                let toast_counter = toast_counter.clone();
                                 
-                                // let is_loading = use_state(|| false);
-                                // is_loading.set(true);
-
+                                // Show "loading" toast
+                                toast_state.set(ToastProps {
+                                    visible: true,
+                                    message: "Getting AI suggestions...".to_string(),
+                                    is_error: false,
+                                });
+                                
                                 spawn_local(async move {
                                     let formulas = formulas.clone();
-                                    // Call the AI API here
-                                    let prompt = "hi how are you doing?"; // Replace with actual prompt
                                     
                                     let ai_response = match ask_cohere((*formulas).clone()).await {
                                         Ok(response) => response,
                                         Err(e) => e
-                                    }; //ikr this is messed up, but ...
-
-                                    // is_loading.set(false);
+                                    };
+                                    
+                                    // Show AI response in toast
+                                    let mut t = (*toast_counter).clone();
+                                    t += 1;
+                                    toast_counter.set(t);
+                                    
+                                    toast_state.set(ToastProps {
+                                        visible: true,
+                                        message: format!("AI Suggestion: {}", ai_response),
+                                        is_error: false,
+                                    });
+                                    
                                     web_sys::console::log_1(&format!("AI Response: {}", ai_response).into());
                                 });
-                            })
-                        }
-                                // For now, this button doesn't do anything
-                                // Future functionality can be added here
                             })
                         }
                     >

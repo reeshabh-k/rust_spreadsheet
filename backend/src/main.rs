@@ -14,6 +14,10 @@ use serde::Deserialize;
 mod spreadsheet;
 mod basic; 
 mod input;
+use std::io::Cursor;
+
+
+use crate::basic::{Formula, Expression, Cell};
 
 type SharedSheet = Arc<Mutex<spreadsheet::SpreadSheet>>;
 
@@ -35,17 +39,20 @@ async fn get_value(
     ) -> Json<serde_json::Value> {
         let mut sheet = sheet.lock().unwrap();
 
+
+        let form = format!("{}={}", params.cell, params.val.clone());
+        let mut inp = Cursor::new(form);
+        let form = input::get_formula(&mut inp); 
+
+        let (x, y, z) = sheet.call_formula_api(form.clone());
+
         
-        
-        sheet.val[0] = 9090909;
-        Json(json!({ 
-            "value": format!("{}-{}-{}", params.cell, params.val, sheet.val[0]) 
-        }))
+        Json(json!({ "row": x, "col": y, "val": z }))
 }
 
 #[tokio::main]
 async fn main() {
-    let spreadsheet: SharedSheet = Arc::new(Mutex::new(spreadsheet::SpreadSheet::new(100, 100)));
+    let spreadsheet: SharedSheet = Arc::new(Mutex::new(spreadsheet::SpreadSheet::new(100, 55)));
     // Create CORS middleware
     let cors = CorsLayer::very_permissive(); // or configure more strictly if needed
 

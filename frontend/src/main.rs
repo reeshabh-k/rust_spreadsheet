@@ -724,7 +724,7 @@ async fn fetch_message() -> Result<String, String> {
     Ok(json["message"].as_str().unwrap_or("No message received").to_string())
 }
 
-async fn update_cell_logic(cell_id: &str, val: &str) -> Result<String, String> {
+async fn update_cell_logic(cell_id: &str, val: &str) -> Result<(String, String), String> {
     let client = reqwest::Client::new();
     let params = serde_json::json!({
         "cell": cell_id,
@@ -741,8 +741,9 @@ async fn update_cell_logic(cell_id: &str, val: &str) -> Result<String, String> {
         .await
         .map_err(|e| format!("Failed to parse response: {:?}", e))?;
 
-    let x = (json["value"].as_str().unwrap_or("***")).to_string();
-    Ok(x)
+    let x = (json["row"].as_str().unwrap_or("")).to_string();
+    let y = (json["val"].as_str().unwrap_or("")).to_string();
+    Ok((x, y))
 }
 
 #[function_component(App)]
@@ -1128,10 +1129,16 @@ fn app() -> Html {
                                 // Process formula and update state
                                 if let Some((cell_id, _value)) = process_formula(&formula) {
                                     match update_cell_logic(cell_id.as_str(), _value.as_str()).await {
-                                        Ok(fetched_value) => {
-                                            web_sys::console::log_1(&format!("Fetched value: {}", fetched_value).into());
+                                        Ok((row_str, val_str)) => {
+                                            web_sys::console::log_1(&format!("Fetched value: {} {}", row_str, val_str).into());
                                             let mut updated = (*cell_values).clone();
-                                            updated.insert(cell_id.clone(), fetched_value);
+
+                                            let row_parts: Vec<&str> = row_str.split_whitespace().collect();
+                                            let val_parts: Vec<&str> = val_str.split_whitespace().collect();
+
+                                            for i in 0..row_parts.len() {
+                                                updated.insert((row_parts[i].to_string()), val_parts[i].to_string());
+                                            }
                                             cell_values.set(updated);
                 
                                             on_cell_select.emit(cell_id.clone());

@@ -41,7 +41,7 @@ impl SpreadSheet {
         }
     }
 
-    fn update_cell(&mut self, cell: Cell) {
+    fn update_cell(&mut self, cell: Cell) -> i32 {
         let row = cell.row as usize;
         let col = cell.col as usize;
 
@@ -51,7 +51,7 @@ impl SpreadSheet {
         let expr = if self.exprs.contains_key(&cell) {
             self.exprs.get(&cell).expect("Weird!")
         } else {
-            return;
+            return 0;
         };
 
         let eval_expr = self.get_expr_res(expr.clone());
@@ -63,6 +63,7 @@ impl SpreadSheet {
                 self.val[cell_loc] = i
             }
         }
+        self.val[cell_loc]
     }
 
     fn extract_value_num(&self, val: Value) -> Option<i32> {
@@ -247,7 +248,7 @@ impl SpreadSheet {
     }
 
     #[inline]
-    fn get_pointer(&self, inp_cell: &Cell) -> usize {
+    pub fn get_pointer(&self, inp_cell: &Cell) -> usize {
         inp_cell.row as usize * self.col + inp_cell.col as usize
     }
 
@@ -330,6 +331,45 @@ impl SpreadSheet {
 
             _ => panic!("Unimplemented add_children!"),
         }
+    }
+
+    pub fn call_formula_api (&mut self, form: Option<Formula>) -> (String, String, String){
+        let form = match form {
+            None => return (String::new(),String::new(),String::new()),
+            Some(valid_form) => valid_form,
+        };
+        match form.expression {
+            Expression::Quit 
+            |Expression::Disable 
+            |Expression::Enable 
+            |Expression::ScrollDown 
+            |Expression::ScrollUp 
+            |Expression::ScrollRight 
+            |Expression::ScrollLeft 
+            |Expression::ScrollTo(_)  => {
+                return (String::new(), String::new(), String::new())
+            },
+
+            Expression::Avg(c1, c2)
+            | Expression::Max(c1, c2)
+            | Expression::Min(c1, c2)
+            | Expression::Sum(c1, c2) 
+            | Expression::Stdev(c1, c2) => {
+                if c1.row > c2.row || c1.col > c2.col {
+                    return (String::new(), String::new(), String::new());
+                }
+            }
+            _ => (),
+        }
+        if self.check_cycle(form.clone()) {
+            return (String::new(), String::new(), String::new());
+        }
+        self.remove_children(form.inp_cell);
+        self.exprs.insert(form.inp_cell, form.expression.clone());
+        self.add_children(form.inp_cell, form.expression);
+
+        let (x, y, z) = self.update_children_api(form.inp_cell);
+        (x, y, z)
     }
 
     pub fn call_formula(&mut self, form: Option<Formula>) -> SpreadSheetError {
@@ -438,6 +478,48 @@ impl SpreadSheet {
         for (i, _) in sorted_vec.iter() {
             self.update_cell(*i);
         }
+    }
+
+    fn update_children_api(&mut self, inp_cell: Cell) -> (String, String, String) {
+        let mut cell_counts: HashMap<Cell, u32> = HashMap::new();
+        cell_counts.insert(inp_cell, 0);
+
+        let mut stack: Vec<Cell> = Vec::new();
+
+        stack.push(inp_cell);
+
+        let mut k = 0;
+
+        while !stack.is_empty() {
+            k += 1;
+            let top_cell = stack.pop().expect("Stack is empty!");
+
+            let cell_pointer = self.get_pointer(&top_cell);
+
+            for i in self.spreadsheet[cell_pointer].children.iter() {
+                if !cell_counts.contains_key(i) {
+                    stack.push(*i);
+                }
+                cell_counts.insert(*i, k);
+            }
+        }
+
+        let mut sorted_vec: Vec<(Cell, u32)> = cell_counts.into_iter().collect();
+
+        sorted_vec.sort_by(|a, b| a.1.cmp(&b.1));
+
+        let mut x = String::new();
+        let mut y = String::new();
+        let mut z = String::new();
+
+
+        for (i, _) in sorted_vec.iter() {
+            let num = self.update_cell(*i);
+            x.push_str((format!("{}{} ", String::from_utf8_lossy(&Col::from_num(i.col as u32).expect("Error Converting Num to Col").0), i.row)).as_str());
+            y.push_str((format!("{} ", i.col)).as_str());
+            z.push_str((format!("{} ", num)).as_str());
+        }
+        (x, y, z)
     }
 
     fn belongs_to_expression(&self, expr: &Expression, c: Cell) -> bool {

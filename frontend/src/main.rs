@@ -756,19 +756,32 @@ async fn update_cell_logic(cell_id: &str, val: &str, formulas: Arc<Mutex<Vec<Str
     Ok((x, y))
 }
 
-async fn ask_cohere(prompt: &str, formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String>  {
+async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String>  {
     // self.conversation.push(format!("User: {}", prompt));
     // let full_prompt = self.conversation.join("\n");
     // println!("Full prompt: {}", full_prompt);  // Print the full prompt
-    let formulas = formulas.lock().unwrap();
+    let mut formulas = formulas.lock().unwrap();
     let client = reqwest::Client::new();
     let api_key = "tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi"; // Replace with your actual API key
+    let default_prompt = "you are a spreadsheet assistant, i will give you some formulas, and you have to predict the next formula.
+    The next formula should be of similar type and complexity as the previous ones.".to_string();
+    let mut prompt_list = vec![];
+    let mut i = 0;
+    while formulas.len() > 0 && i < 5{
+        prompt_list.push(formulas.pop().unwrap());
+        i += 1;
+    }
+    let reverse_prompt_list = prompt_list.iter().rev().cloned().collect::<Vec<String>>();
+    let mut prompt = default_prompt;
+    for formula in reverse_prompt_list {
+        prompt.push_str(&format!("{}", formula));
+    }
+
     let response = client.post("https://api.cohere.ai/generate")
         .header("Authorization", format!("Bearer {}", api_key))
         .json(&json!({
-            "prompt": formulas[formulas.len()-1].clone(),
-            "max_tokens": 200,
-            "stop_sequences": ["\n"],
+            "prompt": prompt,
+            "max_tokens": 2000,
             "temperature": 0.5,
         })).send()
         .await
@@ -1865,7 +1878,7 @@ fn app() -> Html {
                                     // Call the AI API here
                                     let prompt = "hi how are you doing?"; // Replace with actual prompt
                                     
-                                    let ai_response = match ask_cohere(prompt, (*formulas).clone()).await {
+                                    let ai_response = match ask_cohere((*formulas).clone()).await {
                                         Ok(response) => response,
                                         Err(e) => e
                                     }; //ikr this is messed up, but ...

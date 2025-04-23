@@ -1102,7 +1102,7 @@ fn app() -> Html {
                                             let mut updated = (*cell_values).clone();
 
                                             let row_parts: Vec<&str> = row_str.split_whitespace().collect();
-                                            let val_parts: Vec<&str> = val_str.split_whitespace().collect();
+                                            let val_parts: Vec<&str> = val_str.split('|').collect();
 
                                             if row_str == "IV" && &_value[0..1] == "\"" && &_value[_value.len()-1..] == "\""  {
                                                 updated.insert(cell_id.clone(), _value[1.._value.len()-1].to_string());
@@ -1304,7 +1304,7 @@ fn app() -> Html {
                                             let mut updated = (*cell_values).clone();
 
                                             let row_parts: Vec<&str> = row_str.split_whitespace().collect();
-                                            let val_parts: Vec<&str> = val_str.split_whitespace().collect();
+                                            let val_parts: Vec<&str> = val_str.split('|').collect();
 
                                             if row_str == "IV" && &_value[0..1] == "\"" && &_value[_value.len()-1..] == "\""  {
                                                 updated.insert(cell_id.clone(), _value[1.._value.len()-1].to_string());
@@ -1496,7 +1496,7 @@ fn app() -> Html {
                                         match update_cell_logic(cell_id, value, (*formulas).clone()).await {
                                             Ok((row_str, val_str)) => {
                                                 let row_parts: Vec<&str> = row_str.split_whitespace().collect();
-                                                let val_parts: Vec<&str> = val_str.split_whitespace().collect();
+                                                let val_parts: Vec<&str> = val_str.split('|').collect();
                                                 
                                                 // Update cells based on backend response
                                                 for i in 0..row_parts.len().min(val_parts.len()) {
@@ -1776,7 +1776,7 @@ fn app() -> Html {
                                                         match update_cell_logic(cell_id, value, (*formulas).clone()).await {
                                                             Ok((row_str, val_str)) => {
                                                                 let row_parts: Vec<&str> = row_str.split_whitespace().collect();
-                                                                let val_parts: Vec<&str> = val_str.split_whitespace().collect();
+                                                                let val_parts: Vec<&str> = val_str.split('|').collect();
                                                                 
                                                                 // Update cells based on backend response
                                                                 for i in 0..row_parts.len().min(val_parts.len()) {

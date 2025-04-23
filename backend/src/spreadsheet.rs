@@ -344,8 +344,12 @@ impl SpreadSheet {
             | Expression::Min(c1, c2)
             | Expression::Sum(c1, c2)
             | Expression::Stdev(c1, c2) => {
-                self.remove_children_helper(Value::Ref(c1), &inp_cell);
-                self.remove_children_helper(Value::Ref(c2), &inp_cell);
+                for i in c1.row..=c2.row {
+                    for j in c1.col..= c2.col {
+                        let c = Cell { row: i, col: j};
+                        self.add_children_helper(Value::Ref(c), &inp_cell);
+                    }
+                }
             },
             | Expression::Stringof(_) => (),
             _ => panic!("Unimplemented add_children!"),
@@ -391,8 +395,13 @@ impl SpreadSheet {
             | Expression::Min(c1, c2)
             | Expression::Sum(c1, c2)
             | Expression::Stdev(c1, c2) => {
-                self.add_children_helper(Value::Ref(c1), &inp_cell);
-                self.add_children_helper(Value::Ref(c2), &inp_cell)
+                for i in c1.row..=c2.row {
+                    for j in c1.col..= c2.col {
+                        let c = Cell { row: i, col: j};
+                        self.add_children_helper(Value::Ref(c), &inp_cell);
+                    }
+                }
+                
             },
             | Expression::Stringof(_) => (),
 
@@ -477,8 +486,8 @@ impl SpreadSheet {
             x.push_str((format!("{}{} ", String::from_utf8_lossy(&Col::from_num(i.col as u32).expect("Error Converting Num to Col").0), i.row)).as_str());
             y.push_str((format!("{} ", i.col)).as_str());
             match num {
-                CellVal::Int_c(v) => z.push_str((format!("{} ", v)).as_str()),
-                CellVal::Str_c(s) => z.push_str((format!("{} ", s)).as_str()),
+                CellVal::Int_c(v) => z.push_str((format!("{}|", v)).as_str()),
+                CellVal::Str_c(s) => z.push_str((format!("{}|", s)).as_str()),
             }
             
         }

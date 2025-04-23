@@ -33,25 +33,25 @@ impl VisualizationState {
     }
 }
 
-// Structure to represent the context menu state
-#[derive(Clone, PartialEq)]
-struct ContextMenuState {
-    visible: bool,
-    position_x: i32,
-    position_y: i32,
-    target_cell: String,
-}
+// // Structure to represent the context menu state
+// #[derive(Clone, PartialEq)]
+// struct ContextMenuState {
+//     visible: bool,
+//     position_x: i32,
+//     position_y: i32,
+//     target_cell: String,
+// }
 
-impl ContextMenuState {
-    fn new() -> Self {
-        Self {
-            visible: false,
-            position_x: 0,
-            position_y: 0,
-            target_cell: String::new(),
-        }
-    }
-}
+// impl ContextMenuState {
+//     fn new() -> Self {
+//         Self {
+//             visible: false,
+//             position_x: 0,
+//             position_y: 0,
+//             target_cell: String::new(),
+//         }
+//     }
+// }
 
 // Toast notification component for displaying errors
 #[derive(Clone, PartialEq)]
@@ -131,125 +131,125 @@ fn get_column_number(col_label: &str) -> u32 {
     result
 }
 
-#[derive(Properties, PartialEq)]
-struct ContextMenuProps {
-    position_x: i32,
-    position_y: i32,
-    target_cell: String,
-    onclose: Callback<()>,
-    onaddformula: Callback<String>,
-}
+// #[derive(Properties, PartialEq)]
+// struct ContextMenuProps {
+//     position_x: i32,
+//     position_y: i32,
+//     target_cell: String,
+//     onclose: Callback<()>,
+//     onaddformula: Callback<String>,
+// }
 
-#[function_component(ContextMenu)]
-fn context_menu(props: &ContextMenuProps) -> Html {
-    // Close the context menu when clicking outside of it
-    let document = use_state(|| {
-        web_sys::window()
-            .and_then(|win| win.document())
-    });
+// #[function_component(ContextMenu)]
+// fn context_menu(props: &ContextMenuProps) -> Html {
+//     // Close the context menu when clicking outside of it
+//     let document = use_state(|| {
+//         web_sys::window()
+//             .and_then(|win| win.document())
+//     });
 
-    let onclose = props.onclose.clone();
-    use_effect_with_deps(
-        move |_| {
-            let document_clone = document.clone();
-            let onclose_clone = onclose.clone();
+//     let onclose = props.onclose.clone();
+//     use_effect_with_deps(
+//         move |_| {
+//             let document_clone = document.clone();
+//             let onclose_clone = onclose.clone();
             
-            let closure = Closure::wrap(Box::new(move |_event: MouseEvent| {
-                onclose_clone.emit(());
-            }) as Box<dyn FnMut(MouseEvent)>);
+//             let closure = Closure::wrap(Box::new(move |_event: MouseEvent| {
+//                 onclose_clone.emit(());
+//             }) as Box<dyn FnMut(MouseEvent)>);
             
-            if let Some(doc) = &*document_clone {
-                doc.add_event_listener_with_callback("click", closure.as_ref().unchecked_ref()).ok();
-            }
+//             if let Some(doc) = &*document_clone {
+//                 doc.add_event_listener_with_callback("click", closure.as_ref().unchecked_ref()).ok();
+//             }
 
-            move || {
-                if let Some(doc) = &*document_clone {
-                    doc.remove_event_listener_with_callback("click", closure.as_ref().unchecked_ref()).ok();
-                }
-                drop(closure);
-            }
-        },
-        ()
-    );
+//             move || {
+//                 if let Some(doc) = &*document_clone {
+//                     doc.remove_event_listener_with_callback("click", closure.as_ref().unchecked_ref()).ok();
+//                 }
+//                 drop(closure);
+//             }
+//         },
+//         ()
+//     );
 
-    // Initialize user input state (not the full formula string)
-    let user_input = use_state(String::new);
+//     // Initialize user input state (not the full formula string)
+//     let user_input = use_state(String::new);
     
-    // Handler for formula input changes
-    let on_formula_input = {
-        let user_input = user_input.clone();
-        Callback::from(move |e: InputEvent| {
-            let input: HtmlInputElement = e.target_unchecked_into();
-            user_input.set(input.value());
-        })
-    };
+//     // Handler for formula input changes
+//     let on_formula_input = {
+//         let user_input = user_input.clone();
+//         Callback::from(move |e: InputEvent| {
+//             let input: HtmlInputElement = e.target_unchecked_into();
+//             user_input.set(input.value());
+//         })
+//     };
     
-    // Handler for submitting the formula
-    let on_submit_formula = {
-        let onaddformula = props.onaddformula.clone();
-        let user_input = user_input.clone();
-        let onclose = props.onclose.clone();
-        let target_cell = props.target_cell.clone();
+//     // Handler for submitting the formula
+//     let on_submit_formula = {
+//         let onaddformula = props.onaddformula.clone();
+//         let user_input = user_input.clone();
+//         let onclose = props.onclose.clone();
+//         let target_cell = props.target_cell.clone();
         
-        Callback::from(move |e: MouseEvent| {
-            e.stop_propagation();
-            // Format the complete formula string with cell reference
-            let formula = format!("{}={}", target_cell, *user_input);
-            onaddformula.emit(formula);
-            onclose.emit(());
-        })
-    };
+//         Callback::from(move |e: MouseEvent| {
+//             e.stop_propagation();
+//             // Format the complete formula string with cell reference
+//             let formula = format!("{}={}", target_cell, *user_input);
+//             onaddformula.emit(formula);
+//             onclose.emit(());
+//         })
+//     };
     
-    // Handler for key presses in the formula input
-    let on_keydown = {
-        let onaddformula = props.onaddformula.clone();
-        let user_input = user_input.clone();
-        let onclose = props.onclose.clone();
-        let target_cell = props.target_cell.clone();
+//     // Handler for key presses in the formula input
+//     let on_keydown = {
+//         let onaddformula = props.onaddformula.clone();
+//         let user_input = user_input.clone();
+//         let onclose = props.onclose.clone();
+//         let target_cell = props.target_cell.clone();
         
-        Callback::from(move |e: KeyboardEvent| {
-            if e.key() == "Enter" {
-                e.stop_propagation();
-                e.prevent_default();
-                // Format the complete formula string with cell reference
-                let formula = format!("{}={}", target_cell, *user_input);
-                onaddformula.emit(formula);
-                onclose.emit(());
-            } else if e.key() == "Escape" {
-                e.stop_propagation();
-                e.prevent_default();
-                onclose.emit(());
-            }
-        })
-    };
+//         Callback::from(move |e: KeyboardEvent| {
+//             if e.key() == "Enter" {
+//                 e.stop_propagation();
+//                 e.prevent_default();
+//                 // Format the complete formula string with cell reference
+//                 let formula = format!("{}={}", target_cell, *user_input);
+//                 onaddformula.emit(formula);
+//                 onclose.emit(());
+//             } else if e.key() == "Escape" {
+//                 e.stop_propagation();
+//                 e.prevent_default();
+//                 onclose.emit(());
+//             }
+//         })
+//     };
 
-    html! {
-        <div class="context-menu" onclick={|e: MouseEvent| e.stop_propagation()}>
-            <div style="margin-bottom: 8px; font-weight: bold;">
-                {format!("Add formula to {}", props.target_cell)}
-            </div>
-            <div class="formula-input-container">
-                <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                    <span style="margin-right: 5px; font-weight: bold;">{format!("{}=", props.target_cell)}</span>
-                    <input 
-                        type="text" 
-                        value={(*user_input).clone()}
-                        oninput={on_formula_input}
-                        onkeydown={on_keydown}
-                        style="width: 100%; padding: 5px;"
-                        autofocus={true}
-                        placeholder="Enter formula..."
-                    />
-                </div>
-                <button 
-                    onclick={on_submit_formula}
-                >
-                    {"Apply Formula"}
-                </button>
-            </div>
-        </div>
-    }
-}
+//     html! {
+//         <div class="context-menu" onclick={|e: MouseEvent| e.stop_propagation()}>
+//             <div style="margin-bottom: 8px; font-weight: bold;">
+//                 {format!("Add formula to {}", props.target_cell)}
+//             </div>
+//             <div class="formula-input-container">
+//                 <div style="display: flex; align-items: center; margin-bottom: 8px;">
+//                     <span style="margin-right: 5px; font-weight: bold;">{format!("{}=", props.target_cell)}</span>
+//                     <input 
+//                         type="text" 
+//                         value={(*user_input).clone()}
+//                         oninput={on_formula_input}
+//                         onkeydown={on_keydown}
+//                         style="width: 100%; padding: 5px;"
+//                         autofocus={true}
+//                         placeholder="Enter formula..."
+//                     />
+//                 </div>
+//                 <button 
+//                     onclick={on_submit_formula}
+//                 >
+//                     {"Apply Formula"}
+//                 </button>
+//             </div>
+//         </div>
+//     }
+// }
 
 // Spreadsheet component to display a grid of cells
 #[derive(Properties, PartialEq)]
@@ -278,7 +278,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     let edit_input_value = use_state(String::new);
     
     // Context menu state
-    let context_menu_state = use_state(|| ContextMenuState::new());
+    // let context_menu_state = use_state(|| ContextMenuState::new());
     
     // NodeRef for scrolling container
     let container_ref = use_node_ref();
@@ -472,32 +472,32 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     }
 
     // Handle right-click on cells
-    let on_cell_context_menu = {
-        let context_menu_state = context_menu_state.clone();
+    // let on_cell_context_menu = {
+    //     let context_menu_state = context_menu_state.clone();
         
-        Callback::from(move |e: MouseEvent| {
-            e.prevent_default(); // Prevent the default browser context menu
+    //     Callback::from(move |e: MouseEvent| {
+    //         e.prevent_default(); // Prevent the default browser context menu
             
-            let target: HtmlElement = e.target_unchecked_into();
-            if let Some(cell_id) = target.get_attribute("data-id") {
-                context_menu_state.set(ContextMenuState {
-                    visible: true,
-                    position_x: e.client_x(),
-                    position_y: e.client_y(),
-                    target_cell: cell_id,
-                });
-            }
-        })
-    };
+    //         let target: HtmlElement = e.target_unchecked_into();
+    //         if let Some(cell_id) = target.get_attribute("data-id") {
+    //             context_menu_state.set(ContextMenuState {
+    //                 visible: true,
+    //                 position_x: e.client_x(),
+    //                 position_y: e.client_y(),
+    //                 target_cell: cell_id,
+    //             });
+    //         }
+    //     })
+    // };
 
     // Handle closing the context menu
-    let on_close_context_menu = {
-        let context_menu_state = context_menu_state.clone();
+    // let on_close_context_menu = {
+    //     let context_menu_state = context_menu_state.clone();
         
-        Callback::from(move |_| {
-            context_menu_state.set(ContextMenuState::new());
-        })
-    };
+    //     Callback::from(move |_| {
+    //         context_menu_state.set(ContextMenuState::new());
+    //     })
+    // };
 
     // Handle "Add Formula" option from context menu
     let on_add_formula = {
@@ -677,7 +677,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                         class={cell_class}
                         data-id={cell_id.clone()}
                         onclick={on_cell_click.clone()}
-                        oncontextmenu={on_cell_context_menu.clone()}
+                        // oncontextmenu={on_cell_context_menu.clone()}
                     >
                         { cell_value }
                     </td>
@@ -706,21 +706,21 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                     { rows }
                 </tbody>
             </table>
-            if context_menu_state.visible {
-                <ContextMenu
-                    position_x={context_menu_state.position_x}
-                    position_y={context_menu_state.position_y}
-                    target_cell={context_menu_state.target_cell.clone()}
-                    onclose={on_close_context_menu.clone()}
-                    onaddformula={on_add_formula.clone()}
-                />
-            }
+            // if context_menu_state.visible {
+            //     <ContextMenu
+            //         position_x={context_menu_state.position_x}
+            //         position_y={context_menu_state.position_y}
+            //         target_cell={context_menu_state.target_cell.clone()}
+            //         onclose={on_close_context_menu.clone()}
+            //         onaddformula={on_add_formula.clone()}
+            //     />
+            // }
         </div>
     }
 }
 
 async fn fetch_message() -> Result<String, String> {
-    // Assuming your frontend and backend are served from the same origin
+    
     let resp = reqwest::get("http://localhost:8080/api/hello").await
         .map_err(|e| format!("Failed to send request: {:?}", e))?;
     
@@ -1408,13 +1408,11 @@ fn app() -> Html {
 
         
     
-    // Rest of the code remains the same
     html! {
         <>
             <h1> {"Rusty Spreadsheet"} </h1>
 
-            // Inside your html! macro, usually at the root level
-            // Replace the existing CSV file upload handler
+            
 
             <input
             type="file"
@@ -1646,7 +1644,7 @@ fn app() -> Html {
                     >
                         {"Save"}
                     </button>
-                    // ...inside your html! for the navigation bar...
+                    
                     <button 
                     class="nav-button save-csv-button"
                     onclick={
@@ -2090,7 +2088,7 @@ fn toast(props: &ToastProps) -> Html {
                     visible.set(true);
                     message.set(new_message.clone());
                     is_error.set(*new_is_error);
-                    // Always update timestamp to force re-render even for identical messages
+                    
                     timestamp.set(js_sys::Date::now());
                     
                     // Auto-hide toast after 3 seconds
@@ -2610,7 +2608,7 @@ fn heat_map(props: &HeatMapProps) -> Html {
 // StatisticsView Component Props
 #[derive(Properties, PartialEq)]
 struct StatisticsViewProps {
-    data: HashMap<String, String>,  // Changed from HashMap<String, Vec<(String, f64)>>
+    data: HashMap<String, String>,
     #[prop_or_default]
     onclose: Callback<()>,
 }
@@ -2629,7 +2627,7 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
     let title = all_data.get("A1").cloned().unwrap_or_else(|| "Personal Financial Analysis".to_string());
     
     // Process data rows (assuming similar structure to visualization data)
-    for row in 2..=3 {  // Check first 20 rows
+    for row in 2..=3 {  // 
         let row_label_cell = format!("A{}", row);
         if let Some(row_label) = all_data.get(&row_label_cell) {
             if row_label.trim().is_empty() || row_label == "0" {
@@ -2733,7 +2731,7 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                                     let width_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
                                     
                                     html! {
-                                        // In your StatisticsView function component
+                                        
                                         <div class="expense-bar">
                                         <div class="expense-bar-label">{category}</div>
                                         <div class="expense-bar-background">
@@ -2783,7 +2781,7 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                         }
                     </div>
                     
-                    // Expense cards - use expense data from spreadsheet
+                    
                     // {
                     //     expenses.iter().take(6).enumerate().map(|(i, (category, value))| {
                     //         // Assign different colors and icons based on category types
@@ -2806,7 +2804,7 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                     //     }).collect::<Html>()
                     // }
                     <div class="card weekly-savings">
-                        <h2 class="card-title">{"Weekly Savings"}</h2>
+                        <h2 class="card-title">{"Savings"}</h2>
                         <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
                             {
                                 savings.iter().map(|(label, value)| {

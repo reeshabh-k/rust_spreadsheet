@@ -865,12 +865,10 @@ input[type="file"] {
     box-shadow: none;
 }
 
-/* Fix 1: Remove the excessive top margin on the first bar */
 .card.top-expenses .expense-bar:first-child {
     margin-top: 50px; /* Changed from 50px to 10px */
 }
 
-/* Fix 2: Better container for the bar chart */
 .card.top-expenses > div {
     height: 100%;
     display: flex;
@@ -880,7 +878,6 @@ input[type="file"] {
     padding: 10px 0; /* Add padding top and bottom */
 }
 
-/* Fix 3: Make the bar background elements clearer */
 .card.top-expenses .expense-bar {
     display: flex;
     align-items: center;
@@ -890,7 +887,6 @@ input[type="file"] {
     height: 28px; /* Slightly reduced height */
 }
 
-/* Fix 4: Add a clearer background to show bar progress */
 .card.top-expenses .expense-bar-background {
     flex: 1;
     background: #34495e; /* Light background */
@@ -948,22 +944,27 @@ input[type="file"] {
 
 .finance-summary {
     display: flex;
-    height: 200px;
+    justify-content: space-between;
+    width: 100%;
+    gap: 0;
 }
 
 .summary-column {
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 15px;
+    min-width: 100px; /* Ensure minimum width */
+    text-align: center;
+    padding: 15px 0px; /* Adjust padding for more space */
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.summary-column:last-child {
+    border-right: none; /* Remove border from last column */
 }
 
 .summary-amount {
-    font-size: 1.8rem;
+    font-size: 1.3rem; /* Slightly smaller font if needed */
     font-weight: bold;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
 }
 
 .summary-label {

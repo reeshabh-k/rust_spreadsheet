@@ -764,6 +764,7 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String
     let client = reqwest::Client::new();
     let api_key = "tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi"; // Replace with your actual API key
     let default_prompt = "you are a math assistant, i will give you some formulas, and you have to predict the next formula. The formulas would contain a right hand side an equals sign and a left hand side, the formula could contain cell names as in excel sheet cell names, for example : A1, B3, etc.
+    Formulas will be simple patterns for example: A1=B1, A2=B2, so next one you should predict A3=B3 and so on.
     The next formula should be of similar type and complexity as the previous ones. Each line would contain a different formula. Just give the formula, no explanation: \n".to_string();
     let mut prompt_list = vec![];
     let mut i = 0;
@@ -773,8 +774,10 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String
     }
     let reverse_prompt_list = prompt_list.iter().rev().cloned().collect::<Vec<String>>();
     let mut prompt = default_prompt;
+    let mut cnt = 1;
     for formula in reverse_prompt_list {
-        prompt.push_str(&format!("\n{}, ", formula));
+        prompt.push_str(&format!("\n Formula {} : {}, ", cnt, formula));
+        cnt += 1;
     }
 
     let response = client.post("https://api.cohere.ai/generate")

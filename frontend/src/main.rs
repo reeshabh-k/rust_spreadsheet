@@ -2950,7 +2950,7 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                                         <div class="expense-bar">
                                         <div class="expense-bar-label">{category}</div>
                                         <div class="expense-bar-background">
-                                            <div class="expense-bar-value" style={format!("width: {}%;", width_percent)}></div>
+                                            <div class="expense-bar-value" style={format!("width: {width_percent}%;")}></div>
                                         </div>
                                         <div class="expense-bar-amount">{format!("${:.2}", value)}</div>
                                         </div>

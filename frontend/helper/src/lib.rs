@@ -66,20 +66,20 @@ enum Expression {
 #[derive(Debug)]
 struct Formula { inp_cell: Cell, _expression: Expression }
 
-/// Context menu state (moved from main.rs)
-#[derive(Clone, PartialEq)]
-pub struct ContextMenuState {
-    pub visible: bool,
-    pub position_x: i32,
-    pub position_y: i32,
-    pub target_cell: String,
-}
+// /// Context menu state (moved from main.rs)
+// #[derive(Clone, PartialEq)]
+// pub struct ContextMenuState {
+//     pub visible: bool,
+//     pub position_x: i32,
+//     pub position_y: i32,
+//     pub target_cell: String,
+// }
 
-impl ContextMenuState {
-    pub fn new() -> Self {
-        Self { visible: false, position_x: 0, position_y: 0, target_cell: String::new() }
-    }
-}
+// impl ContextMenuState {
+//     pub fn new() -> Self {
+//         Self { visible: false, position_x: 0, position_y: 0, target_cell: String::new() }
+//     }
+// }
 
 // --- Parsing Helpers ------------------------------------
 

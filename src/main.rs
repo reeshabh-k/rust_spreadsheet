@@ -47,7 +47,6 @@ use spreadsheet::SpreadSheet;
 /// # Flow
 /// The program continuously asks for formulas and processes them, printing the current state
 /// of the spreadsheet. The user can disable or enable sheet printing during execution.
-
 fn main() {
     let args: Vec<String> = env::args().collect();
 

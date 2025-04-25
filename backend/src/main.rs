@@ -89,7 +89,6 @@ async fn get_value(
 /// # Panics
 ///
 /// Panics if the TCP listener fails to bind or the Axum server fails to run.
-
 #[tokio::main]
 async fn main() {
     let state = AppState {

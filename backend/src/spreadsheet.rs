@@ -347,7 +347,7 @@ impl SpreadSheet {
                 for i in c1.row..=c2.row {
                     for j in c1.col..= c2.col {
                         let c = Cell { row: i, col: j};
-                        self.add_children_helper(Value::Ref(c), &inp_cell);
+                        self.remove_children_helper(Value::Ref(c), &inp_cell);
                     }
                 }
             },

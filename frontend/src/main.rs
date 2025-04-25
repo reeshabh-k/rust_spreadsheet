@@ -810,8 +810,8 @@ fn app() -> Html {
 
     let fields = use_state(|| {
         let mut map: HashMap<String, Box<dyn FormField>> = HashMap::new();
-        map.insert("rows".to_string(), Box::new(RowsField { value: "100".to_string() })); // Max rows
-        map.insert("cols".to_string(), Box::new(ColsField { value: "55".to_string() })); // Max columns (A-Z)
+        map.insert("rows".to_string(), Box::new(RowsField { value: "999".to_string() })); // Max rows
+        map.insert("cols".to_string(), Box::new(ColsField { value: "999".to_string() })); // Max columns (A-Z)
         map.insert("cell".to_string(), Box::new(CellField { value: "".to_string() }));
         map.insert("formula".to_string(), Box::new(FormulaField { value: "".to_string() }));
         map
@@ -865,7 +865,7 @@ fn app() -> Html {
     });
     
     // Check if dimensions are valid
-    let dimensions_valid = rows > 0 && cols > 0 && rows <= 100 && cols <= 55;
+    let dimensions_valid = rows > 0 && cols > 0 && rows <= 999 && cols <= 999;
     
     // Generic input handler
     let oninput = {

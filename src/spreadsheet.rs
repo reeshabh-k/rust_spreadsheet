@@ -22,6 +22,8 @@ pub struct SpreadSheet {
     val: Vec<i32>,
     valid: Vec<u8>,
     exprs: HashMap<Cell, Expression>,
+    constant_mode: u32,
+
 }
 
 impl SpreadSheet {
@@ -38,6 +40,7 @@ impl SpreadSheet {
             val: vec![0; (row + 1) * (col + 1)],
             valid: vec![0; (row + 1) * (col + 1)],
             exprs: HashMap::new(),
+            constant_mode: 1,
         }
     }
 
@@ -278,8 +281,12 @@ impl SpreadSheet {
             | Expression::Min(c1, c2)
             | Expression::Sum(c1, c2)
             | Expression::Stdev(c1, c2) => {
-                self.remove_children_helper(Value::Ref(c1), &inp_cell);
-                self.remove_children_helper(Value::Ref(c2), &inp_cell);
+                for i in c1.row..=c2.row {
+                    for j in c1.col..= c2.col {
+                        let c = Cell { row: i, col: j};
+                        self.remove_children_helper(Value::Ref(c), &inp_cell);
+                    }
+                }
             }
             _ => panic!("Unimplemented add_children!"),
         }
@@ -324,8 +331,12 @@ impl SpreadSheet {
             | Expression::Min(c1, c2)
             | Expression::Sum(c1, c2)
             | Expression::Stdev(c1, c2) => {
-                self.add_children_helper(Value::Ref(c1), &inp_cell);
-                self.add_children_helper(Value::Ref(c2), &inp_cell)
+                for i in c1.row..=c2.row {
+                    for j in c1.col..= c2.col {
+                        let c = Cell { row: i, col: j};
+                        self.add_children_helper(Value::Ref(c), &inp_cell);
+                    }
+                }
             }
 
             _ => panic!("Unimplemented add_children!"),
@@ -333,6 +344,7 @@ impl SpreadSheet {
     }
 
     pub fn call_formula(&mut self, form: Option<Formula>) -> SpreadSheetError {
+        println!("Constant Mode: {}", self.constant_mode);
         let form = match form {
             None => return SpreadSheetError::InvalidInput,
             Some(valid_form) => valid_form,
@@ -377,9 +389,26 @@ impl SpreadSheet {
             return SpreadSheetError::Cycle;
         }
 
+        let cell_pointer = self.col * form.inp_cell.row as usize + form.inp_cell.col as usize;
+
+        if self.constant_mode == 1 {
+            match form.expression {
+                | Expression::Constant(Value::Num(i)) => {
+                    self.val[cell_pointer] = i;
+                    return SpreadSheetError::Valid;
+                }
+    
+                _ => {
+                    self.constant_mode = 0;
+                    ()
+                }
+            }
+
+        }
+
         self.remove_children(form.inp_cell);
 
-        let cell_pointer = self.col * form.inp_cell.row as usize + form.inp_cell.col as usize;
+        
 
         match form.expression {
             Expression::Add(Value::Num(_), Value::Num(_))

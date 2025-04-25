@@ -2,3 +2,7 @@
 yew-app/
 finance-dashboard
 frontend copy/
+/report/main.log
+/report/main.out
+/report/main.aux
+/report/missfont.log

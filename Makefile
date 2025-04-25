@@ -80,4 +80,7 @@ dev:
 	@cd $(FRONTEND_DIR) && trunk serve --open
 	@wait
 
+docs:
+	
+
 .PHONY: all build build-backend build-frontend run run-backend run-frontend-dev open-browser clean dev

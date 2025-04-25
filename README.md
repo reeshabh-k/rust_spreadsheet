@@ -22,6 +22,7 @@ The frontend requires the following crates (these are automatically installed by
 - `regex`: For pattern matching in formulas
 - `once_cell`: For lazy initialization
 - `ordered-float`: For floating point comparison
+Backend uses port 8080 and frontend uses port 8000, both on local:
 
 
 ## Features

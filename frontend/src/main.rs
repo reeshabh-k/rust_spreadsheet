@@ -178,7 +178,7 @@ fn get_column_number(col_label: &str) -> u32 {
     
     for &byte in col_label.as_bytes() {
         // Check if character is A-Z
-        if (b'A'..=b'Z').contains(&byte) {
+        if byte.is_ascii_uppercase() {
             // Multiply existing result by 26 (base 26 number system)
             result *= 26;
             // Add the value of the current character (A=1, B=2, etc.)
@@ -1114,7 +1114,7 @@ fn app() -> Html {
                         // Subtract header sizes to account for the fixed headers
                         // Start exact at top-left corner of the target cell
                         let scroll_top = ((row - 1) as f64 * cell_height) as i32 ;  // No extra offset needed vertically
-                        let scroll_left = ((col_num - 1) * cell_width); // No extra offset needed horizontally
+                        let scroll_left = (col_num - 1) * cell_width; // No extra offset needed horizontally
                         
                         // Set scroll position
                         container_element.set_scroll_top(scroll_top);
@@ -1624,7 +1624,7 @@ fn app() -> Html {
                                     cell_values_inner.set(updated_cells);
                                     
                                     // Update toast counter to force re-render
-                                    let mut t = (*toast_counter_inner);
+                                    let mut t = *toast_counter_inner;
                                     t += 1;
                                     toast_counter_inner.set(t);
                                     
@@ -1904,7 +1904,7 @@ fn app() -> Html {
                                                     cell_values_inner.set(updated_cells);
                                                     
                                                     // Update toast counter to force re-render
-                                                    let mut t = (*toast_counter_inner);
+                                                    let mut t = *toast_counter_inner;
                                                     t += 1;
                                                     toast_counter_inner.set(t);
                                                     
@@ -1981,7 +1981,7 @@ fn app() -> Html {
                                     };
                                     
                                     // Show AI response in toast
-                                    let mut t = (*toast_counter);
+                                    let mut t = *toast_counter;
                                     t += 1;
                                     toast_counter.set(t);
                                     

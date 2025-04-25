@@ -1,3 +1,22 @@
+//! # Rusty Spreadsheet Frontend
+//!
+//! Frontend application for Rusty Spreadsheet using Yew.
+//!
+//! Renders an interactive spreadsheet grid, handles cell input, formulas, context menus,
+//! and visualization of data analysis with charts and statistics.
+//!
+//! This application provides a rich web-based spreadsheet interface with features like:
+//! - Cell editing and formula support
+//! - Navigation via keyboard shortcuts
+//! - Data visualization with multiple chart types
+//! - Statistical analysis
+//! - Import/export functionality for CSV and JSON formats
+//! - AI-powered formula suggestions
+//!
+//! ## Architecture
+//! The frontend is built using the Yew framework for Rust-based web applications,
+//! and communicates with a backend server for formula processing and calculations.
+
 use yew::prelude::*;
 use web_sys::{HtmlInputElement, InputEvent, KeyboardEvent, HtmlElement, MouseEvent, WheelEvent, Event};
 use std::collections::HashMap;
@@ -14,16 +33,24 @@ use std::sync::{Arc, Mutex};
 use serde_json::json;
 
 
+/// Base URL for API endpoints
 const API_URL: &str = "http://localhost:8080/api";
-// Visualization state structure for bar charts
+
+/// State structure for visualization panels that display charts and graphs
+/// 
+/// Contains data series and visualization settings for rendering charts
 #[derive(Clone, PartialEq)]
 struct VisualizationState {
+    /// Whether the visualization panel is currently visible
     visible: bool,
+    /// Collection of data series, where each series has a title and a set of labeled values
     data: Vec<(String, Vec<(String, f64)>)>,  // Vec of (Category, Vec of (label, value)) pairs to maintain order
+    /// Main title displayed at the top of the visualization panel
     title: String,  // Main title from cell A1
 }
 
 impl VisualizationState {
+    /// Creates a new, hidden visualization state with empty data
     fn new() -> Self {
         Self {
             visible: false,
@@ -53,15 +80,19 @@ impl VisualizationState {
 //     }
 // }
 
-// Toast notification component for displaying errors
+/// Toast notification component for displaying temporary messages and errors
 #[derive(Clone, PartialEq)]
 struct ToastNotification {
+    /// Whether the toast is currently visible
     visible: bool,
+    /// Text message to display in the toast
     message: String,
+    /// Whether this is an error message (affects styling)
     is_error: bool,
 }
 
 impl ToastNotification {
+    /// Creates a new, hidden toast notification
     fn new() -> Self {
         Self {
             visible: false,
@@ -70,6 +101,7 @@ impl ToastNotification {
         }
     }
     
+    /// Creates a visible error toast notification with the specified message
     fn show_error(message: String) -> Self {
         Self {
             visible: true,
@@ -79,17 +111,34 @@ impl ToastNotification {
     }
 }
 
-// Toast component props
+/// Properties for the Toast component
 #[derive(Properties, PartialEq)]
 struct ToastProps {
+    /// Whether the toast is currently visible
     visible: bool,
+    /// Text message to display in the toast
     message: String,
+    /// Whether this is an error message (affects styling)
     is_error: bool,
 }
 
 
 
 // Function to convert column number to label (1->A, 2->B, ..., 27->AA, 28->AB, etc.)
+/// Convert a column number (1-based) into its spreadsheet label (e.g., 27 -> "AA").
+///
+/// # Arguments
+/// * `col` - A 1-based column number
+///
+/// # Returns
+/// A string representing the column label (A, B, C, ..., Z, AA, AB, etc.)
+///
+/// # Examples
+/// ```
+/// assert_eq!(get_column_label(1), "A");
+/// assert_eq!(get_column_label(26), "Z");
+/// assert_eq!(get_column_label(27), "AA");
+/// ```
 fn get_column_label(col: u32) -> String {
     if col == 0 {
         return String::new();
@@ -115,6 +164,20 @@ fn get_column_label(col: u32) -> String {
 }
 
 // Function to convert column label to number (A->1, B->2, ..., AA->27, AB->28, etc.)
+/// Convert a column label (e.g., "AA") to a 1-based column index.
+///
+/// # Arguments
+/// * `col_label` - The string label of the column (uppercase A-Z characters)
+///
+/// # Returns
+/// The numeric index of the column, or 0 if invalid.
+///
+/// # Examples
+/// ```
+/// assert_eq!(get_column_number("A"), 1);
+/// assert_eq!(get_column_number("Z"), 26);
+/// assert_eq!(get_column_number("AA"), 27);
+/// ```
 fn get_column_number(col_label: &str) -> u32 {
     let mut result: u32 = 0;
     
@@ -252,16 +315,25 @@ fn get_column_number(col_label: &str) -> u32 {
 // }
 
 // Spreadsheet component to display a grid of cells
+/// Properties for the Spreadsheet component.
+///
+/// Defines all the required configuration and callbacks for the spreadsheet grid.
 #[derive(Properties, PartialEq)]
 pub struct SpreadsheetProps {
+    /// Number of rows to display in the spreadsheet
     pub rows: u32,
+    /// Number of columns to display in the spreadsheet
     pub cols: u32,
+    /// Callback triggered when a cell is selected
     #[prop_or_default]
     pub on_cell_select: Callback<String>,
+    /// Map of cell values where the key is the cell ID (e.g., "A1") and value is the cell content
     #[prop_or_default]
     pub cell_values: HashMap<String, String>,
+    /// Callback for when a formula is entered in a cell
     #[prop_or_default]
     pub on_formula: Callback<String>,  // new callback for formula application
+    /// Callback to get a reference to the function that scrolls to a specific cell
     #[prop_or_default]
     pub on_scroll_to_cell_ref: Callback<UseStateHandle<Option<Callback<String>>>>, // Get reference to the scroll_to_cell callback
 }
@@ -730,6 +802,16 @@ async fn fetch_message() -> Result<String, String> {
     Ok(json["message"].as_str().unwrap_or("No message received").to_string())
 }
 
+/// Updates a cell's value by sending it to the backend and retrieving the computed result
+///
+/// # Arguments
+/// * `cell_id` - The ID of the cell to update (e.g., "A1")
+/// * `val` - The formula or value to set for the cell
+/// * `formulas` - Shared history of formula entries for AI suggestions
+///
+/// # Returns
+/// * `Result<(String, String), String>` - Success returns the affected row and updated value,
+///  Error returns an error description
 async fn update_cell_logic(cell_id: &str, val: &str, formulas: Arc<Mutex<Vec<String>>>) -> Result<(String, String), String> {
     let client = reqwest::Client::new();
     let params = serde_json::json!({
@@ -802,12 +884,22 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String
     }
 }
 
+/// Main application component that serves as the root of the UI.
+///
+/// Manages the global application state including:
+/// - Cell values and formulas
+/// - Visualization state for charts and analytics
+/// - User input handling and validation
+/// - Toast notifications
+/// - Import/export functionality
 #[function_component(App)]
 fn app() -> Html {
     // Store fields in a map for easy access
 
+    // Shared state for formula history used by AI suggestion feature
     let formulas = use_state(|| Arc::new(Mutex::new(vec![])));
 
+    // Map of form fields with their current values (rows, cols, cell, formula)
     let fields = use_state(|| {
         let mut map: HashMap<String, Box<dyn FormField>> = HashMap::new();
         map.insert("rows".to_string(), Box::new(RowsField { value: "100".to_string() })); // Max rows
@@ -817,25 +909,27 @@ fn app() -> Html {
         map
     });
     
-    // Store validation messages
+    // Validation messages for each form field
     let messages = use_state(|| HashMap::<String, String>::new());
     
-    // Toast notification state
+    // State for toast notifications displayed to the user
     let toast_state = use_state(|| ToastProps {
         visible: false,
         message: String::new(),
         is_error: false,
     });
 
-    // Add a counter to force the toast to reset between identical errors
+    // Counter to force re-rendering of toast component between identical messages
     let toast_counter = use_state(|| 0);
 
-    // Add visualization state
+    // State for the data visualization panel
     let visualization_state = use_state(|| VisualizationState {
         visible: false,
         data: Vec::new(),
         title: "Data Analysis".to_string(),
     });
+    
+    // Toggle state for the statistics view
     let statistics_state = use_state(|| false);
     
     // Get the current number of rows and columns
@@ -851,7 +945,7 @@ fn app() -> Html {
         5
     };
     
-    // Store cell data for fake API state
+    // Cell data map containing all spreadsheet values (cell_id -> value)
     let cell_values = use_state(|| {
         let mut data = HashMap::new();
         for row in 1..=rows {
@@ -1094,8 +1188,7 @@ fn app() -> Html {
                                 
                                 // Use the shared process_formula function from helper library
                                 if let Some((cell_id, _value)) = process_formula(&formula) {
-                                    // Update our local state with the processed formula result
-
+                                    // Send the formula to the backend for processing
                                     match update_cell_logic(cell_id.as_str(), _value.as_str(), (*formulas).clone()).await {
                                         Ok((row_str, val_str)) => {
                                             web_sys::console::log_1(&format!("Fetched value: {:?} {:?}", row_str, val_str).into());
@@ -2065,6 +2158,10 @@ fn app() -> Html {
 }
 
 #[function_component(Toast)]
+/// Component for displaying temporary toast notifications to the user
+///
+/// Shows success or error messages in a styled overlay that automatically
+/// disappears after a short duration.
 fn toast(props: &ToastProps) -> Html {
     // Create internal state to track visibility
     let visible = use_state(|| props.visible);
@@ -2143,12 +2240,18 @@ fn toast(props: &ToastProps) -> Html {
 // Bar Chart Component Props
 #[derive(Properties, PartialEq, Clone)]
 struct BarChartProps {
+    /// The title label to display above the chart
     label: String,
+    /// Data points to visualize as (label, value) pairs
     data: Vec<(String, f64)>,
+    /// Color to use for the chart bars
     color: String,
 }
 
-// Bar Chart Component
+/// Component for rendering a bar chart visualization
+///
+/// Creates vertical bars whose heights correspond to their values,
+/// automatically scales based on the maximum value in the dataset.
 #[function_component(BarChart)]
 fn bar_chart(props: &BarChartProps) -> Html {
     let max_value = props.data.iter()
@@ -2190,8 +2293,11 @@ fn bar_chart(props: &BarChartProps) -> Html {
 // Line Chart Component Props - Similar to BarChartProps
 #[derive(Properties, PartialEq, Clone)]
 struct LineChartProps {
+    /// Title displayed above the line chart
     label: String,
+    /// Data series to visualize as (label, value) pairs
     data: Vec<(String, f64)>,
+    /// Color used for the line and data points
     color: String,
 }
 
@@ -2293,7 +2399,7 @@ fn line_chart(props: &LineChartProps) -> Html {
                     stroke="#aaa" stroke-width="1.5" 
                 />
                 
-                // The line path with animated dash stroke
+                // Draw the line path connecting all data points
                 <path 
                     d={path_d.clone()} 
                     fill="none" 
@@ -2468,10 +2574,13 @@ fn pie_chart(props: &PieChartProps) -> Html {
 // Pie Chart Props
 #[derive(Properties, PartialEq)]
 struct PieChartProps {
+    /// Title displayed above the pie chart
     title: String,
-    // row_label: String,
+    /// Data series to visualize as (label, value) pairs
     data: Vec<(String, f64)>,
+    /// Array of colors to use for the pie segments, cycling through as needed
     colors: Vec<String>,
+    /// Radius of the pie chart in pixels (defaults to 150.0)
     #[prop_or(150.0)]
     radius: f64,
 }
@@ -2508,8 +2617,11 @@ fn visualization(props: &VisualizationProps) -> Html {
 
 #[derive(Properties, PartialEq, Clone)]
 struct HeatMapProps {
+    /// Title displayed above the heat map
     title: String,
+    /// Data series to visualize as (label, value) pairs
     data: Vec<(String, f64)>,
+    /// Color scale to use for the heat map, from low to high
     color_scale: Vec<String>,
     #[prop_or(300)]
     width: usize,
@@ -2616,6 +2728,10 @@ struct StatisticsViewProps {
     onclose: Callback<()>,
 }
 
+/// Component for displaying financial statistics and visualizations
+///
+/// Analyzes spreadsheet data to display income sources, expenses, 
+/// savings, and financial summaries in an interactive dashboard.
 #[function_component(StatisticsView)]
 fn statistics_view(props: &StatisticsViewProps) -> Html {
     // Parse data from cell_values
@@ -2734,7 +2850,6 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                                     let width_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
                                     
                                     html! {
-                                        
                                         <div class="expense-bar">
                                         <div class="expense-bar-label">{category}</div>
                                         <div class="expense-bar-background">
@@ -2826,7 +2941,9 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
     }
 }
 
-
 fn main(){
+// Entry point for the Rusty Spreadsheet frontend application
+// 
+// Initializes the Yew framework and mounts the root App component to the DOM.
     yew::Renderer::<App>::new().render();   
 }

@@ -1,22 +1,72 @@
+//! # Helper module for Rusty Spreadsheet
+//!
+//! Provides common utilities and traits used by the frontend spreadsheet application.
+//! This module contains form field validation, trait definitions, and helper functions
+//! that are reused across the application.
+
 use std::collections::HashMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
 // --- Structs & Enums ------------------------------------
-// Cell and formula representation types
+/// Represents a spreadsheet cell by its row and column indices.
+///
+/// This struct is used internally for parsing cell references and validating formulas.
+/// It holds the 1-based row and column indices of a cell.
 #[derive(Debug)]
 struct Cell { row: u32, col: u32 }
 
+/// Value in a formula: either a numeric literal or a reference to another cell.
+///
+/// This enum represents the possible value types in spreadsheet formulas:
+/// - Num: A direct numeric value (e.g., "5" in "A1=5+B2")
+/// - Ref: A reference to another cell (e.g., "B2" in "A1=5+B2")
 #[derive(Debug)]
 enum Value { Num(i32), Ref(Cell) }
 
+/// Arithmetic and aggregation expressions supported in formulas.
+///
+/// This enum represents the different types of operations that can be
+/// performed in spreadsheet formulas, including basic arithmetic and
+/// statistical functions that operate on cell ranges.
 #[derive(Debug)]
-enum Expression { Add(Value, Value), Sub(Value, Value), Mul(Value, Value), Div(Value, Value), Min(Cell, Cell), Max(Cell, Cell), Avg(Cell, Cell), Sum(Cell, Cell), Stdev(Cell, Cell), Sleep(Value) }
+enum Expression {
+    /// Addition of two values
+    Add(Value, Value),
+    /// Subtraction of two values
+    Sub(Value, Value),
+    /// Multiplication of two values
+    Mul(Value, Value),
+    /// Division of two values
+    Div(Value, Value),
+    /// Minimum value in a cell range
+    Min(Cell, Cell),
+    /// Maximum value in a cell range
+    Max(Cell, Cell),
+    /// Average of values in a cell range
+    Avg(Cell, Cell),
+    /// Sum of values in a cell range
+    Sum(Cell, Cell),
+    /// Standard deviation of values in a cell range
+    Stdev(Cell, Cell),
+    /// Simulated delay (for testing/demonstration)
+    Sleep(Value),
+}
 
+/// A parsed formula: input cell and the expression to compute.
+///
+/// This struct represents the parsed structure of a formula in the spreadsheet,
+/// storing both the target cell and the expression to calculate.
+/// 
+/// # Examples
+/// 
+/// For a formula like "A1=B2+C3", it would store:
+/// - inp_cell: Cell { row: 1, col: 1 }  // A1
+/// - expression: Expression::Add(Value::Ref(Cell { row: 2, col: 2 }), Value::Ref(Cell { row: 3, col: 3 }))
 #[derive(Debug)]
 struct Formula { inp_cell: Cell, expression: Expression }
 
-// Context menu state (moved from main.rs)
+/// Context menu state (moved from main.rs)
 #[derive(Clone, PartialEq)]
 pub struct ContextMenuState {
     pub visible: bool,
@@ -32,6 +82,11 @@ impl ContextMenuState {
 }
 
 // --- Parsing Helpers ------------------------------------
+
+/// Parse a row string into a valid row number (1–999).
+///
+/// Returns `Some(row)` if parsing succeeds and the row is within range,
+/// otherwise returns `None`.
 fn parse_row(row_str: &str) -> Option<u32> {
     let row_num = row_str.parse::<u32>().ok()?;
     if row_num >= 1 && row_num <= 999 {
@@ -41,11 +96,16 @@ fn parse_row(row_str: &str) -> Option<u32> {
     }
 }
 
+/// Parse a string into an integer value.
+///
+/// Returns `Some(i32)` if parsing succeeds, otherwise `None`.
 fn parse_int(int_str: &str) -> Option<i32> {
     Some(int_str.parse::<i32>().ok()?)
 }
 
-// Parse a cell reference like "A1", "B23", etc.
+/// Parse a cell reference string like "A1" or "BC23" into a `Cell`.
+///
+/// Returns `Some(Cell)` if the reference is valid, otherwise `None`.
 fn parse_cell(cell_str: &str) -> Option<Cell> {
     static CELL_RE: Lazy<Regex> = Lazy::new(|| 
         Regex::new(r"(?P<col>[A-Z]+)(?P<row>[0-9]+)").unwrap());
@@ -80,7 +140,9 @@ fn parse_cell(cell_str: &str) -> Option<Cell> {
     }
 }
 
-// Parse a value (either a number or a cell reference)
+/// Parse a value string as either a numeric literal or a cell reference.
+///
+/// Returns `Some(Value::Num)` or `Some(Value::Ref)` on success, otherwise `None`.
 fn parse_val(val_str: &str) -> Option<Value> {
     if let Some(cell_out) = parse_cell(val_str) {
         return Some(Value::Ref(cell_out));
@@ -91,7 +153,9 @@ fn parse_val(val_str: &str) -> Option<Value> {
     None
 }
 
-// Parse a formula string
+/// Parse a full formula string of the form "A1=expr".
+///
+/// Returns `Some(Formula)` if the pattern matches, else `None`.
 fn parse_formula(formula_str: &str) -> Option<Formula> {
     // Allow any formula that starts with a valid cell reference followed by =
     static ANY_FORMULA_RE: Lazy<Regex> = Lazy::new(|| 
@@ -113,6 +177,11 @@ fn parse_formula(formula_str: &str) -> Option<Formula> {
 }
 
 // --- FormField Trait & Implementations ------------------
+
+/// A trait for form fields in the spreadsheet application
+///
+/// This trait defines the common behavior and properties for form fields
+/// including validation, value access, and field metadata.
 pub trait FormField {
     fn id(&self) -> &str;
     fn label(&self) -> &str;
@@ -132,8 +201,13 @@ pub trait FormField {
 }
 
 // Public struct for a general cell input field
+/// A form field for specifying a cell reference (e.g., "A1", "BC23")
+/// 
+/// Validates that the specified cell is within the spreadsheet's bounds
+/// by checking against the configured row and column limits.
 #[derive(Clone)]
 pub struct CellField {
+    /// The current value of the field as a string
     pub value: String,
 }
 
@@ -175,8 +249,24 @@ impl FormField for CellField {
 }
 
 // Public struct for rows input field
+/// A form field for specifying the number of rows in the spreadsheet
+/// 
+/// Validates that the row count is within the allowed range (1-100)
+/// and provides appropriate error messages when validation fails.
 #[derive(Clone)]
 pub struct RowsField {
+    /// The current value of the field as a string
+    pub value: String,
+}
+
+// Public struct for columns input field
+/// A form field for specifying the number of columns in the spreadsheet
+/// 
+/// Validates that the column count is within the allowed range (1-26)
+/// and provides appropriate error messages when validation fails.
+#[derive(Clone)]
+pub struct ColsField {
+    /// The current value of the field as a string
     pub value: String,
 }
 
@@ -198,12 +288,6 @@ impl FormField for RowsField {
     fn clone_box(&self) -> Box<dyn FormField> {
         Box::new(self.clone())
     }
-}
-
-// Public struct for columns input field
-#[derive(Clone)]
-pub struct ColsField {
-    pub value: String,
 }
 
 impl FormField for ColsField {
@@ -234,8 +318,13 @@ impl Clone for Box<dyn FormField> {
 }
 
 // Public struct for formula input field
+/// A form field for entering spreadsheet formulas
+/// 
+/// Validates that the formula has the correct syntax (cell=expression)
+/// and that all cell references are within the spreadsheet's bounds.
 #[derive(Clone)]
 pub struct FormulaField {
+    /// The current value of the field as a string
     pub value: String,
 }
 
@@ -280,19 +369,24 @@ impl FormField for FormulaField {
 }
 
 // --- Public API -----------------------------------------
+
+/// Check if an input string is a valid cell reference (e.g., "A1").
+///
+/// Used for form validation.
 pub fn parse_input_cell(input: &str) -> bool {
     parse_cell(input).is_some()
 }
 
+/// Check if an input string is a valid formula string (e.g., "A1=B2+C3").
+///
+/// Used for form validation.
 pub fn parse_input_formula(input: &str) -> bool {
     parse_formula(input).is_some()
 }
 
-// Process the formula and return the cell ID and the result value (the formula text after =)
-// Returns:
-// - Some((cell_id, expression)) if parsing succeeds
-// - Some((cell_id, "Error: invalid formula")) if formula pattern matches but invalid expression
-// - Some(("ERROR", "Error: invalid formula format")) if the input doesn't match a formula pattern
+/// Processes a formula, returning the target cell ID and the expression string.
+///
+/// Always returns `Some((cell_id, result))`. Errors in format yield an error message in the second element.
 pub fn process_formula(formula_str: &str) -> Option<(String, String)> {
     // Use a regex to extract the cell reference and everything after the equals sign
     static FORMULA_PARTS_RE: Lazy<Regex> = Lazy::new(|| 
@@ -315,7 +409,7 @@ pub fn process_formula(formula_str: &str) -> Option<(String, String)> {
     Some(("ERROR".to_string(), "Error: invalid formula format".to_string()))
 }
 
-// Convert column number to letter(s) (e.g., 1->A, 26->Z, 27->AA)
+/// Convert a column number (1-based) into its spreadsheet label (e.g., 27 -> "AA").
 fn column_number_to_label(col_num: u32) -> String {
     if col_num == 0 {
         return String::new();

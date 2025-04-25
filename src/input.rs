@@ -24,7 +24,7 @@ fn parse_int(int_str: &str) -> Option<i32> {
 impl Col {
     fn from_str_to_num(col_str: &str) -> Option<u16> {
         if col_str.len() > 3 {
-            return None;
+            None
         } else {
             let mut val = 0;
             for bt in col_str.as_bytes() {

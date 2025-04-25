@@ -5,9 +5,32 @@ use std::io::BufRead;
 
 use crate::basic::{Cell, Expression, Formula, Value};
 
+/// Represents a column that holds up to 3 `u8` values.
+///
+/// This struct is a wrapper around an `ArrayVec<u8, 3>`, which is a fixed-size
+/// vector that can hold at most 3 elements of type `u8`. It is used when you need
+/// to store a small, fixed-size collection of values.
+///
+/// The `ArrayVec` ensures that the collection is allocated on the stack, making it
+/// efficient in terms of memory usage and performance when the number of elements is small.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Col(pub ArrayVec<u8, 3>);
 
+/// Parses a row string into a `u32` value.
+/// 
+/// This function attempts to parse a string slice into an unsigned integer (`u32`).
+/// It returns the parsed value wrapped in `Some(u32)` if the number is within the
+/// range 1 to 999 (inclusive), or `None` if the value is out of range or the
+/// string cannot be parsed into a `u32`.
+/// 
+/// # Parameters
+/// 
+/// - `row_str`: A string slice that represents the row number to be parsed.
+/// 
+/// # Returns
+/// 
+/// - `Option<u32>`: Returns `Some(u32)` if the row number is valid and within the
+///   allowed range, or `None` if parsing fails or the value is out of range.
 fn parse_row(row_str: &str) -> Option<u32> {
     let row_num = row_str.parse::<u32>().ok()?;
     if (1..=999).contains(&row_num) {
@@ -17,12 +40,29 @@ fn parse_row(row_str: &str) -> Option<u32> {
     }
 }
 
+/// Parses a string representation of an integer into an `Option<i32>`.
+///
+/// This function attempts to convert the input string into a valid `i32` value. If successful,
+/// it returns `Some(i32)`. If the conversion fails (e.g., due to an invalid format), it returns `None`.
+/// 
+/// # Arguments
+/// * `int_str` - A string slice that represents the integer to parse.
+///
+/// # Returns
+/// * `Option<i32>` - `Some(i32)` if the string is a valid integer, otherwise `None`.
 fn parse_int(int_str: &str) -> Option<i32> {
     int_str.parse::<i32>().ok()
 }
 
 #[allow(dead_code)]
 impl Col {
+    /// Converts a column string (e.g., "A", "AB") into a `Col` struct.
+    ///
+    /// # Arguments
+    /// * `col_str` - A string slice representing the column identifier.
+    ///
+    /// # Returns
+    /// * `Option<Col>` - `Some(Col)` if valid, otherwise `None` for invalid strings.
     fn from_str(col_str: &str) -> Option<Col> {
         if col_str.len() > 3 {
             None
@@ -37,6 +77,15 @@ impl Col {
         }
     }
 
+    /// Converts a column number (e.g., 1, 28) to its corresponding column string (e.g., "A", "AB").
+    ///
+    /// The function generates the string by performing base-26 arithmetic.
+    ///
+    /// # Arguments
+    /// * `num` - The column number to convert.
+    ///
+    /// # Returns
+    /// * `Option<Col>` - `Some(Col)` with the corresponding column string if the number is valid, otherwise `None`.
     pub fn from_num(mut num: u32) -> Option<Col> {
         if num == 0 || num > 18278 {
             None
@@ -64,6 +113,12 @@ impl Col {
         }
     }
 
+    /// Returns the numerical index of the column.
+    ///
+    /// This function calculates the column number by interpreting the bytes of the `Col` struct as a base-26 number.
+    ///
+    /// # Returns
+    /// * `u32` - The numerical index of the column.
     fn num_of_col(&self) -> u32 {
         let mut val: u32 = 0;
         let Col(vec): &Col = self;
@@ -74,6 +129,10 @@ impl Col {
         val
     }
 
+    /// Converts the column to a string representation.
+    ///
+    /// # Returns
+    /// * `&str` - The string representation of the column (e.g., "A", "AB").
     pub fn as_str(&self) -> &str {
         std::str::from_utf8(&self.0).unwrap()
     }
@@ -82,6 +141,16 @@ impl Col {
 // static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"...").unwrap());
 // RE.is_match(haystack)
 
+/// Parses a string containing a cell reference (e.g., "A1") into a `Cell` struct.
+///
+/// The function extracts the column and row parts from the string using regular expressions,
+/// and then constructs the corresponding `Cell` object.
+///
+/// # Arguments
+/// * `cell_str` - A string slice representing the cell reference to parse (e.g., "A1").
+///
+/// # Returns
+/// * `Option<Cell>` - `Some(Cell)` if the cell reference is valid, otherwise `None`.
 fn parse_cell(cell_str: &str) -> Option<Cell> {
     let cell_re = Lazy::new(|| Regex::new(r"(?P<col>[A-Z]+)(?P<row>[0-9]+)").unwrap());
     let caps = cell_re.captures(cell_str)?;
@@ -94,6 +163,16 @@ fn parse_cell(cell_str: &str) -> Option<Cell> {
     })
 }
 
+/// Attempts to parse a value (either a number or a cell reference) from the given string.
+///
+/// The function tries to parse the input as a cell reference first, and if that fails, it tries
+/// parsing it as an integer. If both fail, `None` is returned.
+///
+/// # Parameters
+/// - `val_str`: A string slice representing the value to parse (could be a number or a cell reference).
+///
+/// # Returns
+/// - `Some(Value)` if parsing succeeds, otherwise `None`.
 fn parse_val(val_str: &str) -> Option<Value> {
     if let Some(cell_out) = parse_cell(val_str) {
         return Some(Value::Ref(cell_out));
@@ -110,6 +189,18 @@ fn parse_val(val_str: &str) -> Option<Value> {
 
 // const BINARY_OP_RE: &str = r"(?P<cell>[A-Z]+[0-9]+)";
 
+/// Reads and parses a formula from the given reader.
+///
+/// This function attempts to read a line from the provided `reader` and parse it into
+/// a `Formula` object based on predefined patterns (binary operations, range operations,
+/// commands, etc.). It returns the parsed formula or `None` if the line doesn't match
+/// any known patterns.
+///
+/// # Parameters
+/// - `reader`: A mutable reference to a reader (e.g., a file or stdin) from which to read the formula.
+///
+/// # Returns
+/// - `Some(Formula)` if a valid formula is parsed, `None` if no valid formula is found.
 pub fn get_formula<R: BufRead>(reader: &mut R) -> Option<Formula> {
     let mut line = String::new();
     let _bytes_read = reader.read_line(&mut line);

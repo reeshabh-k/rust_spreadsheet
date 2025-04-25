@@ -18,10 +18,10 @@
 //! and communicates with a backend server for formula processing and calculations.
 
 use helper::*;
+use serde_json::json;
+use std::collections::HashMap;
 use wasm_bindgen::{JsCast, closure::Closure};
 use wasm_bindgen_futures::spawn_local;
-use std::collections::HashMap;
-use serde_json::json;
 // use std::io::Write;
 use std::sync::{Arc, Mutex};
 use web_sys::{
@@ -96,7 +96,7 @@ struct VisualizationState {
 //             is_error: false,
 //         }
 //     }
-    
+
 //     /// Creates a visible error toast notification with the specified message
 //     fn show_error(message: String) -> Self {
 //         Self {
@@ -497,12 +497,12 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     // Handle clicking outside of the editing cell to exit edit mode
     // let on_click_outside = {
     //     let editing_cell = editing_cell.clone();
-        
+
     //     Callback::from(move |_: MouseEvent| {
     //         editing_cell.set(None);
     //     })
     // };
-    
+
     // Effect to add global click handler to detect clicks outside the editing cell
     {
         let editing_cell = editing_cell.clone();
@@ -574,7 +574,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     // // Handle "Add Formula" option from context menu
     // let _on_add_formula = {
     //     let on_formula = props.on_formula.clone();
-         
+
     //     Callback::from(move |formula: String| {
     //         // Emit formula event to parent to process and update cell values
     //         on_formula.emit(formula);
@@ -789,7 +789,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     }
 }
 
-async fn fetch_message() -> Result<String, String> {
+async fn _fetch_message() -> Result<String, String> {
     let resp = reqwest::get("http://localhost:8080/api/hello")
         .await
         .map_err(|e| format!("Failed to send request: {e:?}"))?;
@@ -815,7 +815,11 @@ async fn fetch_message() -> Result<String, String> {
 /// # Returns
 /// * `Result<(String, String), String>` - Success returns the affected row and updated value,
 /// * Error returns an error description
-async fn update_cell_logic(cell_id: &str, val: &str, formulas: Arc<Mutex<Vec<String>>>) -> Result<(String, String), String> {
+async fn update_cell_logic(
+    cell_id: &str,
+    val: &str,
+    formulas: Arc<Mutex<Vec<String>>>,
+) -> Result<(String, String), String> {
     let client = reqwest::Client::new();
     let params = serde_json::json!({
         "cell": cell_id,
@@ -848,7 +852,7 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>>) -> Result<String, String>
     let default_prompt = "you are a math assistant, i will give you some formulas, and you have to predict the next formula. The formulas would contain a right hand side an equals sign and a left hand side, the formula could contain cell names as in excel sheet cell names, for example : A1, B3, etc.
     Formulas will be simple patterns for example: A1=B1, A2=B2, so next one you should predict A3=B3 and so on.
     The next formula should be of similar type and complexity as the previous ones. Each line would contain a different formula. Just give the formula, no explanation: \n".to_string();
-    
+
     // Extract data from the lock and then drop the guard before any await
     let prompt_list = {
         let mut formulas_guard = formulas.lock().unwrap();
@@ -860,7 +864,7 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>>) -> Result<String, String>
         }
         prompt_list // Return this from the block, dropping the guard
     }; // MutexGuard is dropped here
-    
+
     let reverse_prompt_list = prompt_list.iter().rev().cloned().collect::<Vec<String>>();
     let mut prompt = default_prompt;
     let mut cnt = 1;
@@ -868,12 +872,13 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>>) -> Result<String, String>
         prompt.push_str(&format!("\n Formula {cnt} : {formula}, "));
         cnt += 1;
     }
-    
+
     // Now it's safe to await since the lock is no longer held
     let client = reqwest::Client::new();
     let api_key = "tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi";
-    
-    let response = client.post("https://api.cohere.ai/generate")
+
+    let response = client
+        .post("https://api.cohere.ai/generate")
         .header("Authorization", format!("Bearer {api_key}"))
         .json(&json!({
             "prompt": prompt,
@@ -883,10 +888,12 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>>) -> Result<String, String>
         .send()
         .await
         .map_err(|e| format!("Failed to request: {e:?}"))?;
-        
-    let json: serde_json::Value = response.json().await
+
+    let json: serde_json::Value = response
+        .json()
+        .await
         .map_err(|e| format!("Failed to parse response: {e:?}"))?;
-        
+
     // Process result
     if let Some(text) = json["text"].as_str() {
         println!("Cohere: {text}");
@@ -1090,9 +1097,7 @@ fn app() -> Html {
                     break;
                 }
             }
-            web_sys::console::log_1(
-                &format!("Visualization data: {visualization_data:?}").into(),
-            );
+            web_sys::console::log_1(&format!("Visualization data: {visualization_data:?}").into());
 
             // Only show visualization if we have data
             if !visualization_data.is_empty() {
@@ -1107,7 +1112,7 @@ fn app() -> Html {
     let on_toggle_statistics = {
         let statistics_state = statistics_state.clone();
         let _cell_values = cell_values.clone();
-        
+
         Callback::from(move |_| {
             // Toggle statistics visibility
             statistics_state.set(!*statistics_state);
@@ -1125,7 +1130,7 @@ fn app() -> Html {
                 let selector = format!("td[data-id=\"{cell_id}\"]");
                 if let Ok(Some(element)) = document.query_selector(&selector) {
                     let _cell_element = element.dyn_into::<HtmlElement>().unwrap();
-                    
+
                     // Get the container element
                     if let Ok(Some(container)) = document.query_selector(".spreadsheet-container") {
                         let container_element = container.dyn_into::<HtmlElement>().unwrap();
@@ -1150,11 +1155,11 @@ fn app() -> Html {
                         // Use exact dimensions from the CSS file:
                         // From CSS: .cell { min-width: 80px; height: 35px; }
                         // From CSS: .row-header, .column-header are in similar dimensions
-                        let cell_width = 80;       // Exact width from CSS
-                        let cell_height = 35.11;      // Exact height from CSS
+                        let cell_width = 80; // Exact width from CSS
+                        let cell_height = 35.11; // Exact height from CSS
                         let _row_header_width = 40; // Width of the row headers (1, 2, 3...)
                         let _col_header_height = 35; // Height of the column headers (A, B, C...)
-                        
+
                         // Calculate the exact pixel offset
                         // Subtract header sizes to account for the fixed headers
                         // Start exact at top-left corner of the target cell
@@ -1319,75 +1324,81 @@ fn app() -> Html {
                                                     &closure.into(),
                                                     10, // Very short timeout to ensure it happens in the next event loop
                                                 ).unwrap();
-                                            }
-                                            else {
-                                                for i in 0..row_parts.len() {
-                                                    updated.insert(row_parts[i].to_string(), val_parts[i].to_string());
+                                                } else {
+                                                    for i in 0..row_parts.len() {
+                                                        updated.insert(
+                                                            row_parts[i].to_string(),
+                                                            val_parts[i].to_string(),
+                                                        );
+                                                    }
+                                                    cell_values.set(updated);
+                                                    updated_messages.insert(
+                                                        field_id.clone(),
+                                                        format!("Formula applied: {formula}"),
+                                                    );
                                                 }
-                                                cell_values.set(updated);
-                                                updated_messages.insert(field_id.clone(), 
-                                                format!("Formula applied: {formula}"));
-                                            }
-                                            
 
-                                            
-                
-                                            on_cell_select.emit(cell_id.clone());
-                                            
-                                        }
-                                        Err(_err) => {
-                                            // ();
+                                                on_cell_select.emit(cell_id.clone());
+                                            }
+                                            Err(_err) => {
+                                                // ();
+                                            }
                                         }
                                     }
                                 }
+
+                                // If it's a cell input and valid, scroll to that cell
+                                if field_id == "cell" {
+                                    let cell_id = field.value();
+                                    // Check if the cell is valid (already validated by the field's validate method)
+                                    web_sys::console::log_1(
+                                        &format!("Cell input validated, scrolling to: {cell_id}")
+                                            .into(),
+                                    );
+                                    scroll_to_cell.emit(cell_id.to_string());
+                                }
                             }
-                            
-                            // If it's a cell input and valid, scroll to that cell
-                            if field_id == "cell" {
-                                let cell_id = field.value();
-                                // Check if the cell is valid (already validated by the field's validate method)
-                                web_sys::console::log_1(&format!("Cell input validated, scrolling to: {cell_id}").into());
-                                scroll_to_cell.emit(cell_id.to_string());
-                            }
-                        },
-                        Err(error) => { 
-                            // Clone the error before moving it to the updated_messages
-                            let error_message = error.clone();
-                            updated_messages.insert(field_id.clone(), error); 
-                            web_sys::console::log_1(&format!("Validation error: {error_message}").into());
-                            
-                            // First, reset the toast to ensure it's hidden
-                            toast_state.set(ToastProps {
-                                visible: false,
-                                message: String::new(),
-                                is_error: false,
-                            });
-                            
-                            // Use setTimeout to force the browser to process the state change
-                            let toast_state_clone = toast_state.clone();
-                            let error_message_clone = error_message.clone();
-                            let counter = *toast_counter + 1;
-                            toast_counter.set(counter);
-                            
-                            let window = web_sys::window().unwrap();
-                            let closure = Closure::once_into_js(move || {
-                                toast_state_clone.set(ToastProps {
-                                    visible: true,
-                                    message: error_message_clone,
-                                    is_error: true,
+                            Err(error) => {
+                                // Clone the error before moving it to the updated_messages
+                                let error_message = error.clone();
+                                updated_messages.insert(field_id.clone(), error);
+                                web_sys::console::log_1(
+                                    &format!("Validation error: {error_message}").into(),
+                                );
+
+                                // First, reset the toast to ensure it's hidden
+                                toast_state.set(ToastProps {
+                                    visible: false,
+                                    message: String::new(),
+                                    is_error: false,
                                 });
-                            });
-                            
-                            window.set_timeout_with_callback_and_timeout_and_arguments_0(
-                                &closure.into(),
-                                10, // Very short timeout to ensure it happens in the next event loop
-                            ).unwrap();
-                        },
+
+                                // Use setTimeout to force the browser to process the state change
+                                let toast_state_clone = toast_state.clone();
+                                let error_message_clone = error_message.clone();
+                                let counter = *toast_counter + 1;
+                                toast_counter.set(counter);
+
+                                let window = web_sys::window().unwrap();
+                                let closure = Closure::once_into_js(move || {
+                                    toast_state_clone.set(ToastProps {
+                                        visible: true,
+                                        message: error_message_clone,
+                                        is_error: true,
+                                    });
+                                });
+
+                                window
+                                    .set_timeout_with_callback_and_timeout_and_arguments_0(
+                                        &closure.into(),
+                                        10, // Very short timeout to ensure it happens in the next event loop
+                                    )
+                                    .unwrap();
+                            }
+                        }
+                        messages.set(updated_messages);
                     }
-                    messages.set(updated_messages);
-                
-                }
-              })
+                })
             }
         })
     };
@@ -1535,7 +1546,7 @@ fn app() -> Html {
 
                                         }
                                         Err(_err) => {
-                                            
+
                                         }
                                     }
                                 }
@@ -1931,7 +1942,7 @@ fn app() -> Html {
                                                     for (cell_id, value) in loaded_data_inner.iter() {
                                                         // Apply formula for each cell
                                                         let _formula = format!("{cell_id}={value}");
-                                                        
+
                                                         match update_cell_logic(cell_id, value, (*formulas).clone()).await {
                                                             Ok((row_str, val_str)) => {
                                                                 let row_parts: Vec<&str> = row_str.split_whitespace().collect();

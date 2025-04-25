@@ -46,6 +46,8 @@ pub enum Expression {
     Stdev(Cell, Cell),
     /// Represents a sleep operation with a given value.
     Sleep(Value),
+    /// Represents the string value of a cell.
+    Stringof(String),
     /// Represents the quit operation.
     Quit,
     /// Represents enabling a feature or operation.

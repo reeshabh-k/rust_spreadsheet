@@ -1,0 +1,6 @@
+[run]
+workspace = true
+all-features = true
+
+[workspace]
+exlcude = ["src/main.rs"]

@@ -380,8 +380,8 @@ impl SpreadSheet {
             | Expression::Min(c1, c2)
             | Expression::Sum(c1, c2)
             | Expression::Stdev(c1, c2) => {
-                if c1.row > c2.row || c1.col > c2.col {
-                    return SpreadSheetError::InvalidInput;
+                if c1.row > c2.row || c1.col > c2.col { //comment
+                    return SpreadSheetError::InvalidInput; 
                 }
             }
             | Expression::Constant(Value::Num(i)) => {

@@ -75,5 +75,3 @@ pub struct Formula {
     /// The expression that defines the formula.
     pub expression: Expression,
 }
-
-

@@ -511,7 +511,7 @@ impl SpreadSheet {
     /// # Returns
     /// * A tuple of strings in which the changed cells (row and column) with their modified values is stored with spaces in between, for ease of formatting to json.
     ///
-    /// This function processes various spreadsheet expressions, handles scrolling, and evaluates cell expressions. 
+    /// This function processes various spreadsheet expressions, handles scrolling, and evaluates cell expressions.
     /// It also ensures that cyclic dependencies are checked to prevent infinite loops.
     pub fn call_formula_api(&mut self, form: Option<Formula>) -> (String, String, String) {
         let form = match form {
@@ -653,7 +653,7 @@ impl SpreadSheet {
     /// # Returns
     /// * `bool`: Returns `true` if the formula introduces a cycle, otherwise `false`.
     ///
-    /// This function traverses the dependencies of a given formula to check for cyclic references, 
+    /// This function traverses the dependencies of a given formula to check for cyclic references,
     /// ensuring that the spreadsheet doesn't enter an infinite loop of formula evaluations.
     fn check_cycle(&self, form: Formula) -> bool {
         let inp_cell = form.inp_cell;
@@ -687,7 +687,7 @@ impl SpreadSheet {
 
     /// Prints the current state of the spreadsheet, showing the values and headers for the visible range.
     ///
-    /// This function prints a portion of the spreadsheet, including the column headers and row values, 
+    /// This function prints a portion of the spreadsheet, including the column headers and row values,
     /// as well as handling cases where cells are invalid or contain errors.
     pub fn print_sheet(&self) {
         let width = 10.min(self.col as u32 - self.col_pointer as u32 + 1);
@@ -716,7 +716,6 @@ impl SpreadSheet {
         }
     }
 }
-
 
 #[cfg(test)]
 
@@ -807,7 +806,7 @@ mod spreadsheet_tests {
         assert_eq!(ss.val[22], CellVal::IntC(0));
         assert_eq!(ss.valid[22], 0);
     }
-    #[test] 
+    #[test]
     fn test_spreadsheet_max() {
         let mut ss = SpreadSheet::new(10, 10);
         ss.call_formula_api(Some(Formula {
@@ -992,7 +991,12 @@ mod spreadsheet_tests {
         assert_eq!(ss.val[22], CellVal::IntC(8));
         assert_eq!(ss.valid[22], 0);
         assert_eq!(ss.spreadsheet[11].children.len(), 1);
-        assert_eq!(ss.spreadsheet[11].children.contains(&Cell { row: 2, col: 2 }), true);
+        assert_eq!(
+            ss.spreadsheet[11]
+                .children
+                .contains(&Cell { row: 2, col: 2 }),
+            true
+        );
     }
     #[test]
     fn test_remove_children() {
@@ -1008,7 +1012,12 @@ mod spreadsheet_tests {
         assert_eq!(ss.val[22], CellVal::IntC(8));
         assert_eq!(ss.valid[22], 0);
         assert_eq!(ss.spreadsheet[11].children.len(), 1);
-        assert_eq!(ss.spreadsheet[11].children.contains(&Cell { row: 2, col: 2 }), true);
+        assert_eq!(
+            ss.spreadsheet[11]
+                .children
+                .contains(&Cell { row: 2, col: 2 }),
+            true
+        );
         ss.remove_children(Cell { row: 2, col: 2 });
         assert_eq!(ss.spreadsheet[11].children.len(), 0);
     }
@@ -1026,7 +1035,12 @@ mod spreadsheet_tests {
         assert_eq!(ss.val[22], CellVal::IntC(8));
         assert_eq!(ss.valid[22], 0);
         assert_eq!(ss.spreadsheet[11].children.len(), 1);
-        assert_eq!(ss.spreadsheet[11].children.contains(&Cell { row: 2, col: 2 }), true);
+        assert_eq!(
+            ss.spreadsheet[11]
+                .children
+                .contains(&Cell { row: 2, col: 2 }),
+            true
+        );
     }
     #[test]
     fn test_check_cycle() {
@@ -1042,7 +1056,12 @@ mod spreadsheet_tests {
         assert_eq!(ss.val[22], CellVal::IntC(8));
         assert_eq!(ss.valid[22], 0);
         assert_eq!(ss.spreadsheet[11].children.len(), 1);
-        assert_eq!(ss.spreadsheet[11].children.contains(&Cell { row: 2, col: 2 }), true);
+        assert_eq!(
+            ss.spreadsheet[11]
+                .children
+                .contains(&Cell { row: 2, col: 2 }),
+            true
+        );
     }
     #[test]
     fn test_check_cycle_invalid() {
@@ -1058,7 +1077,12 @@ mod spreadsheet_tests {
         assert_eq!(ss.val[22], CellVal::IntC(8));
         assert_eq!(ss.valid[22], 0);
         assert_eq!(ss.spreadsheet[11].children.len(), 1);
-        assert_eq!(ss.spreadsheet[11].children.contains(&Cell { row: 2, col: 2 }), true);
+        assert_eq!(
+            ss.spreadsheet[11]
+                .children
+                .contains(&Cell { row: 2, col: 2 }),
+            true
+        );
     }
     #[test]
     fn test_get_avg() {
@@ -1111,8 +1135,14 @@ mod spreadsheet_tests {
             expression: Expression::Constant(Value::Num(5)),
         }));
         assert_eq!(ss.extract_value_num(Value::Num(5)), Some(5));
-        assert_eq!(ss.extract_value_num(Value::Ref(Cell { row: 1, col: 1 })), Some(5));
-        assert_eq!(ss.extract_value_num(Value::Ref(Cell { row: 2, col: 2 })), Some(0));
+        assert_eq!(
+            ss.extract_value_num(Value::Ref(Cell { row: 1, col: 1 })),
+            Some(5)
+        );
+        assert_eq!(
+            ss.extract_value_num(Value::Ref(Cell { row: 2, col: 2 })),
+            Some(0)
+        );
     }
 
     #[test]
@@ -1122,7 +1152,10 @@ mod spreadsheet_tests {
             inp_cell: Cell { row: 1, col: 1 },
             expression: Expression::Constant(Value::Num(5)),
         }));
-        assert_eq!(ss.extract_constant_val(Value::Num(5)), Some(CellVal::IntC(5)));
+        assert_eq!(
+            ss.extract_constant_val(Value::Num(5)),
+            Some(CellVal::IntC(5))
+        );
         assert_eq!(
             ss.extract_constant_val(Value::Ref(Cell { row: 1, col: 1 })),
             Some(CellVal::IntC(5))
@@ -1164,8 +1197,6 @@ mod spreadsheet_tests {
         assert_eq!(ss.get_pointer(&Cell { row: 3, col: 3 }), 33);
     }
 
-    
-    
     #[test]
     fn test_print_sheet() {
         let mut ss = SpreadSheet::new(10, 10);
@@ -1363,31 +1394,31 @@ mod spreadsheet_tests {
     #[test]
     fn test_get_avg2() {
         let ss = SpreadSheet::new(10, 10);
-        ss.get_avg(Cell{row:0, col:0}, Cell{row:1, col:1});
+        ss.get_avg(Cell { row: 0, col: 0 }, Cell { row: 1, col: 1 });
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_get_sum2() {
         let ss = SpreadSheet::new(10, 10);
-        ss.get_sum(Cell{row:0, col:0}, Cell{row:1, col:1});
+        ss.get_sum(Cell { row: 0, col: 0 }, Cell { row: 1, col: 1 });
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_get_max2() {
         let ss = SpreadSheet::new(10, 10);
-        ss.get_max(Cell{row:0, col:0}, Cell{row:1, col:1});
+        ss.get_max(Cell { row: 0, col: 0 }, Cell { row: 1, col: 1 });
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_get_min2() {
         let ss = SpreadSheet::new(10, 10);
-        ss.get_min(Cell{row:0, col:0}, Cell{row:1, col:1});
+        ss.get_min(Cell { row: 0, col: 0 }, Cell { row: 1, col: 1 });
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_get_stdev2() {
         let ss = SpreadSheet::new(10, 10);
-        ss.get_stddev(Cell{row:0, col:0}, Cell{row:1, col:1});
+        ss.get_stddev(Cell { row: 0, col: 0 }, Cell { row: 1, col: 1 });
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
 
@@ -1406,13 +1437,19 @@ mod spreadsheet_tests {
     #[test]
     fn test_belongs_to_expression2() {
         let ss = SpreadSheet::new(10, 10);
-        ss.belongs_to_expression(&Expression::Constant(Value::Num(5)), Cell { row: 1, col: 1 });
+        ss.belongs_to_expression(
+            &Expression::Constant(Value::Num(5)),
+            Cell { row: 1, col: 1 },
+        );
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_belongs_to_expression3() {
         let ss = SpreadSheet::new(10, 10);
-        ss.belongs_to_expression(&Expression::Constant(Value::Num(5)), Cell { row: 1, col: 1 });
+        ss.belongs_to_expression(
+            &Expression::Constant(Value::Num(5)),
+            Cell { row: 1, col: 1 },
+        );
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
@@ -1449,7 +1486,10 @@ mod spreadsheet_tests {
     #[test]
     fn test_add_children3() {
         let mut ss = SpreadSheet::new(10, 10);
-        ss.add_children(Cell { row: 1, col: 1 }, Expression::Add(Value::Num(5), Value::Num(3)));
+        ss.add_children(
+            Cell { row: 1, col: 1 },
+            Expression::Add(Value::Num(5), Value::Num(3)),
+        );
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
 
@@ -1457,55 +1497,82 @@ mod spreadsheet_tests {
 
     fn test_add_children4() {
         let mut ss = SpreadSheet::new(10, 10);
-        ss.add_children(Cell { row: 1, col: 1 }, Expression::Sub(Value::Num(5), Value::Num(3)));
+        ss.add_children(
+            Cell { row: 1, col: 1 },
+            Expression::Sub(Value::Num(5), Value::Num(3)),
+        );
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_add_children5() {
         let mut ss = SpreadSheet::new(10, 10);
-        ss.add_children(Cell { row: 1, col: 1 }, Expression::Div(Value::Num(5), Value::Num(2)));
+        ss.add_children(
+            Cell { row: 1, col: 1 },
+            Expression::Div(Value::Num(5), Value::Num(2)),
+        );
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_add_children6() {
         let mut ss = SpreadSheet::new(10, 10);
-        ss.add_children(Cell { row: 1, col: 1 }, Expression::Mul(Value::Num(5), Value::Num(3)));
+        ss.add_children(
+            Cell { row: 1, col: 1 },
+            Expression::Mul(Value::Num(5), Value::Num(3)),
+        );
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_add_children7() {
         let mut ss = SpreadSheet::new(10, 10);
-        ss.add_children(Cell { row: 1, col: 1 }, Expression::Avg(Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }));
+        ss.add_children(
+            Cell { row: 1, col: 1 },
+            Expression::Avg(Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }),
+        );
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_add_children8() {
         let mut ss = SpreadSheet::new(10, 10);
-        ss.add_children(Cell { row: 1, col: 1 }, Expression::Max(Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }));
+        ss.add_children(
+            Cell { row: 1, col: 1 },
+            Expression::Max(Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }),
+        );
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_add_children9() {
         let mut ss = SpreadSheet::new(10, 10);
-        ss.add_children(Cell { row: 1, col: 1 }, Expression::Min(Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }));
+        ss.add_children(
+            Cell { row: 1, col: 1 },
+            Expression::Min(Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }),
+        );
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_add_children10() {
         let mut ss = SpreadSheet::new(10, 10);
-        ss.add_children(Cell { row: 1, col: 1 }, Expression::Stdev(Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }));
+        ss.add_children(
+            Cell { row: 1, col: 1 },
+            Expression::Stdev(Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }),
+        );
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_add_children11() {
         let mut ss = SpreadSheet::new(10, 10);
-        ss.add_children(Cell { row: 1, col: 1 }, Expression::Sum(Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }));
+        ss.add_children(
+            Cell { row: 1, col: 1 },
+            Expression::Sum(Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }),
+        );
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_add_children12() {
         let mut ss = SpreadSheet::new(10, 10);
-        ss.add_children(Cell { row: 1, col: 1 }, Expression::Stringof("Hello".to_string()));
+        ss.add_children(
+            Cell { row: 1, col: 1 },
+            Expression::Stringof("Hello".to_string()),
+        );
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
@@ -1560,39 +1627,54 @@ mod spreadsheet_tests {
     #[test]
     fn test_get_expr_res7() {
         let ss = SpreadSheet::new(10, 10);
-        ss.get_expr_res(Expression::Avg (Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }));
+        ss.get_expr_res(Expression::Avg(
+            Cell { row: 1, col: 1 },
+            Cell { row: 2, col: 2 },
+        ));
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
 
     #[test]
     fn test_get_expr_res8() {
         let ss = SpreadSheet::new(10, 10);
-        ss.get_expr_res(Expression::Max (Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }));
+        ss.get_expr_res(Expression::Max(
+            Cell { row: 1, col: 1 },
+            Cell { row: 2, col: 2 },
+        ));
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_get_expr_res9() {
         let ss = SpreadSheet::new(10, 10);
-        ss.get_expr_res(Expression::Min (Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }));
+        ss.get_expr_res(Expression::Min(
+            Cell { row: 1, col: 1 },
+            Cell { row: 2, col: 2 },
+        ));
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_get_expr_res10() {
         let ss = SpreadSheet::new(10, 10);
-        ss.get_expr_res(Expression::Stdev (Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }));
+        ss.get_expr_res(Expression::Stdev(
+            Cell { row: 1, col: 1 },
+            Cell { row: 2, col: 2 },
+        ));
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     fn test_get_expr_res11() {
         let ss = SpreadSheet::new(10, 10);
-        ss.get_expr_res(Expression::Sum (Cell { row: 1, col: 1 }, Cell { row: 2, col: 2 }));
+        ss.get_expr_res(Expression::Sum(
+            Cell { row: 1, col: 1 },
+            Cell { row: 2, col: 2 },
+        ));
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
     #[test]
     #[should_panic]
     fn test_get_expr_res12() {
         let ss = SpreadSheet::new(10, 10);
-        ss.get_expr_res(Expression::Stringof ("Hello".to_string()));
+        ss.get_expr_res(Expression::Stringof("Hello".to_string()));
         assert_eq!(ss.val[0], CellVal::IntC(0));
     }
 

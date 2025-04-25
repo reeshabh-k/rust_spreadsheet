@@ -47,3 +47,4 @@ jobs:
     # Step 6: Check code formatting using rustfmt
     - name: Format code
       run: cargo fmt -- --check
+  

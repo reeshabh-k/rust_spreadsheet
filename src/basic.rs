@@ -1,7 +1,5 @@
 use std::hash::Hash;
 
-
-
 /// Represents a cell in the spreadsheet identified by a row and column.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Cell {

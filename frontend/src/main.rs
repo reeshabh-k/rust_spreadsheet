@@ -335,7 +335,6 @@ pub struct SpreadsheetProps {
     pub on_scroll_to_cell_ref: Callback<UseStateHandle<Option<Callback<String>>>>, // Get reference to the scroll_to_cell callback
 }
 
-
 /// The main spreadsheet component that renders an interactive grid of cells
 ///
 /// Displays a grid of editable cells with row and column headers, handling user
@@ -806,9 +805,8 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     }
 }
 
-
 /// Asynchronously fetches a message from the backend API's hello endpoint
-/// 
+///
 /// # Returns
 /// * `Result<String, String>` - On success, returns the message from the API. On error, returns the error message.
 async fn _fetch_message() -> Result<String, String> {
@@ -868,7 +866,6 @@ async fn update_cell_logic(
     let y = (json["val"].as_str().unwrap_or("")).to_string();
     Ok((x, y))
 }
-
 
 /// Requests AI-generated formula suggestions based on the formula history
 ///
@@ -1608,7 +1605,6 @@ fn app() -> Html {
         }
     };
 
-
     /// Helper function to assign colors to data series from a palette
     ///
     /// Distributes colors from a palette to data points, cycling through the palette
@@ -2279,7 +2275,6 @@ fn app() -> Html {
     }
 }
 
-
 /// Toast notification component for displaying temporary messages
 ///
 /// Renders a styled notification that appears and disappears automatically,
@@ -2287,7 +2282,7 @@ fn app() -> Html {
 ///
 /// # Arguments
 /// * `props` - The Toast component's properties
-/// 
+///
 /// # Returns
 /// * `Html` - Rendered toast notification component
 #[function_component(Toast)]
@@ -2451,7 +2446,7 @@ struct LineChartProps {
 
 /// Renders a line chart visualization with points and connecting lines
 ///
-/// Creates an SVG-based line chart with coordinate axes, data points, and a 
+/// Creates an SVG-based line chart with coordinate axes, data points, and a
 /// connecting line with area fill, suitable for trend visualization.
 ///
 /// # Arguments
@@ -2634,7 +2629,6 @@ fn line_chart(props: &LineChartProps) -> Html {
         </div>
     }
 }
-
 
 /// Renders a pie chart visualization for proportional data representation
 ///
@@ -2828,7 +2822,6 @@ struct HeatMapProps {
     #[prop_or(300)]
     height: usize,
 }
-
 
 /// Renders a heat map visualization for data intensity
 ///
@@ -3173,7 +3166,6 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
         </div>
     }
 }
-
 
 /// Entry point for the Rusty Spreadsheet frontend application
 ///

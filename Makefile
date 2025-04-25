@@ -85,7 +85,7 @@ ext1:
 
 # Only running tests on the autograder part as specified on piazza
 coverage:
-	cargo tarpaulin --workspace
+	cargo tarpaulin --workspace --exclude-files "frontend/*" 
 
 test:
 	cargo test
@@ -94,11 +94,9 @@ test:
 docs:
 	cd report && pdflatex main.tex
 	mv report/main.pdf main.pdf
-	cargo doc 
-	cd frontend && cargo doc 
-	cd backend && cargo doc
-	@xdg-open backend/target/doc/backend/index.html || open backend/target/doc/backend/index.html || start backend/target/doc/backend/index.html || echo "Could not open browser automatically"
-	@xdg-open frontend/target/doc/frontend/index.html || open frontend/target/doc/frontend/index.html || start frontend/target/doc/frontend/index.html || echo "Could not open browser automatically"
+	cargo doc --workspace
+	@xdg-open target/doc/backend/index.html || open target/doc/backend/index.html || start target/doc/backend/index.html || echo "Could not open browser automatically"
+	@xdg-open target/doc/frontend/index.html || open target/doc/frontend/index.html || start  target/doc/frontend/index.html || echo "Could not open browser automatically"
 	@xdg-open target/doc/rust_spreadsheet/index.html || open target/doc/rust_spreadsheet/index.html || start target/doc/rust_spreadsheet/index.html || echo "Could not open browser automatically"
 
 .PHONY: all build build-backend build-frontend run run-backend run-frontend-dev open-browser clean dev

@@ -383,7 +383,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                 let current_value = cell_values.get(&cell_id).cloned().unwrap_or_default();
 
                 // If the cell contains a formula (starts with =), show the formula text instead of the result
-                let display_value = if current_value.starts_with(&format!("{}=", cell_id))
+                let display_value = if current_value.starts_with(&format!("{cell_id}="))
                     || current_value.starts_with('=')
                 {
                     // Extract the formula part after the equals sign
@@ -441,7 +441,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
 
                     // Only update the formula field in parent, but DON'T apply the formula yet
                     // Use the special prefix "__preview__" to indicate this is just for display
-                    props_on_formula.emit(format!("__preview__{}={}", cell_id, formula_value));
+                    props_on_formula.emit(format!("__preview__{cell_id}={formula_value}"));
                 }
             }
         })
@@ -464,9 +464,9 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
 
                     // If input starts with =, treat as formula but remove the =
                     let formula = if let Some(formula_value) = value.strip_prefix('=') {
-                        format!("{}={}", cell_id, formula_value) // Remove the = from the start
+                        format!("{cell_id}={formula_value}") // Remove the = from the start
                     } else {
-                        format!("{}={}", cell_id, value)
+                        format!("{cell_id}={value}")
                     };
 
                     props_on_formula.emit(formula);
@@ -634,7 +634,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                             e.prevent_default();
                             if col_num > 1 {
                                 let new_col = get_column_label(col_num - 1);
-                                let new_cell = format!("{}{}", new_col, row);
+                                let new_cell = format!("{new_col}{row}");
                                 selected_cell.set(Some(new_cell.clone()));
                                 on_cell_select.emit(new_cell);
                             }
@@ -643,7 +643,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                             e.prevent_default();
                             if col_num < cols {
                                 let new_col = get_column_label(col_num + 1);
-                                let new_cell = format!("{}{}", new_col, row);
+                                let new_cell = format!("{new_col}{row}");
                                 selected_cell.set(Some(new_cell.clone()));
                                 on_cell_select.emit(new_cell);
                             }
@@ -792,12 +792,12 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
 async fn fetch_message() -> Result<String, String> {
     let resp = reqwest::get("http://localhost:8080/api/hello")
         .await
-        .map_err(|e| format!("Failed to send request: {:?}", e))?;
+        .map_err(|e| format!("Failed to send request: {e:?}"))?;
 
     let json: serde_json::Value = resp
         .json()
         .await
-        .map_err(|e| format!("Failed to parse response: {:?}", e))?;
+        .map_err(|e| format!("Failed to parse response: {e:?}"))?;
 
     Ok(json["message"]
         .as_str()
@@ -823,7 +823,7 @@ async fn update_cell_logic(cell_id: &str, val: &str, formulas: Arc<Mutex<Vec<Str
     });
     {
         let mut stack = formulas.lock().unwrap();
-        stack.push(format!("{} = {}", cell_id, val));
+        stack.push(format!("{cell_id} = {val}"));
     }
 
     let resp = client
@@ -831,12 +831,12 @@ async fn update_cell_logic(cell_id: &str, val: &str, formulas: Arc<Mutex<Vec<Str
         .json(&params)
         .send()
         .await
-        .map_err(|e| format!("Failed to send request: {:?}", e))?;
+        .map_err(|e| format!("Failed to send request: {e:?}"))?;
 
     let json: serde_json::Value = resp
         .json()
         .await
-        .map_err(|e| format!("Failed to parse response: {:?}", e))?;
+        .map_err(|e| format!("Failed to parse response: {e:?}"))?;
 
     let x = (json["row"].as_str().unwrap_or("")).to_string();
     let y = (json["val"].as_str().unwrap_or("")).to_string();
@@ -865,7 +865,7 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>>) -> Result<String, String>
     let mut prompt = default_prompt;
     let mut cnt = 1;
     for formula in reverse_prompt_list {
-        prompt.push_str(&format!("\n Formula {} : {}, ", cnt, formula));
+        prompt.push_str(&format!("\n Formula {cnt} : {formula}, "));
         cnt += 1;
     }
     
@@ -874,7 +874,7 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>>) -> Result<String, String>
     let api_key = "tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi";
     
     let response = client.post("https://api.cohere.ai/generate")
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Authorization", format!("Bearer {api_key}"))
         .json(&json!({
             "prompt": prompt,
             "max_tokens": 2000,
@@ -882,14 +882,14 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>>) -> Result<String, String>
         }))
         .send()
         .await
-        .map_err(|e| format!("Failed to request: {:?}", e))?;
+        .map_err(|e| format!("Failed to request: {e:?}"))?;
         
     let json: serde_json::Value = response.json().await
-        .map_err(|e| format!("Failed to parse response: {:?}", e))?;
+        .map_err(|e| format!("Failed to parse response: {e:?}"))?;
         
     // Process result
     if let Some(text) = json["text"].as_str() {
-        println!("Cohere: {}", text);
+        println!("Cohere: {text}");
         let resp = text.to_string();
         Ok(resp)
     } else {
@@ -1044,7 +1044,7 @@ fn app() -> Html {
                 .get("A1")
                 .cloned()
                 .unwrap_or_else(|| "Data Analysis".to_string());
-            web_sys::console::log_1(&format!("Main title: {}", main_title).into()); // Log main_title
+            web_sys::console::log_1(&format!("Main title: {main_title}").into()); // Log main_title
 
             // Find how many columns have data in the header row (row 1)
             let mut header_columns = Vec::new();
@@ -1059,11 +1059,11 @@ fn app() -> Html {
                     }
                 }
             }
-            web_sys::console::log_1(&format!("Header columns: {:?}", header_columns).into());
+            web_sys::console::log_1(&format!("Header columns: {header_columns:?}").into());
 
             // Find data rows starting from row 2 (index 2) and continue until we find a row where A{i} is empty or "0"
             for row in 2..=rows {
-                let row_label_cell = format!("A{}", row);
+                let row_label_cell = format!("A{row}");
                 if let Some(row_label) = cells.get(&row_label_cell) {
                     // If cell A{i} is empty or "0", we've reached the end of our data series
                     if row_label.trim().is_empty() || row_label == "0" {
@@ -1091,7 +1091,7 @@ fn app() -> Html {
                 }
             }
             web_sys::console::log_1(
-                &format!("Visualization data: {:?}", visualization_data).into(),
+                &format!("Visualization data: {visualization_data:?}").into(),
             );
 
             // Only show visualization if we have data
@@ -1116,13 +1116,13 @@ fn app() -> Html {
 
     // Function to scroll to a specific cell
     let scroll_to_cell = Callback::from(move |cell_id: String| {
-        web_sys::console::log_1(&format!("App: Attempting to scroll to cell: {}", cell_id).into());
+        web_sys::console::log_1(&format!("App: Attempting to scroll to cell: {cell_id}").into());
 
         // Find and scroll to the cell directly using DOM API
         if let Some(window) = web_sys::window() {
             if let Some(document) = window.document() {
                 // Try to find the cell by its data-id attribute
-                let selector = format!("td[data-id=\"{}\"]", cell_id);
+                let selector = format!("td[data-id=\"{cell_id}\"]");
                 if let Ok(Some(element)) = document.query_selector(&selector) {
                     let _cell_element = element.dyn_into::<HtmlElement>().unwrap();
                     
@@ -1167,14 +1167,13 @@ fn app() -> Html {
 
                         web_sys::console::log_1(
                             &format!(
-                                "Scrolled to cell: {}. Position: left={}, top={}, col={}, row={}",
-                                cell_id, scroll_left, scroll_top, col_num, row
+                                "Scrolled to cell: {cell_id}. Position: left={scroll_left}, top={scroll_top}, col={col_num}, row={row}"
                             )
                             .into(),
                         );
                     }
                 } else {
-                    web_sys::console::log_1(&format!("Cell not found in DOM: {}", cell_id).into());
+                    web_sys::console::log_1(&format!("Cell not found in DOM: {cell_id}").into());
                 }
             }
         }
@@ -1198,7 +1197,7 @@ fn app() -> Html {
                 let value = input.value();
 
                 web_sys::console::log_1(
-                    &format!("Enter pressed in field: {}, value: {}", field_id, value).into(),
+                    &format!("Enter pressed in field: {field_id}, value: {value}").into(),
                 );
 
                 let fields = fields.clone();
@@ -1242,8 +1241,7 @@ fn app() -> Html {
                                             Ok((row_str, val_str)) => {
                                                 web_sys::console::log_1(
                                                     &format!(
-                                                        "Fetched value: {:?} {:?}",
-                                                        row_str, val_str
+                                                        "Fetched value: {row_str:?} {val_str:?}"
                                                     )
                                                     .into(),
                                                 );
@@ -1328,7 +1326,7 @@ fn app() -> Html {
                                                 }
                                                 cell_values.set(updated);
                                                 updated_messages.insert(field_id.clone(), 
-                                                format!("Formula applied: {}", formula));
+                                                format!("Formula applied: {formula}"));
                                             }
                                             
 
@@ -1348,7 +1346,7 @@ fn app() -> Html {
                             if field_id == "cell" {
                                 let cell_id = field.value();
                                 // Check if the cell is valid (already validated by the field's validate method)
-                                web_sys::console::log_1(&format!("Cell input validated, scrolling to: {}", cell_id).into());
+                                web_sys::console::log_1(&format!("Cell input validated, scrolling to: {cell_id}").into());
                                 scroll_to_cell.emit(cell_id.to_string());
                             }
                         },
@@ -1356,7 +1354,7 @@ fn app() -> Html {
                             // Clone the error before moving it to the updated_messages
                             let error_message = error.clone();
                             updated_messages.insert(field_id.clone(), error); 
-                            web_sys::console::log_1(&format!("Validation error: {}", error_message).into());
+                            web_sys::console::log_1(&format!("Validation error: {error_message}").into());
                             
                             // First, reset the toast to ensure it's hidden
                             toast_state.set(ToastProps {
@@ -1463,7 +1461,7 @@ fn app() -> Html {
                                 if let Some((cell_id, _value)) = process_formula(&formula) {
                                     match update_cell_logic(cell_id.as_str(), _value.as_str(), (*formulas).clone()).await {
                                         Ok((row_str, val_str)) => {
-                                            web_sys::console::log_1(&format!("Fetched value: {:?} {:?}", row_str, val_str).into());
+                                            web_sys::console::log_1(&format!("Fetched value: {row_str:?} {val_str:?}").into());
                                             let mut updated = (*cell_values).clone();
 
                                             let row_parts: Vec<&str> = row_str.split_whitespace().collect();
@@ -1639,7 +1637,7 @@ fn app() -> Html {
                                 // Start processing with the backend
                                 toast_state_clone.set(ToastProps {
                                     visible: true,
-                                    message: format!("Processing {} cells...", cell_count),
+                                    message: format!("Processing {cell_count} cells..."),
                                     is_error: false,
                                 });
 
@@ -1675,7 +1673,7 @@ fn app() -> Html {
                                             let progress = (processed as f64 / cell_count as f64) * 100.0;
                                             toast_state_inner.set(ToastProps {
                                                 visible: true,
-                                                message: format!("Processing: {:.0}% complete", progress),
+                                                message: format!("Processing: {progress:.0}% complete"),
                                                 is_error: false,
                                             });
 
@@ -1842,7 +1840,7 @@ fn app() -> Html {
                                     // Escape double quotes
                                     let val = val.replace('"', "\"\"");
                                     // Wrap in quotes if needed
-                                    let val = if val.contains(',') || val.contains('"') { format!("\"{}\"", val) } else { val };
+                                    let val = if val.contains(',') || val.contains('"') { format!("\"{val}\"") } else { val };
                                     row_cells.push(val);
                                 }
                                 csv_data.push_str(&row_cells.join(","));
@@ -1916,7 +1914,7 @@ fn app() -> Html {
                                                 let cells_count = loaded_data.len();
                                                 toast_state_clone.set(ToastProps {
                                                     visible: true,
-                                                    message: format!("Processing {} cells...", cells_count),
+                                                    message: format!("Processing {cells_count} cells..."),
                                                     is_error: false,
                                                 });
 
@@ -1932,7 +1930,7 @@ fn app() -> Html {
 
                                                     for (cell_id, value) in loaded_data_inner.iter() {
                                                         // Apply formula for each cell
-                                                        let _formula = format!("{}={}", cell_id, value);
+                                                        let _formula = format!("{cell_id}={value}");
                                                         
                                                         match update_cell_logic(cell_id, value, (*formulas).clone()).await {
                                                             Ok((row_str, val_str)) => {
@@ -1955,7 +1953,7 @@ fn app() -> Html {
                                                             let progress = (processed as f64 / cells_count as f64) * 100.0;
                                                             toast_state_inner.set(ToastProps {
                                                                 visible: true,
-                                                                message: format!("Processing: {:.0}% complete", progress),
+                                                                message: format!("Processing: {progress:.0}% complete"),
                                                                 is_error: false,
                                                             });
 
@@ -1990,10 +1988,10 @@ fn app() -> Html {
                                                 });
                                             },
                                             Err(err) => {
-                                                web_sys::console::error_1(&format!("Error parsing JSON: {}", err).into());
+                                                web_sys::console::error_1(&format!("Error parsing JSON: {err}").into());
                                                 toast_state_clone.set(ToastProps {
                                                     visible: true,
-                                                    message: format!("Error parsing JSON file: {}", err),
+                                                    message: format!("Error parsing JSON file: {err}"),
                                                     is_error: true,
                                                 });
                                             }
@@ -2060,11 +2058,11 @@ fn app() -> Html {
 
                                     toast_state.set(ToastProps {
                                         visible: true,
-                                        message: format!("AI Suggestion: {}", ai_response),
+                                        message: format!("AI Suggestion: {ai_response}"),
                                         is_error: false,
                                     });
 
-                                    web_sys::console::log_1(&format!("AI Response: {}", ai_response).into());
+                                    web_sys::console::log_1(&format!("AI Response: {ai_response}").into());
                                 });
                             })
                         }
@@ -2144,7 +2142,7 @@ fn app() -> Html {
                                                                             let height_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
 
                                                                             html! {
-                                                                                <div class="bar" style={format!("height: {}%; background-color: {};", height_percent, chart_color)}>
+                                                                                <div class="bar" style={format!("height: {height_percent}%; background-color: {chart_color};")}>
                                                                                     <div class="bar-value">{format!("{:.1}", value)}</div>
                                                                                     <div class="bar-label">{label.clone()}</div>
                                                                                 </div>
@@ -2339,7 +2337,7 @@ fn bar_chart(props: &BarChartProps) -> Html {
     html! {
         <div class="chart-container">
             <h3>{ &props.label }</h3>
-            <div class="chart" style={format!("height: {}px; width: {}px;", chart_height, chart_width)}>
+            <div class="chart" style={format!("height: {chart_height}px; width: {chart_width}px;")}>
                 {
                     props.data.iter().enumerate().map(|(index, (label, value))| {
                         let height_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
@@ -2347,7 +2345,7 @@ fn bar_chart(props: &BarChartProps) -> Html {
                         let position = index * (bar_width + gap);
 
                         html! {
-                            <div class="chart-bar-container" style={format!("left: {}px; width: {}px;", position, bar_width)}>
+                            <div class="chart-bar-container" style={format!("left: {position}px; width: {bar_width}px;")}>
                                 <div class="chart-bar"
                                      style={format!("height: {}px; background-color: {};",
                                                   bar_height, props.color)}>
@@ -2426,13 +2424,13 @@ fn line_chart(props: &LineChartProps) -> Html {
                 0.0
             };
             let y = (chart_height - padding_bottom) - (y_ratio * usable_height);
-            format!("{},{}", x, y)
+            format!("{x},{y}")
         })
         .collect::<Vec<String>>()
         .join(" L ");
 
     let path_d = if !path_points.is_empty() {
-        format!("M {}", path_points)
+        format!("M {path_points}")
     } else {
         String::new()
     };
@@ -2449,7 +2447,7 @@ fn line_chart(props: &LineChartProps) -> Html {
     html! {
         <div class="chart-container">
             <h3>{ &props.label }</h3>
-            <svg class="line-chart" viewBox={format!("0 0 {} {}", chart_width, chart_height)}>
+            <svg class="line-chart" viewBox={format!("0 0 {chart_width} {chart_height}")}>
                 // Grid lines
                 {
                     grid_lines.iter().map(|(y_pos, value)| {
@@ -2623,7 +2621,7 @@ fn pie_chart(props: &PieChartProps) -> Html {
 
                             html! {
                                 <path
-                                    d={format!("M 150,150 L {},{} A 150,150 0 {} 1 {},{} Z", x1, y1, large_arc, x2, y2)}
+                                    d={format!("M 150,150 L {x1},{y1} A 150,150 0 {large_arc} 1 {x2},{y2} Z")}
                                     fill={props.colors[i % props.colors.len()].clone()}
                                 />
                             }
@@ -2780,7 +2778,7 @@ fn heat_map(props: &HeatMapProps) -> Html {
                                               cell_width - 2, cell_height - 2,
                                               row * cell_height, col * cell_width,
                                               color, text_color)}>
-                                <div class="heat-map-value" style={format!("font-size: {}px;", font_size)}>
+                                <div class="heat-map-value" style={format!("font-size: {font_size}px;")}>
                                     {format!("{:.1}", value)}
                                 </div>
                                 <div class="heat-map-label" style={format!("font-size: {}px;", (font_size as f64 * 0.8) as usize)}>
@@ -2797,7 +2795,7 @@ fn heat_map(props: &HeatMapProps) -> Html {
                     {
                         props.color_scale.iter().map(|color| {
                             html! {
-                                <div class="heat-map-legend-color" style={format!("background-color: {};", color)}></div>
+                                <div class="heat-map-legend-color" style={format!("background-color: {color};")}></div>
                             }
                         }).collect::<Html>()
                     }
@@ -2839,7 +2837,7 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
     // Process data rows (assuming similar structure to visualization data)
     for row in 2..=3 {
         //
-        let row_label_cell = format!("A{}", row);
+        let row_label_cell = format!("A{row}");
         if let Some(row_label) = all_data.get(&row_label_cell) {
             if row_label.trim().is_empty() || row_label == "0" {
                 continue;
@@ -2875,7 +2873,7 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
     for col in 2..=10 {
         let col_label = get_column_label(col);
         let header = all_data
-            .get(&format!("{}1", col_label))
+            .get(&format!("{col_label}1"))
             .cloned()
             .unwrap_or_default();
         if header.is_empty() {
@@ -2934,7 +2932,7 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                                             <div class="chart-bar-row">
                                                 <span class="chart-bar-label">{category}</span>
                                                 <div class="chart-bar-outer">
-                                                    <div class="chart-bar-value" style={format!("width: {}%;", width_percent)}></div>
+                                                    <div class="chart-bar-value" style={format!("width: {width_percent}%;")}></div>
                                                 </div>
                                                 <span class="chart-bar-amount">{format!("${:.2}", value)}</span>
                                             </div>

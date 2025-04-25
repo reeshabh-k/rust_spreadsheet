@@ -27,7 +27,7 @@ The frontend requires the following crates (these are automatically installed by
 ## Features
 - Cell editing and formula support
 - Navigation via keyboard shortcuts
-- Data visualization with multiple chart types
-- Statistical analysis
+- Data visualization with multiple chart types including bar graphs, line charts, pie chart(for frequency) and heat map
+- Statistical analysis for a budget sheet with first row as income and second row as expense with the columns being various sources of income and expense.
 - Import/export functionality for CSV and JSON formats
 - AI-powered formula suggestions

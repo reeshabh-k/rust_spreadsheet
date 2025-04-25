@@ -381,6 +381,7 @@ impl SpreadSheet {
                     //comment
                     return SpreadSheetError::InvalidInput;
                 }
+                self.constant_mode = 0;
             }
             Expression::Constant(Value::Num(i)) => {
                 if self.constant_mode == 1 {

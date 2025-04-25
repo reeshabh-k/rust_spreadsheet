@@ -1,24 +1,23 @@
 use crate::input::Col;
-use crate::{
-    basic::Cell, basic::Expression, basic::Formula, basic::SpreadSheetError, basic::Value,
-};
+use crate::{basic::Cell, basic::Expression, basic::Formula, basic::Value};
 
 use std::thread;
 use std::time::Duration;
 
 use std::{collections::HashMap, collections::HashSet};
 
+#[allow(private_interfaces)]
 #[derive(Clone, Debug)]
-struct CellData {
+pub struct CellData {
     children: HashSet<Cell>,
 }
 
 #[derive(Clone, Debug)]
 pub enum CellVal {
-    Int_c(i32),
-    Str_c(String),
+    IntC(i32),
+    StrC(String),
 }
-
+#[allow(dead_code)]
 pub struct SpreadSheet {
     row_pointer: usize,
     col_pointer: usize,
@@ -30,6 +29,7 @@ pub struct SpreadSheet {
     pub exprs: HashMap<Cell, Expression>,
 }
 
+#[allow(dead_code)]
 impl SpreadSheet {
     pub fn new(row: usize, col: usize) -> SpreadSheet {
         let default_cell = CellData {
@@ -41,7 +41,7 @@ impl SpreadSheet {
             row,
             col,
             spreadsheet: vec![default_cell; (row + 1) * (1 + col)],
-            val: vec![CellVal::Int_c(0); (row + 1) * (col + 1)],
+            val: vec![CellVal::IntC(0); (row + 1) * (col + 1)],
             valid: vec![0; (row + 1) * (col + 1)],
             exprs: HashMap::new(),
         }
@@ -56,28 +56,23 @@ impl SpreadSheet {
 
         let expr = self.exprs.get(&cell).expect("Weird!");
 
-        match expr {
-            Expression::Stringof(s) => {
-                self.valid[cell_loc] = 0;
-                self.val[cell_loc] = CellVal::Str_c(s.to_string());
-                return self.val[cell_loc].clone()
-            },
-            _ => ()
+        if let Expression::Stringof(s) = expr {
+            self.valid[cell_loc] = 0;
+            self.val[cell_loc] = CellVal::StrC(s.to_string());
+            return self.val[cell_loc].clone();
         }
-
 
         let eval_expr = self.get_expr_res(expr.clone());
 
         match eval_expr {
             None => {
                 self.valid[cell_loc] = 1;
-                self.val[cell_loc] = CellVal::Str_c("err".to_string())
-            },
+                self.val[cell_loc] = CellVal::StrC("err".to_string())
+            }
             Some(cv) => {
                 self.valid[cell_loc] = 0;
                 self.val[cell_loc] = cv
-            },
-            
+            }
         }
         self.val[cell_loc].clone()
     }
@@ -89,12 +84,10 @@ impl SpreadSheet {
                 let cell_point = self.col * (cell.row as usize) + (cell.col as usize);
                 if self.valid[cell_point] == 1 {
                     None
+                } else if let CellVal::IntC(val) = self.val[cell_point] {
+                    Some(val)
                 } else {
-                    if let CellVal::Int_c(val) = self.val[cell_point] {
-                        Some(val)
-                    } else {
-                        None
-                    }
+                    None
                 }
             }
         }
@@ -104,10 +97,10 @@ impl SpreadSheet {
         let mut sum = 0;
         for i in c1.row..=c2.row {
             for j in c1.col..=c2.col {
-                if self.valid[self.get_pointer(&Cell {row : i, col : j})] == 1 {
+                if self.valid[self.get_pointer(&Cell { row: i, col: j })] == 1 {
                     return None;
                 }
-                if let CellVal::Int_c(val) = self.val[self.get_pointer(&Cell {row: i, col: j})] {
+                if let CellVal::IntC(val) = self.val[self.get_pointer(&Cell { row: i, col: j })] {
                     sum += val;
                 } else {
                     return None;
@@ -126,7 +119,7 @@ impl SpreadSheet {
                 if self.valid[self.get_pointer(&Cell { row: i, col: j })] == 1 {
                     return None;
                 }
-                if let CellVal::Int_c(val) = self.val[self.get_pointer(&Cell {row: i, col: j})] {
+                if let CellVal::IntC(val) = self.val[self.get_pointer(&Cell { row: i, col: j })] {
                     sum += val;
                     cnt += 1;
                 } else {
@@ -141,13 +134,13 @@ impl SpreadSheet {
     fn get_max(&self, c1: Cell, c2: Cell) -> Option<i32> {
         let mut max;
         // let mut min;
-        if let CellVal::Int_c(maxi) = self.val[self.get_pointer(&Cell {
+        if let CellVal::IntC(maxi) = self.val[self.get_pointer(&Cell {
             row: c1.row,
             col: c1.col,
         })] {
             max = maxi;
         } else {
-            max = 0;
+            // max = 0;
             return None;
         }
         // min = self.spreadsheet[self.get_pointer(&Cell {row : c1.row, col : c1.col})].val;
@@ -156,7 +149,7 @@ impl SpreadSheet {
                 if self.valid[self.get_pointer(&Cell { row: i, col: j })] == 1 {
                     return None;
                 }
-                if let CellVal::Int_c(val) = self.val[self.get_pointer(&Cell { row: i, col: j })] {
+                if let CellVal::IntC(val) = self.val[self.get_pointer(&Cell { row: i, col: j })] {
                     if val > max {
                         max = val;
                     }
@@ -172,13 +165,13 @@ impl SpreadSheet {
         // let mut max;
         let mut min;
         // max = self.spreadsheet[self.get_pointer(&Cell {row : c1.row, col : c1.col})].val;
-        if let CellVal::Int_c(mini) = self.val[self.get_pointer(&Cell {
+        if let CellVal::IntC(mini) = self.val[self.get_pointer(&Cell {
             row: c1.row,
             col: c1.col,
         })] {
             min = mini
         } else {
-            min = 0;
+            // min = 0;
             return None;
         }
         for i in c1.row..=c2.row {
@@ -186,9 +179,8 @@ impl SpreadSheet {
                 if self.valid[self.get_pointer(&Cell { row: i, col: j })] == 1 {
                     return None;
                 }
-                
-                
-                if let CellVal::Int_c(val) = self.val[self.get_pointer(&Cell { row: i, col: j })] {
+
+                if let CellVal::IntC(val) = self.val[self.get_pointer(&Cell { row: i, col: j })] {
                     if val < min {
                         min = val;
                     }
@@ -204,27 +196,26 @@ impl SpreadSheet {
         let mut mean = 0;
         let mut variance = 0.0;
         let mut cnt = 0;
-        let mut temp: i32;
+
         for i in c1.row..=c2.row {
             for j in c1.col..=c2.col {
                 if self.valid[self.get_pointer(&Cell { row: i, col: j })] == 1 {
                     return None;
                 }
 
-                if let CellVal::Int_c(val) = self.val[self.get_pointer(&Cell { row: i, col: j })] {
+                if let CellVal::IntC(val) = self.val[self.get_pointer(&Cell { row: i, col: j })] {
                     mean += val;
                     cnt += 1;
                 } else {
                     return None;
-                } 
-                
+                }
             }
         }
         mean /= cnt;
 
         for i in c1.row..=c2.row {
             for j in c1.col..=c2.col {
-                if let CellVal::Int_c(temp) = self.val[self.get_pointer(&Cell { row: i, col: j })] {
+                if let CellVal::IntC(temp) = self.val[self.get_pointer(&Cell { row: i, col: j })] {
                     variance += ((temp - mean) * (temp - mean)) as f64;
                 } else {
                     return None;
@@ -238,7 +229,7 @@ impl SpreadSheet {
 
     fn extract_constant_val(&self, val: Value) -> Option<CellVal> {
         match val {
-            Value::Num(i) => Some(CellVal::Int_c(i)),
+            Value::Num(i) => Some(CellVal::IntC(i)),
             Value::Ref(cell) => {
                 let cell_point = self.col * (cell.row as usize) + (cell.col as usize);
                 if self.valid[cell_point] == 1 {
@@ -252,51 +243,49 @@ impl SpreadSheet {
 
     fn get_expr_res(&self, expr: Expression) -> Option<CellVal> {
         match expr {
-            Expression::Add(v1, v2) => {
-                Some(CellVal::Int_c(self.extract_value_num(v1)? + self.extract_value_num(v2)?))
-            }
-            Expression::Mul(v1, v2) => {
-                Some(CellVal::Int_c(self.extract_value_num(v1)? * self.extract_value_num(v2)?))
-            }
+            Expression::Add(v1, v2) => Some(CellVal::IntC(
+                self.extract_value_num(v1)? + self.extract_value_num(v2)?,
+            )),
+            Expression::Mul(v1, v2) => Some(CellVal::IntC(
+                self.extract_value_num(v1)? * self.extract_value_num(v2)?,
+            )),
             Expression::Div(v1, v2) => {
                 let denom = self.extract_value_num(v2)?;
                 if denom == 0 {
                     None
                 } else {
-                    Some(CellVal::Int_c(self.extract_value_num(v1)? / denom))
+                    Some(CellVal::IntC(self.extract_value_num(v1)? / denom))
                 }
             }
-            Expression::Sub(v1, v2) => {
-                Some(CellVal::Int_c(self.extract_value_num(v1)? - self.extract_value_num(v2)?))
-            }
-            Expression::Constant(v) => {
-                self.extract_constant_val(v)
-            },
+            Expression::Sub(v1, v2) => Some(CellVal::IntC(
+                self.extract_value_num(v1)? - self.extract_value_num(v2)?,
+            )),
+            Expression::Constant(v) => self.extract_constant_val(v),
             Expression::Sleep(v) => {
                 let sleep_time = self.extract_value_num(v)?;
                 thread::sleep(Duration::from_secs(sleep_time as u64));
-                Some(CellVal::Int_c(sleep_time))
+                Some(CellVal::IntC(sleep_time))
             }
 
             Expression::Avg(c1, c2) => {
                 // let (_, _, sum_ele, _) = self.recursive_row_split(Range {tl: c1, br:c2})?;
                 // Some(sum_ele / ((c2.row as i32  - c1.row as i32+ 1) * (c2.col as i32  - c1.col as i32 + 1)))
-                Some(CellVal::Int_c(self.get_avg(c1, c2)?))
+                Some(CellVal::IntC(self.get_avg(c1, c2)?))
             }
             Expression::Max(c1, c2) => {
                 // let (_, max_ele, _, _) = self.recursive_row_split(Range {tl: c1, br:c2})?;
                 // Some(max_ele)
-                Some(CellVal::Int_c(self.get_max(c1, c2)?))
+                Some(CellVal::IntC(self.get_max(c1, c2)?))
             }
             Expression::Min(c1, c2) => {
                 // let (min_ele, _, _, _) = self.recursive_row_split(Range {tl: c1, br:c2})?;
                 // Some(min_ele)
-                Some(CellVal::Int_c(self.get_min(c1, c2)?))
+                Some(CellVal::IntC(self.get_min(c1, c2)?))
             }
             Expression::Sum(c1, c2) => {
                 // let (_, _, sum_ele, _) = self.recursive_row_split(Range {tl: c1, br:c2})?;
                 // Some(sum_ele)
-                Some(CellVal::Int_c(self.get_sum(c1, c2)?))
+                Some(CellVal::IntC(self.get_sum(c1, c2)?))
             }
             Expression::Stdev(c1, c2) => {
                 // let (_, _, sum_ele, square_ele) = self.recursive_row_split(Range {tl: c1, br:c2})?;
@@ -305,7 +294,7 @@ impl SpreadSheet {
                 // let sq_avg =( (square_ele/area )as f64).sqrt() as i32;
 
                 // Some(sq_avg - avg)
-                Some(CellVal::Int_c(self.get_stddev(c1, c2)?))
+                Some(CellVal::IntC(self.get_stddev(c1, c2)?))
             }
 
             _ => panic!("Unimplemented Expression Matching in get_expr_res!"),
@@ -318,13 +307,11 @@ impl SpreadSheet {
     }
 
     fn remove_children(&mut self, inp_cell: Cell) {
-        let expr;
-
-        if self.exprs.contains_key(&inp_cell) {
-            expr = self.exprs.get(&inp_cell).expect("Weird!").clone();
+        let expr = if self.exprs.contains_key(&inp_cell) {
+            self.exprs.get(&inp_cell).expect("Weird!").clone()
         } else {
             return;
-        }
+        };
 
         match expr {
             Expression::Add(v1, v2)
@@ -345,13 +332,13 @@ impl SpreadSheet {
             | Expression::Sum(c1, c2)
             | Expression::Stdev(c1, c2) => {
                 for i in c1.row..=c2.row {
-                    for j in c1.col..= c2.col {
-                        let c = Cell { row: i, col: j};
+                    for j in c1.col..=c2.col {
+                        let c = Cell { row: i, col: j };
                         self.remove_children_helper(Value::Ref(c), &inp_cell);
                     }
                 }
-            },
-            | Expression::Stringof(_) => (),
+            }
+            Expression::Stringof(_) => (),
             _ => panic!("Unimplemented add_children!"),
         }
     }
@@ -396,40 +383,37 @@ impl SpreadSheet {
             | Expression::Sum(c1, c2)
             | Expression::Stdev(c1, c2) => {
                 for i in c1.row..=c2.row {
-                    for j in c1.col..= c2.col {
-                        let c = Cell { row: i, col: j};
+                    for j in c1.col..=c2.col {
+                        let c = Cell { row: i, col: j };
                         self.add_children_helper(Value::Ref(c), &inp_cell);
                     }
                 }
-                
-            },
-            | Expression::Stringof(_) => (),
+            }
+            Expression::Stringof(_) => (),
 
             _ => panic!("Unimplemented add_children!"),
         }
     }
 
-    pub fn call_formula_api (&mut self, form: Option<Formula>) -> (String, String, String){
+    pub fn call_formula_api(&mut self, form: Option<Formula>) -> (String, String, String) {
         let form = match form {
-            None => return (String::from("IV"),String::new(),String::new()),
+            None => return (String::from("IV"), String::new(), String::new()),
             Some(valid_form) => valid_form,
         };
         match form.expression {
-            Expression::Quit 
-            |Expression::Disable 
-            |Expression::Enable 
-            |Expression::ScrollDown 
-            |Expression::ScrollUp 
-            |Expression::ScrollRight 
-            |Expression::ScrollLeft 
-            |Expression::ScrollTo(_)  => {
-                return (String::new(), String::new(), String::new())
-            },
+            Expression::Quit
+            | Expression::Disable
+            | Expression::Enable
+            | Expression::ScrollDown
+            | Expression::ScrollUp
+            | Expression::ScrollRight
+            | Expression::ScrollLeft
+            | Expression::ScrollTo(_) => return (String::new(), String::new(), String::new()),
 
             Expression::Avg(c1, c2)
             | Expression::Max(c1, c2)
             | Expression::Min(c1, c2)
-            | Expression::Sum(c1, c2) 
+            | Expression::Sum(c1, c2)
             | Expression::Stdev(c1, c2) => {
                 if c1.row > c2.row || c1.col > c2.col {
                     return (String::from("IV"), String::new(), String::new());
@@ -480,16 +464,25 @@ impl SpreadSheet {
         let mut y = String::new();
         let mut z = String::new();
 
-
         for (i, _) in sorted_vec.iter() {
             let num = self.update_cell(*i);
-            x.push_str((format!("{}{} ", String::from_utf8_lossy(&Col::from_num(i.col as u32).expect("Error Converting Num to Col").0), i.row)).as_str());
+            x.push_str(
+                (format!(
+                    "{}{} ",
+                    String::from_utf8_lossy(
+                        &Col::from_num(i.col as u32)
+                            .expect("Error Converting Num to Col")
+                            .0
+                    ),
+                    i.row
+                ))
+                .as_str(),
+            );
             y.push_str((format!("{} ", i.col)).as_str());
             match num {
-                CellVal::Int_c(v) => z.push_str((format!("{}|", v)).as_str()),
-                CellVal::Str_c(s) => z.push_str((format!("{}|", s)).as_str()),
+                CellVal::IntC(v) => z.push_str((format!("{}|", v)).as_str()),
+                CellVal::StrC(s) => z.push_str((format!("{}|", s)).as_str()),
             }
-            
         }
         (x, y, z)
     }
@@ -511,7 +504,7 @@ impl SpreadSheet {
             | Expression::Sum(c1, c2)
             | Expression::Stdev(c1, c2) => {
                 c.row >= c1.row && c.col >= c1.col && c.row <= c2.row && c.col <= c2.col
-            },
+            }
 
             Expression::Stringof(_) => false,
 
@@ -567,8 +560,8 @@ impl SpreadSheet {
                     print!("{:<10}", "err");
                 } else {
                     match self.val[cell_pointer + j as usize].clone() {
-                        CellVal::Int_c(i) => print!("{:<10}", i),
-                        CellVal::Str_c(s) => print!("{:<10}", s),
+                        CellVal::IntC(i) => print!("{:<10}", i),
+                        CellVal::StrC(s) => print!("{:<10}", s),
                     }
                 }
             }

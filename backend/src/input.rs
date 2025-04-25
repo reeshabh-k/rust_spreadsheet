@@ -2,7 +2,6 @@ use arrayvec::ArrayVec;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::io::BufRead;
-use std::io::Cursor;
 
 use crate::basic::{Cell, Expression, Formula, Value};
 
@@ -22,6 +21,7 @@ fn parse_int(int_str: &str) -> Option<i32> {
     int_str.parse::<i32>().ok()
 }
 
+#[allow(dead_code)]
 impl Col {
     fn from_str(col_str: &str) -> Option<Col> {
         if col_str.len() > 3 {
@@ -85,10 +85,12 @@ impl Col {
 fn parse_cell(cell_str: &str) -> Option<Cell> {
     let cell_re = Lazy::new(|| Regex::new(r"(?P<col>[A-Z]+)(?P<row>[0-9]+)").unwrap());
     let caps = cell_re.captures(cell_str)?;
-
+    let col_str = &caps["col"];
+    let row_str = &caps["row"];
+    let temp = Col::from_str(col_str)?.num_of_col();
     Some(Cell {
-        col: Col::from_str(&caps["col"])?.num_of_col() as u16,
-        row: parse_row(&caps["row"])? as u16,
+        col: temp as u16,
+        row: parse_row(row_str)? as u16,
     })
 }
 
@@ -130,7 +132,9 @@ pub fn get_formula<R: BufRead>(reader: &mut R) -> Option<Formula> {
     let scroll_to_re =
         Lazy::new(|| Regex::new(r"^\s*scroll_to\s*(?P<cell>[A-Z]+[0-9]+)\s*$").unwrap());
 
-    let string_re = Lazy::new(|| Regex::new("^(?P<cell>[A-Z]+[0-9]+)\\s*=\\s*\"(?P<str>[A-Za-z0-9 ]+)\"\\s*$").unwrap());
+    let string_re = Lazy::new(|| {
+        Regex::new("^(?P<cell>[A-Z]+[0-9]+)\\s*=\\s*\"(?P<str>[A-Za-z0-9 ]+)\"\\s*$").unwrap()
+    });
 
     if let Some(caps) = string_re.captures(&line) {
         let cell = parse_cell(&caps["cell"])?;
@@ -301,6 +305,7 @@ pub fn get_formula<R: BufRead>(reader: &mut R) -> Option<Formula> {
 #[cfg(test)]
 mod formula_tests {
     use super::*;
+    use std::io::Cursor;
 
     fn test_binary_op(inp_cell: &str, op: &str, val1: &str, val2: &str, form: Formula) {
         let input = format!("{inp_cell}={val1}{op}{val2}");
@@ -399,7 +404,7 @@ mod col_tests {
     fn create_a() {
         let col_str = "A";
         let col_out = Col::from_str(col_str).expect("Invalid String");
-        
+
         let mut col_exp: ArrayVec<u8, 3> = ArrayVec::<u8, 3>::new();
         col_exp.push(b'A');
         let col_exp = Col(col_exp);

@@ -48,11 +48,11 @@ pub struct Formula {
     pub expression: Expression,
 }
 
-pub enum SpreadSheetError {
-    InvalidInput,
-    Cycle,
-    Valid,
-    Quit,
-    Enable,
-    Disable,
-}
+// pub enum SpreadSheetError {
+//     InvalidInput,
+//     Cycle,
+//     Valid,
+//     Quit,
+//     Enable,
+//     Disable,
+// }

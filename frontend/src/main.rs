@@ -17,31 +17,32 @@
 //! The frontend is built using the Yew framework for Rust-based web applications,
 //! and communicates with a backend server for formula processing and calculations.
 
-use yew::prelude::*;
-use web_sys::{HtmlInputElement, InputEvent, KeyboardEvent, HtmlElement, MouseEvent, WheelEvent, Event};
-use std::collections::HashMap;
 use helper::*;
 use wasm_bindgen::{JsCast, closure::Closure};
 use wasm_bindgen_futures::spawn_local;
 // use std::io::Write;
 use std::sync::{Arc, Mutex};
-use serde_json::json;
-
+use wasm_bindgen::{JsCast, closure::Closure};
+use wasm_bindgen_futures::spawn_local;
+use web_sys::{
+    Event, HtmlElement, HtmlInputElement, InputEvent, KeyboardEvent, MouseEvent, WheelEvent,
+};
+use yew::prelude::*;
 
 /// Base URL for API endpoints
 const _API_URL: &str = "http://localhost:8080/api";
 
 /// State structure for visualization panels that display charts and graphs
-/// 
+///
 /// Contains data series and visualization settings for rendering charts
 #[derive(Clone, PartialEq)]
 struct VisualizationState {
     /// Whether the visualization panel is currently visible
     visible: bool,
     /// Collection of data series, where each series has a title and a set of labeled values
-    data: Vec<(String, Vec<(String, f64)>)>,  // Vec of (Category, Vec of (label, value)) pairs to maintain order
+    data: Vec<(String, Vec<(String, f64)>)>, // Vec of (Category, Vec of (label, value)) pairs to maintain order
     /// Main title displayed at the top of the visualization panel
-    title: String,  // Main title from cell A1
+    title: String, // Main title from cell A1
 }
 
 // impl VisualizationState {
@@ -117,8 +118,6 @@ struct ToastProps {
     is_error: bool,
 }
 
-
-
 // Function to convert column number to label (1->A, 2->B, ..., 27->AA, 28->AB, etc.)
 /// Convert a column number (1-based) into its spreadsheet label (e.g., 27 -> "AA").
 ///
@@ -138,10 +137,10 @@ fn get_column_label(col: u32) -> String {
     if col == 0 {
         return String::new();
     }
-    
+
     let mut result = String::new();
     let mut n = col;
-    
+
     while n > 0 {
         // Convert to 0-based for calculation
         n -= 1;
@@ -154,7 +153,7 @@ fn get_column_label(col: u32) -> String {
         // Integer division to get the next digit
         n /= 26;
     }
-    
+
     result
 }
 
@@ -175,7 +174,7 @@ fn get_column_label(col: u32) -> String {
 /// ```
 fn get_column_number(col_label: &str) -> u32 {
     let mut result: u32 = 0;
-    
+
     for &byte in col_label.as_bytes() {
         // Check if character is A-Z
         if byte.is_ascii_uppercase() {
@@ -185,7 +184,7 @@ fn get_column_number(col_label: &str) -> u32 {
             result += (byte - b'A' + 1) as u32;
         }
     }
-    
+
     result
 }
 
@@ -211,11 +210,11 @@ fn get_column_number(col_label: &str) -> u32 {
 //         move |_| {
 //             let document_clone = document.clone();
 //             let onclose_clone = onclose.clone();
-            
+
 //             let closure = Closure::wrap(Box::new(move |_event: MouseEvent| {
 //                 onclose_clone.emit(());
 //             }) as Box<dyn FnMut(MouseEvent)>);
-            
+
 //             if let Some(doc) = &*document_clone {
 //                 doc.add_event_listener_with_callback("click", closure.as_ref().unchecked_ref()).ok();
 //             }
@@ -232,7 +231,7 @@ fn get_column_number(col_label: &str) -> u32 {
 
 //     // Initialize user input state (not the full formula string)
 //     let user_input = use_state(String::new);
-    
+
 //     // Handler for formula input changes
 //     let on_formula_input = {
 //         let user_input = user_input.clone();
@@ -241,14 +240,14 @@ fn get_column_number(col_label: &str) -> u32 {
 //             user_input.set(input.value());
 //         })
 //     };
-    
+
 //     // Handler for submitting the formula
 //     let on_submit_formula = {
 //         let onaddformula = props.onaddformula.clone();
 //         let user_input = user_input.clone();
 //         let onclose = props.onclose.clone();
 //         let target_cell = props.target_cell.clone();
-        
+
 //         Callback::from(move |e: MouseEvent| {
 //             e.stop_propagation();
 //             // Format the complete formula string with cell reference
@@ -257,14 +256,14 @@ fn get_column_number(col_label: &str) -> u32 {
 //             onclose.emit(());
 //         })
 //     };
-    
+
 //     // Handler for key presses in the formula input
 //     let on_keydown = {
 //         let onaddformula = props.onaddformula.clone();
 //         let user_input = user_input.clone();
 //         let onclose = props.onclose.clone();
 //         let target_cell = props.target_cell.clone();
-        
+
 //         Callback::from(move |e: KeyboardEvent| {
 //             if e.key() == "Enter" {
 //                 e.stop_propagation();
@@ -289,8 +288,8 @@ fn get_column_number(col_label: &str) -> u32 {
 //             <div class="formula-input-container">
 //                 <div style="display: flex; align-items: center; margin-bottom: 8px;">
 //                     <span style="margin-right: 5px; font-weight: bold;">{format!("{}=", props.target_cell)}</span>
-//                     <input 
-//                         type="text" 
+//                     <input
+//                         type="text"
 //                         value={(*user_input).clone()}
 //                         oninput={on_formula_input}
 //                         onkeydown={on_keydown}
@@ -299,7 +298,7 @@ fn get_column_number(col_label: &str) -> u32 {
 //                         placeholder="Enter formula..."
 //                     />
 //                 </div>
-//                 <button 
+//                 <button
 //                     onclick={on_submit_formula}
 //                 >
 //                     {"Apply Formula"}
@@ -327,7 +326,7 @@ pub struct SpreadsheetProps {
     pub cell_values: HashMap<String, String>,
     /// Callback for when a formula is entered in a cell
     #[prop_or_default]
-    pub on_formula: Callback<String>,  // new callback for formula application
+    pub on_formula: Callback<String>, // new callback for formula application
     /// Callback to get a reference to the function that scrolls to a specific cell
     #[prop_or_default]
     pub on_scroll_to_cell_ref: Callback<UseStateHandle<Option<Callback<String>>>>, // Get reference to the scroll_to_cell callback
@@ -337,22 +336,22 @@ pub struct SpreadsheetProps {
 fn spreadsheet(props: &SpreadsheetProps) -> Html {
     // State for the currently selected cell
     let selected_cell = use_state(|| None::<String>);
-    
+
     // New state for the currently editing cell
     let editing_cell = use_state(|| None::<String>);
-    
+
     // New state for the cell being edited's input value
     let edit_input_value = use_state(String::new);
-    
+
     // Context menu state
     // let context_menu_state = use_state(|| ContextMenuState::new());
-    
+
     // NodeRef for scrolling container
     let container_ref = use_node_ref();
-    
+
     // NodeRef for the cell edit input field
     let cell_input_ref = use_node_ref();
-    
+
     // Handle cell click to select a cell and enable direct editing
     let on_cell_click = {
         let selected_cell = selected_cell.clone();
@@ -363,28 +362,30 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
         let cell_values = props.cell_values.clone();
         let _props_on_formula = props.on_formula.clone();
         let container_ref = container_ref.clone();
-        
+
         Callback::from(move |e: MouseEvent| {
             e.stop_propagation(); // Stop event propagation
-            
+
             let target: HtmlElement = e.target_unchecked_into();
             if let Some(cell_id) = target.get_attribute("data-id") {
                 selected_cell.set(Some(cell_id.clone()));
                 on_cell_select.emit(cell_id.clone());
-                
+
                 // Focus the container to enable keyboard navigation
                 if let Some(container) = container_ref.cast::<HtmlElement>() {
                     container.focus().ok();
                 }
-                
+
                 // Enable editing mode for the clicked cell
                 editing_cell.set(Some(cell_id.clone()));
-                
+
                 // Get the current value from cell_values map
                 let current_value = cell_values.get(&cell_id).cloned().unwrap_or_default();
-                
+
                 // If the cell contains a formula (starts with =), show the formula text instead of the result
-                let display_value = if current_value.starts_with(&format!("{}=", cell_id)) || current_value.starts_with('=') {
+                let display_value = if current_value.starts_with(&format!("{}=", cell_id))
+                    || current_value.starts_with('=')
+                {
                     // Extract the formula part after the equals sign
                     let formula_parts: Vec<&str> = current_value.splitn(2, '=').collect();
                     if formula_parts.len() > 1 {
@@ -395,20 +396,21 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                 } else {
                     current_value
                 };
-                
+
                 edit_input_value.set(display_value);
-                
+
                 // Focus the input field after a short delay to ensure it's rendered
                 let cell_input_ref_clone = cell_input_ref.clone();
                 wasm_bindgen_futures::spawn_local(async move {
                     // Small delay to ensure the input field is rendered
                     let promise = js_sys::Promise::new(&mut |resolve, _| {
                         let window = web_sys::window().unwrap();
-                        window.set_timeout_with_callback_and_timeout_and_arguments_0(
-                            &resolve, 10).unwrap();
+                        window
+                            .set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 10)
+                            .unwrap();
                     });
                     let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
-                    
+
                     // Focus the input field and select all text
                     if let Some(input) = cell_input_ref_clone.cast::<HtmlInputElement>() {
                         input.focus().ok();
@@ -419,24 +421,24 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
         })
     };
 
-// Handle cell input changes in the editing cell
+    // Handle cell input changes in the editing cell
     let on_cell_input_change = {
         let edit_input_value = edit_input_value.clone();
         let props_on_formula = props.on_formula.clone();
         let editing_cell = editing_cell.clone();
         let on_cell_select = props.on_cell_select.clone();
-        
+
         Callback::from(move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
             let value = input.value();
             edit_input_value.set(value.clone());
-            
+
             // Check if the input starts with "=" to handle as a formula
             if let Some(formula_value) = value.strip_prefix('=') {
                 // When typing a formula directly in a cell, update the formula field in the parent component
                 if let Some(cell_id) = (*editing_cell).clone() {
                     on_cell_select.emit(cell_id.clone()); // Update the cell reference field
-                    
+
                     // Only update the formula field in parent, but DON'T apply the formula yet
                     // Use the special prefix "__preview__" to indicate this is just for display
                     props_on_formula.emit(format!("__preview__{}={}", cell_id, formula_value));
@@ -444,34 +446,34 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
             }
         })
     };
-    
+
     // Handle keyboard events in the editing cell
     let on_cell_input_keydown = {
         let edit_input_value = edit_input_value.clone();
         let editing_cell = editing_cell.clone();
         let props_on_formula = props.on_formula.clone();
         let container_ref = container_ref.clone();
-        
+
         Callback::from(move |e: KeyboardEvent| {
             if e.key() == "Enter" {
                 e.stop_propagation();
                 e.prevent_default();
-                
+
                 if let Some(cell_id) = (*editing_cell).clone() {
                     let value = (*edit_input_value).clone();
-                    
+
                     // If input starts with =, treat as formula but remove the =
                     let formula = if let Some(formula_value) = value.strip_prefix('=') {
                         format!("{}={}", cell_id, formula_value) // Remove the = from the start
                     } else {
                         format!("{}={}", cell_id, value)
                     };
-                    
+
                     props_on_formula.emit(formula);
-                    
+
                     // Exit editing mode
                     editing_cell.set(None);
-                    
+
                     // Focus the container to enable keyboard navigation
                     if let Some(container) = container_ref.cast::<HtmlElement>() {
                         container.focus().ok();
@@ -480,10 +482,10 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
             } else if e.key() == "Escape" {
                 e.stop_propagation();
                 e.prevent_default();
-                
+
                 // Cancel editing
                 editing_cell.set(None);
-                
+
                 // Focus the container to enable keyboard navigation after pressing Escape
                 if let Some(container) = container_ref.cast::<HtmlElement>() {
                     container.focus().ok();
@@ -491,7 +493,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
             }
         })
     };
-    
+
     // Handle clicking outside of the editing cell to exit edit mode
     // let on_click_outside = {
     //     let editing_cell = editing_cell.clone();
@@ -504,33 +506,36 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     // Effect to add global click handler to detect clicks outside the editing cell
     {
         let editing_cell = editing_cell.clone();
-        
+
         use_effect_with_deps(
             move |_| {
                 let document = web_sys::window().unwrap().document().unwrap();
                 let closure = Closure::wrap(Box::new(move |event: MouseEvent| {
                     let target = event.target().unwrap();
                     let target_element = target.dyn_ref::<web_sys::Element>();
-                    
+
                     if let Some(target_el) = target_element {
                         // Check if click is inside an input field or on a cell that's being edited
-                        if target_el.tag_name() != "INPUT" && !target_el.has_attribute("data-editing") {
+                        if target_el.tag_name() != "INPUT"
+                            && !target_el.has_attribute("data-editing")
+                        {
                             editing_cell.set(None);
                         }
                     }
                 }) as Box<dyn FnMut(_)>);
-                
-                document.add_event_listener_with_callback(
-                    "click",
-                    closure.as_ref().unchecked_ref(),
-                ).unwrap();
-                
+
+                document
+                    .add_event_listener_with_callback("click", closure.as_ref().unchecked_ref())
+                    .unwrap();
+
                 // Return a cleanup function
                 move || {
-                    document.remove_event_listener_with_callback(
-                        "click",
-                        closure.as_ref().unchecked_ref(),
-                    ).unwrap();
+                    document
+                        .remove_event_listener_with_callback(
+                            "click",
+                            closure.as_ref().unchecked_ref(),
+                        )
+                        .unwrap();
                     closure.forget(); // Prevent memory leak
                 }
             },
@@ -541,10 +546,10 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     // Handle right-click on cells
     // let on_cell_context_menu = {
     //     let context_menu_state = context_menu_state.clone();
-        
+
     //     Callback::from(move |e: MouseEvent| {
     //         e.prevent_default(); // Prevent the default browser context menu
-            
+
     //         let target: HtmlElement = e.target_unchecked_into();
     //         if let Some(cell_id) = target.get_attribute("data-id") {
     //             context_menu_state.set(ContextMenuState {
@@ -560,7 +565,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     // Handle closing the context menu
     // let on_close_context_menu = {
     //     let context_menu_state = context_menu_state.clone();
-        
+
     //     Callback::from(move |_| {
     //         context_menu_state.set(ContextMenuState::new());
     //     })
@@ -583,13 +588,13 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
         let rows = props.rows;
         let cols = props.cols;
         let editing_cell = editing_cell.clone();
-        
+
         Callback::from(move |e: KeyboardEvent| {
             // Skip keyboard navigation if we're currently editing a cell
             if (*editing_cell).is_some() {
                 return;
             }
-            
+
             if let Some(current_cell) = (*selected_cell).clone() {
                 // Parse the current cell ID (e.g., "A1", "AA23", etc.)
                 // Find the index where the digits start
@@ -600,12 +605,14 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                         break;
                     }
                 }
-                
+
                 if digit_start_index > 0 {
                     let col_label = &current_cell[0..digit_start_index];
-                    let row = current_cell[digit_start_index..].parse::<u32>().unwrap_or(1);
+                    let row = current_cell[digit_start_index..]
+                        .parse::<u32>()
+                        .unwrap_or(1);
                     let col_num = get_column_number(col_label);
-                    
+
                     match e.key().as_str() {
                         "ArrowUp" => {
                             e.prevent_default();
@@ -614,7 +621,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                                 selected_cell.set(Some(new_cell.clone()));
                                 on_cell_select.emit(new_cell);
                             }
-                        },
+                        }
                         "ArrowDown" => {
                             e.prevent_default();
                             if row < rows {
@@ -622,7 +629,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                                 selected_cell.set(Some(new_cell.clone()));
                                 on_cell_select.emit(new_cell);
                             }
-                        },
+                        }
                         "ArrowLeft" => {
                             e.prevent_default();
                             if col_num > 1 {
@@ -631,7 +638,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                                 selected_cell.set(Some(new_cell.clone()));
                                 on_cell_select.emit(new_cell);
                             }
-                        },
+                        }
                         "ArrowRight" => {
                             e.prevent_default();
                             if col_num < cols {
@@ -640,19 +647,19 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                                 selected_cell.set(Some(new_cell.clone()));
                                 on_cell_select.emit(new_cell);
                             }
-                        },
+                        }
                         // Start editing on Enter or F2 key
                         "Enter" | "F2" => {
                             e.prevent_default();
                             editing_cell.set(Some(current_cell.clone()));
-                        },
+                        }
                         _ => {}
                     }
                 }
             }
         })
     };
-    
+
     // Handle wheel events to scroll both vertically and horizontally in the spreadsheet
     let on_wheel = {
         let container_ref = container_ref.clone();
@@ -663,16 +670,16 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                 let delta_x = if e.shift_key() && e.delta_x() == 0.0 {
                     // If shift key is pressed and there's no horizontal movement,
                     // use the vertical delta for horizontal scrolling
-                    e.delta_y() 
+                    e.delta_y()
                 } else {
                     // Otherwise use the actual horizontal delta
                     e.delta_x()
                 };
-                
+
                 // Apply horizontal scrolling
                 let new_left = (div.scroll_left() as f64 + delta_x) as i32;
                 div.set_scroll_left(new_left);
-                
+
                 // Apply vertical scrolling only if shift key is not pressed or there's actual vertical delta
                 if !e.shift_key() || e.delta_x() != 0.0 {
                     let new_top = (div.scroll_top() as f64 + e.delta_y()) as i32;
@@ -683,32 +690,30 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     };
 
     // Creates column headers (A, B, C, etc.)
-    let column_headers = (1..=props.cols).map(|col| {
-        let col_label = get_column_label(col);
-        
-        html! {
-            <th class="column-header">{ col_label }</th>
-        }
-    }).collect::<Html>();
-    
+    let column_headers = (1..=props.cols)
+        .map(|col| {
+            let col_label = get_column_label(col);
+
+            html! {
+                <th class="column-header">{ col_label }</th>
+            }
+        })
+        .collect::<Html>();
+
     // Creates all rows with cells
     let rows = (1..=props.rows).map(|row| {
         let cells = (1..=props.cols).map(|col| {
             let cell_id = format!("{}{}", get_column_label(col), row);
-            
             // Get cell value from props (from parent component)
             let cell_value = props.cell_values.get(&cell_id)
                 .cloned()
                 .unwrap_or_else(|| "0".to_string());
-            
             // Check if this cell is currently selected
             let is_selected = selected_cell.as_ref()
                 .is_some_and(|id| *id == cell_id);
-            
             // Check if this cell is currently being edited
             let is_editing = editing_cell.as_ref()
                 .is_some_and(|id| *id == cell_id);
-            
             // Apply appropriate CSS classes
             let cell_class = if is_editing {
                 "cell editing"
@@ -717,7 +722,6 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
             } else {
                 "cell"
             };
-            
             // Render either the cell value or an input field for editing
             if is_editing {
                 html! {
@@ -751,7 +755,6 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                 }
             }
         }).collect::<Html>();
-        
         html! {
             <tr>
                 <th class="row-header">{ row }</th>
@@ -759,7 +762,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
             </tr>
         }
     }).collect::<Html>();
-    
+
     html! {
         <div ref={container_ref.clone()} class="spreadsheet-container" tabindex="0" onkeydown={onkeydown.clone()} onwheel={on_wheel}>
             <table class="spreadsheet">
@@ -787,14 +790,19 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
 }
 
 async fn fetch_message() -> Result<String, String> {
-    
-    let resp = reqwest::get("http://localhost:8080/api/hello").await
+    let resp = reqwest::get("http://localhost:8080/api/hello")
+        .await
         .map_err(|e| format!("Failed to send request: {:?}", e))?;
-    
-    let json: serde_json::Value = resp.json().await
+
+    let json: serde_json::Value = resp
+        .json()
+        .await
         .map_err(|e| format!("Failed to parse response: {:?}", e))?;
-    
-    Ok(json["message"].as_str().unwrap_or("No message received").to_string())
+
+    Ok(json["message"]
+        .as_str()
+        .unwrap_or("No message received")
+        .to_string())
 }
 
 /// Updates a cell's value by sending it to the backend and retrieving the computed result
@@ -817,14 +825,16 @@ async fn update_cell_logic(cell_id: &str, val: &str, formulas: Arc<Mutex<Vec<Str
         let mut stack = formulas.lock().unwrap();
         stack.push(format!("{} = {}", cell_id, val));
     }
-    
-    let resp = client.post("http://localhost:8080/api/get_value")
+
+    let resp = client
+        .post("http://localhost:8080/api/get_value")
         .json(&params)
         .send()
         .await
         .map_err(|e| format!("Failed to send request: {:?}", e))?;
 
-    let json: serde_json::Value = resp.json()
+    let json: serde_json::Value = resp
+        .json()
         .await
         .map_err(|e| format!("Failed to parse response: {:?}", e))?;
 
@@ -833,7 +843,7 @@ async fn update_cell_logic(cell_id: &str, val: &str, formulas: Arc<Mutex<Vec<Str
     Ok((x, y))
 }
 
-async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String>  {
+async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>>) -> Result<String, String> {
     // self.conversation.push(format!("User: {}", prompt));
     // let full_prompt = self.conversation.join("\n");
     // println!("Full prompt: {}", full_prompt);  // Print the full prompt
@@ -845,7 +855,7 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String
     The next formula should be of similar type and complexity as the previous ones. Each line would contain a different formula. Just give the formula, no explanation: \n".to_string();
     let mut prompt_list = vec![];
     let mut i = 0;
-    while !formulas.is_empty() && i < 5{
+    while !formulas.is_empty() && i < 5 {
         prompt_list.push(formulas.pop().unwrap());
         i += 1;
     }
@@ -857,25 +867,26 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String
         cnt += 1;
     }
 
-    let response = client.post("https://api.cohere.ai/generate")
+    let response = client
+        .post("https://api.cohere.ai/generate")
         .header("Authorization", format!("Bearer {}", api_key))
         .json(&json!({
             "prompt": prompt,
             "max_tokens": 2000,
             "temperature": 0.5,
-        })).send()
+        }))
+        .send()
         .await
         .unwrap();
-    let json : serde_json::Value = response.json().await.unwrap();
+    let json: serde_json::Value = response.json().await.unwrap();
     if let Some(text) = json["text"].as_str() {
         // self.conversation.push(format!("Cohere: {}", text));
-        println!("Cohere: {}", text);  // Print the response text
+        println!("Cohere: {}", text); // Print the response text
         let resp = text.to_string();
         // resp.push_str(&format!("\nPrompt: {}", prompt));
         Ok(resp)
     } else {
         Err("Failed to extract response text".to_string())
-        
     }
 }
 
@@ -897,16 +908,36 @@ fn app() -> Html {
     // Map of form fields with their current values (rows, cols, cell, formula)
     let fields = use_state(|| {
         let mut map: HashMap<String, Box<dyn FormField>> = HashMap::new();
-        map.insert("rows".to_string(), Box::new(RowsField { value: "999".to_string() })); // Max rows
-        map.insert("cols".to_string(), Box::new(ColsField { value: "999".to_string() })); // Max columns (A-Z)
-        map.insert("cell".to_string(), Box::new(CellField { value: "".to_string() }));
-        map.insert("formula".to_string(), Box::new(FormulaField { value: "".to_string() }));
+        map.insert(
+            "rows".to_string(),
+            Box::new(RowsField {
+                value: "101".to_string(),
+            }),
+        ); // Max rows
+        map.insert(
+            "cols".to_string(),
+            Box::new(ColsField {
+                value: "101".to_string(),
+            }),
+        ); // Max columns (A-Z)
+        map.insert(
+            "cell".to_string(),
+            Box::new(CellField {
+                value: "".to_string(),
+            }),
+        );
+        map.insert(
+            "formula".to_string(),
+            Box::new(FormulaField {
+                value: "".to_string(),
+            }),
+        );
         map
     });
-    
+
     // Validation messages for each form field
     let messages = use_state(HashMap::<String, String>::new);
-    
+
     // State for toast notifications displayed to the user
     let toast_state = use_state(|| ToastProps {
         visible: false,
@@ -923,23 +954,23 @@ fn app() -> Html {
         data: Vec::new(),
         title: "Data Analysis".to_string(),
     });
-    
+
     // Toggle state for the statistics view
     let statistics_state = use_state(|| false);
-    
+
     // Get the current number of rows and columns
     let rows = if let Some(rows_field) = (*fields).get("rows") {
         rows_field.value().parse::<u32>().unwrap_or(5) // Default to 5 rows
     } else {
         5
     };
-    
+
     let cols = if let Some(cols_field) = (*fields).get("cols") {
         cols_field.value().parse::<u32>().unwrap_or(5) // Default to 5 columns
     } else {
         5
     };
-    
+
     // Cell data map containing all spreadsheet values (cell_id -> value)
     let cell_values = use_state(|| {
         let mut data = HashMap::new();
@@ -952,10 +983,10 @@ fn app() -> Html {
         }
         data
     });
-    
+
     // Check if dimensions are valid
-    let dimensions_valid = rows > 0 && cols > 0 && rows <= 999 && cols <= 999;
-    
+    let dimensions_valid = rows > 0 && cols > 0 && rows <= 101 && cols <= 101;
+
     // Generic input handler
     let oninput = {
         let fields = fields.clone();
@@ -963,7 +994,7 @@ fn app() -> Html {
             let input: HtmlInputElement = e.target_unchecked_into();
             let field_id = input.id();
             let value = input.value();
-            
+
             // Only update fields other than rows and cols immediately
             // For rows and cols, we'll update them on Enter keypress
             let mut updated_fields = (*fields).clone();
@@ -977,11 +1008,11 @@ fn app() -> Html {
             }
         })
     };
-    
+
     // Handle cell selection in the spreadsheet
     let on_cell_select = {
         let fields = fields.clone();
-        
+
         Callback::from(move |cell_id: String| {
             let mut updated_fields = (*fields).clone();
             if let Some(field) = updated_fields.get_mut("cell") {
@@ -991,20 +1022,23 @@ fn app() -> Html {
         })
     };
 
-// Handle for analyzing data and showing visualization
+    // Handle for analyzing data and showing visualization
     let on_analyze = {
         let cell_values = cell_values.clone();
         let visualization_state = visualization_state.clone();
-        
+
         Callback::from(move |_| {
             let mut visualization_data = Vec::new();
             let cells = (*cell_values).clone();
             // web_sys::console::log_1(&format!("cell_values: {:?}", cells).into());
-            
+
             // Get main chart title from A1
-            let main_title = cells.get("A1").cloned().unwrap_or_else(|| "Data Analysis".to_string());
+            let main_title = cells
+                .get("A1")
+                .cloned()
+                .unwrap_or_else(|| "Data Analysis".to_string());
             web_sys::console::log_1(&format!("Main title: {}", main_title).into()); // Log main_title
-            
+
             // Find how many columns have data in the header row (row 1)
             let mut header_columns = Vec::new();
             // Start from column B (index 2)
@@ -1019,7 +1053,7 @@ fn app() -> Html {
                 }
             }
             web_sys::console::log_1(&format!("Header columns: {:?}", header_columns).into());
-            
+
             // Find data rows starting from row 2 (index 2) and continue until we find a row where A{i} is empty or "0"
             for row in 2..=rows {
                 let row_label_cell = format!("A{}", row);
@@ -1028,7 +1062,7 @@ fn app() -> Html {
                     if row_label.trim().is_empty() || row_label == "0" {
                         break;
                     }
-                    
+
                     // This row has a label in column A, process it as a data series
                     let mut row_data = Vec::new();
                     for (col, header) in &header_columns {
@@ -1039,7 +1073,7 @@ fn app() -> Html {
                             }
                         }
                     }
-                    
+
                     // If we have data for this row, add it to our visualization data
                     if !row_data.is_empty() {
                         visualization_data.push((row_label.clone(), row_data));
@@ -1049,8 +1083,10 @@ fn app() -> Html {
                     break;
                 }
             }
-            web_sys::console::log_1(&format!("Visualization data: {:?}", visualization_data).into());
-            
+            web_sys::console::log_1(
+                &format!("Visualization data: {:?}", visualization_data).into(),
+            );
+
             // Only show visualization if we have data
             if !visualization_data.is_empty() {
                 visualization_state.set(VisualizationState {
@@ -1070,11 +1106,11 @@ fn app() -> Html {
             statistics_state.set(!*statistics_state);
         })
     };
-    
+
     // Function to scroll to a specific cell
     let scroll_to_cell = Callback::from(move |cell_id: String| {
         web_sys::console::log_1(&format!("App: Attempting to scroll to cell: {}", cell_id).into());
-        
+
         // Find and scroll to the cell directly using DOM API
         if let Some(window) = web_sys::window() {
             if let Some(document) = window.document() {
@@ -1086,22 +1122,24 @@ fn app() -> Html {
                     // Get the container element
                     if let Ok(Some(container)) = document.query_selector(".spreadsheet-container") {
                         let container_element = container.dyn_into::<HtmlElement>().unwrap();
-                        
+
                         // Focus the container to enable keyboard navigation
                         container_element.focus().ok();
-                        
+
                         // Parse the cell ID to get column and row
-                        let col_chars: String = cell_id.chars()
+                        let col_chars: String = cell_id
+                            .chars()
                             .take_while(|c| c.is_ascii_alphabetic())
                             .collect();
-                        
-                        let row_str: String = cell_id.chars()
+
+                        let row_str: String = cell_id
+                            .chars()
                             .skip_while(|c| c.is_ascii_alphabetic())
                             .collect();
-                        
+
                         let row = row_str.parse::<i32>().unwrap_or(1);
                         let col_num = get_column_number(&col_chars) as i32;
-                        
+
                         // Use exact dimensions from the CSS file:
                         // From CSS: .cell { min-width: 80px; height: 35px; }
                         // From CSS: .row-header, .column-header are in similar dimensions
@@ -1113,17 +1151,20 @@ fn app() -> Html {
                         // Calculate the exact pixel offset
                         // Subtract header sizes to account for the fixed headers
                         // Start exact at top-left corner of the target cell
-                        let scroll_top = ((row - 1) as f64 * cell_height) as i32 ;  // No extra offset needed vertically
+                        let scroll_top = ((row - 1) as f64 * cell_height) as i32; // No extra offset needed vertically
                         let scroll_left = (col_num - 1) * cell_width; // No extra offset needed horizontally
-                        
+
                         // Set scroll position
                         container_element.set_scroll_top(scroll_top);
                         container_element.set_scroll_left(scroll_left);
-                        
-                        web_sys::console::log_1(&format!(
-                            "Scrolled to cell: {}. Position: left={}, top={}, col={}, row={}", 
-                            cell_id, scroll_left, scroll_top, col_num, row
-                        ).into());
+
+                        web_sys::console::log_1(
+                            &format!(
+                                "Scrolled to cell: {}. Position: left={}, top={}, col={}, row={}",
+                                cell_id, scroll_left, scroll_top, col_num, row
+                            )
+                            .into(),
+                        );
                     }
                 } else {
                     web_sys::console::log_1(&format!("Cell not found in DOM: {}", cell_id).into());
@@ -1131,7 +1172,7 @@ fn app() -> Html {
             }
         }
     });
-    
+
     // Generic validation handler with formula processing
     let onkeydown = {
         let fields = fields.clone();
@@ -1142,15 +1183,16 @@ fn app() -> Html {
         let toast_counter = toast_counter.clone();
         let on_cell_select = on_cell_select.clone();
         let formulas = formulas.clone();
-        
+
         Callback::from(move |e: KeyboardEvent| {
             if e.key() == "Enter" {
                 let input: HtmlInputElement = e.target_unchecked_into();
                 let field_id = input.id();
                 let value = input.value();
-                
-                
-                web_sys::console::log_1(&format!("Enter pressed in field: {}, value: {}", field_id, value).into());
+
+                web_sys::console::log_1(
+                    &format!("Enter pressed in field: {}, value: {}", field_id, value).into(),
+                );
 
                 let fields = fields.clone();
                 let messages = messages.clone();
@@ -1161,88 +1203,114 @@ fn app() -> Html {
                 let toast_counter = toast_counter.clone();
                 let formulas = formulas.clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                
-                // For rows and cols fields, update their values on Enter key press
-                let mut updated_fields = (*fields).clone();
-                if field_id == "rows" || field_id == "cols" {
-                    if let Some(field) = updated_fields.get_mut(&field_id) {
-                        field.set_value(value);
-                        fields.set(updated_fields.clone());
+                    // For rows and cols fields, update their values on Enter key press
+                    let mut updated_fields = (*fields).clone();
+                    if field_id == "rows" || field_id == "cols" {
+                        if let Some(field) = updated_fields.get_mut(&field_id) {
+                            field.set_value(value);
+                            fields.set(updated_fields.clone());
+                        }
                     }
-                }
-                
-                let mut updated_messages = (*messages).clone();
-                if let Some(field) = updated_fields.get(&field_id) {
-                    match field.validate(&updated_fields) {
-                        Ok(message) => { 
-                            updated_messages.insert(field_id.clone(), message);
-                            
-                            // Process formula if valid
-                            if field_id == "formula" {
-                                let formula = field.value();
-                                
-                                // Use the shared process_formula function from helper library
-                                if let Some((cell_id, _value)) = process_formula(formula) {
-                                    // Send the formula to the backend for processing
-                                    match update_cell_logic(cell_id.as_str(), _value.as_str(), (*formulas).clone()).await {
-                                        Ok((row_str, val_str)) => {
-                                            web_sys::console::log_1(&format!("Fetched value: {:?} {:?}", row_str, val_str).into());
-                                            let mut updated = (*cell_values).clone();
 
-                                            let row_parts: Vec<&str> = row_str.split_whitespace().collect();
-                                            let val_parts: Vec<&str> = val_str.split('|').collect();
+                    let mut updated_messages = (*messages).clone();
+                    if let Some(field) = updated_fields.get(&field_id) {
+                        match field.validate(&updated_fields) {
+                            Ok(message) => {
+                                updated_messages.insert(field_id.clone(), message);
 
-                                            if row_str == "IV" && &_value[0..1] == "\"" && &_value[_value.len()-1..] == "\""  {
-                                                updated.insert(cell_id.clone(), _value[1.._value.len()-1].to_string());
-                                                web_sys::console::log_1(&"Went into IF statement!".to_string().into());
-                                                cell_values.set(updated);
-                                            } else if row_str == "IV" {
-                                                toast_state.set(ToastProps {
-                                                    visible: false,
-                                                    message: String::new(),
-                                                    is_error: false,
-                                                });
-                                                
-                                                // Use setTimeout to force the browser to process the state change
-                                                let toast_state_clone = toast_state.clone();
-                                                let error_message_clone = "Invalid Formula".to_string();
-                                                
-                                                
-                                                let window = web_sys::window().unwrap();
-                                                let closure = Closure::once_into_js(move || {
-                                                    toast_state_clone.set(ToastProps {
-                                                        visible: true,
-                                                        message: error_message_clone,
-                                                        is_error: true,
+                                // Process formula if valid
+                                if field_id == "formula" {
+                                    let formula = field.value();
+
+                                    // Use the shared process_formula function from helper library
+                                    if let Some((cell_id, _value)) = process_formula(formula) {
+                                        // Send the formula to the backend for processing
+                                        match update_cell_logic(
+                                            cell_id.as_str(),
+                                            _value.as_str(),
+                                            (*formulas).clone(),
+                                        )
+                                        .await
+                                        {
+                                            Ok((row_str, val_str)) => {
+                                                web_sys::console::log_1(
+                                                    &format!(
+                                                        "Fetched value: {:?} {:?}",
+                                                        row_str, val_str
+                                                    )
+                                                    .into(),
+                                                );
+                                                let mut updated = (*cell_values).clone();
+
+                                                let row_parts: Vec<&str> =
+                                                    row_str.split_whitespace().collect();
+                                                let val_parts: Vec<&str> =
+                                                    val_str.split('|').collect();
+
+                                                if row_str == "IV"
+                                                    && &_value[0..1] == "\""
+                                                    && &_value[_value.len() - 1..] == "\""
+                                                {
+                                                    updated.insert(
+                                                        cell_id.clone(),
+                                                        _value[1.._value.len() - 1].to_string(),
+                                                    );
+                                                    web_sys::console::log_1(
+                                                        &"Went into IF statement!"
+                                                            .to_string()
+                                                            .into(),
+                                                    );
+                                                    cell_values.set(updated);
+                                                } else if row_str == "IV" {
+                                                    toast_state.set(ToastProps {
+                                                        visible: false,
+                                                        message: String::new(),
+                                                        is_error: false,
                                                     });
-                                                });
-                                                
-                                                window.set_timeout_with_callback_and_timeout_and_arguments_0(
+
+                                                    // Use setTimeout to force the browser to process the state change
+                                                    let toast_state_clone = toast_state.clone();
+                                                    let error_message_clone =
+                                                        "Invalid Formula".to_string();
+
+                                                    let window = web_sys::window().unwrap();
+                                                    let closure =
+                                                        Closure::once_into_js(move || {
+                                                            toast_state_clone.set(ToastProps {
+                                                                visible: true,
+                                                                message: error_message_clone,
+                                                                is_error: true,
+                                                            });
+                                                        });
+
+                                                    window.set_timeout_with_callback_and_timeout_and_arguments_0(
                                                     &closure.into(),
                                                     10, // Very short timeout to ensure it happens in the next event loop
                                                 ).unwrap();
-                                            } else if row_str == "CY" {
-                                                toast_state.set(ToastProps {
-                                                    visible: false,
-                                                    message: String::new(),
-                                                    is_error: false,
-                                                });
-                                                
-                                                // Use setTimeout to force the browser to process the state change
-                                                let toast_state_clone = toast_state.clone();
-                                                let error_message_clone = "Cycle Detected, Formula Rejected".to_string();
-                                                
-                                                
-                                                let window = web_sys::window().unwrap();
-                                                let closure = Closure::once_into_js(move || {
-                                                    toast_state_clone.set(ToastProps {
-                                                        visible: true,
-                                                        message: error_message_clone,
-                                                        is_error: true,
+                                                } else if row_str == "CY" {
+                                                    toast_state.set(ToastProps {
+                                                        visible: false,
+                                                        message: String::new(),
+                                                        is_error: false,
                                                     });
-                                                });
-                                                
-                                                window.set_timeout_with_callback_and_timeout_and_arguments_0(
+
+                                                    // Use setTimeout to force the browser to process the state change
+                                                    let toast_state_clone = toast_state.clone();
+                                                    let error_message_clone =
+                                                        "Cycle Detected, Formula Rejected"
+                                                            .to_string();
+
+                                                    let window = web_sys::window().unwrap();
+                                                    let closure =
+                                                        Closure::once_into_js(move || {
+                                                            toast_state_clone.set(ToastProps {
+                                                                visible: true,
+                                                                message: error_message_clone,
+                                                                is_error: true,
+                                                            });
+                                                        });
+
+                                                    window.set_timeout_with_callback_and_timeout_and_arguments_0(
                                                     &closure.into(),
                                                     10, // Very short timeout to ensure it happens in the next event loop
                                                 ).unwrap();
@@ -1318,11 +1386,11 @@ fn app() -> Html {
             }
         })
     };
-    
+
     // Handle closing visualization
     let on_close_visualization = {
         let visualization_state = visualization_state.clone();
-        
+
         Callback::from(move |_| {
             visualization_state.set(VisualizationState {
                 visible: false,
@@ -1334,7 +1402,7 @@ fn app() -> Html {
 
     let on_close_statistics = {
         let statistics_state = statistics_state.clone();
-        
+
         Callback::from(move |_: ()| {
             statistics_state.set(false);
         })
@@ -1346,8 +1414,8 @@ fn app() -> Html {
     let content = if dimensions_valid {
         html! {
             <div class="content-container">
-                <Spreadsheet 
-                    rows={rows} 
+                <Spreadsheet
+                    rows={rows}
                     cols={cols}
                     on_cell_select={on_cell_select.clone()}
                     cell_values={(*cell_values).clone()}
@@ -1358,7 +1426,7 @@ fn app() -> Html {
                         let fields = fields.clone();
                         let toast_state = toast_state_clone.clone();
                         let formulas = formulas.clone();
-                        
+
                         Callback::from(move |formula: String| {
 
                             let formulas = formulas.clone();
@@ -1367,7 +1435,7 @@ fn app() -> Html {
                             let _scroll_to_cell = scroll_to_cell.clone();
                             let fields = fields.clone();
                             let toast_state = toast_state.clone();
-                            
+
                             wasm_bindgen_futures::spawn_local(async move {
 
                             // Check if this is just a preview update from typing in a cell
@@ -1375,7 +1443,7 @@ fn app() -> Html {
                                 // This is just to update the formula field in the UI
                                 // Extract the actual formula without the preview prefix
                                 let actual_formula = formula.trim_start_matches("__preview__");
-                                
+
                                 // Update the formula field but don't process it yet
                                 let mut updated_fields = (*fields).clone();
                                 if let Some(field) = updated_fields.get_mut("formula") {
@@ -1404,12 +1472,12 @@ fn app() -> Html {
                                                     message: String::new(),
                                                     is_error: false,
                                                 });
-                                                
+
                                                 // Use setTimeout to force the browser to process the state change
                                                 let toast_state_clone = toast_state.clone();
                                                 let error_message_clone = "Invalid Formula".to_string();
-                                                
-                                                
+
+
                                                 let window = web_sys::window().unwrap();
                                                 let closure = Closure::once_into_js(move || {
                                                     toast_state_clone.set(ToastProps {
@@ -1418,7 +1486,7 @@ fn app() -> Html {
                                                         is_error: true,
                                                     });
                                                 });
-                                                
+
                                                 window.set_timeout_with_callback_and_timeout_and_arguments_0(
                                                     &closure.into(),
                                                     10, // Very short timeout to ensure it happens in the next event loop
@@ -1429,12 +1497,12 @@ fn app() -> Html {
                                                     message: String::new(),
                                                     is_error: false,
                                                 });
-                                                
+
                                                 // Use setTimeout to force the browser to process the state change
                                                 let toast_state_clone = toast_state.clone();
                                                 let error_message_clone = "Cycle Detected, Formula Rejected".to_string();
-                                                
-                                                
+
+
                                                 let window = web_sys::window().unwrap();
                                                 let closure = Closure::once_into_js(move || {
                                                     toast_state_clone.set(ToastProps {
@@ -1443,7 +1511,7 @@ fn app() -> Html {
                                                         is_error: true,
                                                     });
                                                 });
-                                                
+
                                                 window.set_timeout_with_callback_and_timeout_and_arguments_0(
                                                     &closure.into(),
                                                     10, // Very short timeout to ensure it happens in the next event loop
@@ -1456,10 +1524,10 @@ fn app() -> Html {
                                                 cell_values.set(updated);
                                             }
 
-                                            
-                
+
+
                                             on_cell_select.emit(cell_id.clone());
-                                            
+
                                         }
                                         Err(_err) => {
                                             
@@ -1474,7 +1542,7 @@ fn app() -> Html {
                         // We're not using this anymore, but keep it in props for now
                     })}
                 />
-                
+
                 // <div class="api-info">
                 //     <p class="note">{"Note: In the future, this spreadsheet will connect to a backend API to process formulas and update cell values."}</p>
                 //     <p class="instructions">{"To use the spreadsheet: Click on a cell to select it, then enter a formula like \"A1=10+B2\" and press Enter."}</p>
@@ -1492,18 +1560,16 @@ fn app() -> Html {
     };
 
     fn assign_colors(data_len: usize, palette: Vec<String>) -> Vec<String> {
-        (0..data_len).map(|i| palette[i % palette.len()].clone()).collect()
+        (0..data_len)
+            .map(|i| palette[i % palette.len()].clone())
+            .collect()
     }
 
-    
-
-        
-    
     html! {
         <>
             <h1> {"Rusty Spreadsheet"} </h1>
 
-            
+
 
             <input
             type="file"
@@ -1515,10 +1581,10 @@ fn app() -> Html {
                 let toast_state = toast_state.clone();
                 let toast_counter = toast_counter.clone();
                 let formulas = formulas.clone();
-                
+
                 Callback::from(move |e: Event| {
                     let input: HtmlInputElement = e.target_unchecked_into();
-                    
+
                     if let Some(file_list) = input.files() {
                         if let Some(file) = file_list.get(0) {
                             // let file_reader = web_sys::FileReader::new().unwrap();
@@ -1526,7 +1592,7 @@ fn app() -> Html {
                             let toast_state_clone = toast_state.clone();
                             let toast_counter_clone = toast_counter.clone();
                             let formulas = formulas.clone();
-                            
+
                             // let onload = Closure::once(move |_: web_sys::Event| {
                             //     let result = file_reader.result().unwrap();
                             //     let text = result.as_string().unwrap();
@@ -1536,56 +1602,56 @@ fn app() -> Html {
                             let onload = Closure::once(move |_: web_sys::Event| {
                                 let result = file_reader_clone.result().unwrap(); // Use the clone inside the closure
                                 let text = result.as_string().unwrap();
-                                
+
                                 // Parse CSV data
                                 let lines: Vec<&str> = text.split('\n').collect();
                                 let mut parsed_data = HashMap::new();
                                 let mut cell_count = 0;
-                                
+
                                 for (row_idx, line) in lines.iter().enumerate() {
                                     if line.trim().is_empty() { continue; }
-                                    
+
                                     let row_num = row_idx + 1;
                                     let values: Vec<&str> = line.split(',').collect();
-                                    
+
                                     for (col_idx, value) in values.iter().enumerate() {
                                         let col_num = col_idx + 1;
                                         let cell_id = format!("{}{}", get_column_label(col_num as u32), row_num);
-                                        
+
                                         let mut cell_value = value.to_string();
                                         if cell_value.starts_with('"') && cell_value.ends_with('"') && cell_value.len() >= 2 {
                                             cell_value = cell_value[1..cell_value.len()-1].to_string();
                                             cell_value = cell_value.replace("\"\"", "\"");
                                         }
-                                        
+
                                         parsed_data.insert(cell_id, cell_value);
                                         cell_count += 1;
                                     }
                                 }
-                                
+
                                 // Start processing with the backend
                                 toast_state_clone.set(ToastProps {
                                     visible: true,
                                     message: format!("Processing {} cells...", cell_count),
                                     is_error: false,
                                 });
-                                
+
                                 let cell_values_inner = cell_values_clone;
                                 let toast_state_inner = toast_state_clone;
                                 let toast_counter_inner = toast_counter_clone;
                                 let parsed_data_inner = parsed_data.clone();
                                 let formulas = formulas.clone();
-                                
+
                                 wasm_bindgen_futures::spawn_local(async move {
                                     let mut updated_cells = HashMap::new();
                                     let mut processed = 0;
-                                    
+
                                     for (cell_id, value) in parsed_data_inner.iter() {
                                         match update_cell_logic(cell_id, value, (*formulas).clone()).await {
                                             Ok((row_str, val_str)) => {
                                                 let row_parts: Vec<&str> = row_str.split_whitespace().collect();
                                                 let val_parts: Vec<&str> = val_str.split('|').collect();
-                                                
+
                                                 // Update cells based on backend response
                                                 for i in 0..row_parts.len().min(val_parts.len()) {
                                                     updated_cells.insert(row_parts[i].to_string(), val_parts[i].to_string());
@@ -1596,7 +1662,7 @@ fn app() -> Html {
                                                 updated_cells.insert(cell_id.clone(), value.clone());
                                             }
                                         }
-                                        
+
                                         processed += 1;
                                         if processed % 20 == 0 {
                                             let progress = (processed as f64 / cell_count as f64) * 100.0;
@@ -1605,7 +1671,7 @@ fn app() -> Html {
                                                 message: format!("Processing: {:.0}% complete", progress),
                                                 is_error: false,
                                             });
-                                            
+
                                             // Allow UI to update
                                             wasm_bindgen_futures::JsFuture::from(js_sys::Promise::new(
                                                 &mut |resolve, _| {
@@ -1619,15 +1685,15 @@ fn app() -> Html {
                                             )).await.unwrap();
                                         }
                                     }
-                                    
+
                                     // Final update of cell values
                                     cell_values_inner.set(updated_cells);
-                                    
+
                                     // Update toast counter to force re-render
                                     let mut t = *toast_counter_inner;
                                     t += 1;
                                     toast_counter_inner.set(t);
-                                    
+
                                     // Show completion notification
                                     toast_state_inner.set(ToastProps {
                                         visible: true,
@@ -1636,19 +1702,19 @@ fn app() -> Html {
                                     });
                                 });
                             });
-                            
+
                             file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
                             file_reader.read_as_text(&file).expect("Failed to read file");
                             onload.forget();
                         }
                     }
-                    
+
                     input.set_value("");
                 })
             }
             style="display: none;"
             />
-            
+
             <div class="navigation-bar">
                 <div class="nav-section">
                     {
@@ -1664,7 +1730,7 @@ fn app() -> Html {
                                         max={cell_field.max().map(|s| s.to_string())}
                                         oninput={oninput.clone()}
                                         onkeydown={onkeydown.clone()}
-                                        autofocus={true} 
+                                        autofocus={true}
                                     />
                                 </div>
                             }
@@ -1693,23 +1759,23 @@ fn app() -> Html {
                             html! {}
                         }
                     }
-                    
+
                     // Spacer to push buttons to the right
                     <div style="flex-grow: 1;"></div>
-                    
-                    <button 
+
+                    <button
                         onclick={
                             let cell_values = cell_values.clone();
                             Callback::from(move |_| {
                                 // Convert cell_values to JSON and save as file
                                 let json_data = serde_json::to_string(&*cell_values).unwrap_or_default();
-                                
+
                                 // Use web_sys to create and download a file
                                 let window = web_sys::window().unwrap();
                                 let document = window.document().unwrap();
                                 let element = document.create_element("a").unwrap();
                                 let element = element.dyn_into::<HtmlElement>().unwrap();
-                                
+
                                 // Create a blob URL for the JSON data
                                 let blob_props = web_sys::BlobPropertyBag::new();
                                 let blob = web_sys::Blob::new_with_str_sequence_and_options(
@@ -1717,12 +1783,12 @@ fn app() -> Html {
                                     &blob_props
                                 ).unwrap();
                                 let url = web_sys::Url::create_object_url_with_blob(&blob).unwrap();
-                                
+
                                 // Set up the download link
                                 element.set_attribute("href", &url).unwrap();
                                 element.set_attribute("download", "spreadsheet.json").unwrap();
                                 element.style().set_css_text("display: none");
-                                
+
                                 // Append to document, click, and clean up
                                 let body = document.body().unwrap();
                                 body.append_child(&element).unwrap();
@@ -1735,8 +1801,8 @@ fn app() -> Html {
                     >
                         {"Save"}
                     </button>
-                    
-                    <button 
+
+                    <button
                     class="nav-button save-csv-button"
                     onclick={
                         let cell_values = cell_values.clone();
@@ -1819,7 +1885,7 @@ fn app() -> Html {
                         let toast_state = toast_state.clone();
                         let toast_counter = toast_counter.clone();
                         let formulas = formulas.clone();
-                        
+
                         Callback::from(move |e: Event| {
                             let input: HtmlInputElement = e.target_unchecked_into();
                             if let Some(file_list) = input.files() {
@@ -1829,13 +1895,13 @@ fn app() -> Html {
                                     let toast_state_clone = toast_state.clone();
                                     let toast_counter_clone = toast_counter.clone();
                                     let formulas = formulas.clone();
-                                    
+
                                     // Set up onload handler
                                     let onload_callback = Closure::wrap(Box::new(move |e: Event| {
                                         let target: web_sys::FileReader = e.target().unwrap().dyn_into().unwrap();
                                         let result = target.result().unwrap();
                                         let json_str = result.as_string().unwrap();
-                                        
+
                                         // Parse JSON to HashMap
                                         match serde_json::from_str::<HashMap<String, String>>(&json_str) {
                                             Ok(loaded_data) => {
@@ -1846,17 +1912,17 @@ fn app() -> Html {
                                                     message: format!("Processing {} cells...", cells_count),
                                                     is_error: false,
                                                 });
-                                                
+
                                                 let cell_values_inner = cell_values_clone.clone();
                                                 let toast_state_inner = toast_state_clone.clone();
                                                 let toast_counter_inner = toast_counter_clone.clone();
                                                 let loaded_data_inner = loaded_data.clone();
                                                 let formulas = formulas.clone();
-                                                
+
                                                 wasm_bindgen_futures::spawn_local(async move {
                                                     let mut updated_cells = HashMap::new();
                                                     let mut processed = 0;
-                                                    
+
                                                     for (cell_id, value) in loaded_data_inner.iter() {
                                                         // Apply formula for each cell
                                                         let _formula = format!("{}={}", cell_id, value);
@@ -1865,7 +1931,7 @@ fn app() -> Html {
                                                             Ok((row_str, val_str)) => {
                                                                 let row_parts: Vec<&str> = row_str.split_whitespace().collect();
                                                                 let val_parts: Vec<&str> = val_str.split('|').collect();
-                                                                
+
                                                                 // Update cells based on backend response
                                                                 for i in 0..row_parts.len().min(val_parts.len()) {
                                                                     updated_cells.insert(row_parts[i].to_string(), val_parts[i].to_string());
@@ -1876,7 +1942,7 @@ fn app() -> Html {
                                                                 updated_cells.insert(cell_id.clone(), value.clone());
                                                             }
                                                         }
-                                                        
+
                                                         processed += 1;
                                                         if processed % 20 == 0 {
                                                             let progress = (processed as f64 / cells_count as f64) * 100.0;
@@ -1885,7 +1951,7 @@ fn app() -> Html {
                                                                 message: format!("Processing: {:.0}% complete", progress),
                                                                 is_error: false,
                                                             });
-                                                            
+
                                                             // Allow UI to update
                                                             wasm_bindgen_futures::JsFuture::from(js_sys::Promise::new(
                                                                 &mut |resolve, _| {
@@ -1899,15 +1965,15 @@ fn app() -> Html {
                                                             )).await.unwrap();
                                                         }
                                                     }
-                                                    
+
                                                     // Final update of cell values
                                                     cell_values_inner.set(updated_cells);
-                                                    
+
                                                     // Update toast counter to force re-render
                                                     let mut t = *toast_counter_inner;
                                                     t += 1;
                                                     toast_counter_inner.set(t);
-                                                    
+
                                                     // Show completion notification
                                                     toast_state_inner.set(ToastProps {
                                                         visible: true,
@@ -1926,13 +1992,13 @@ fn app() -> Html {
                                             }
                                         }
                                     }) as Box<dyn FnMut(Event)>);
-                                    
+
                                     file_reader.set_onload(Some(onload_callback.as_ref().unchecked_ref()));
                                     file_reader.read_as_text(&file).unwrap();
                                     onload_callback.forget();
                                 }
                             }
-                            
+
                             // Reset input value
                             input.set_value("");
                         })
@@ -1940,7 +2006,7 @@ fn app() -> Html {
                     />
                     // Inside your navigation-bar div
 
-                    <button 
+                    <button
                     class="nav-button upload-csv-button"
                     onclick={
                         let file_input_ref = file_input_ref.clone();
@@ -1953,44 +2019,44 @@ fn app() -> Html {
                     >
                     {"Upload CSV"}
                     </button>
-                    <button 
+                    <button
                         class="nav-button ai-suggestions-button"
                         onclick={
                             let formulas = formulas.clone();
                             let toast_state = toast_state.clone();
                             let toast_counter = toast_counter.clone();
-                            
+
                             Callback::from(move |_| {
                                 let formulas = formulas.clone();
                                 let toast_state = toast_state.clone();
                                 let toast_counter = toast_counter.clone();
-                                
+
                                 // Show "loading" toast
                                 toast_state.set(ToastProps {
                                     visible: true,
                                     message: "Getting AI suggestions...".to_string(),
                                     is_error: false,
                                 });
-                                
+
                                 spawn_local(async move {
                                     let formulas = formulas.clone();
-                                    
+
                                     let ai_response = match ask_cohere((*formulas).clone()).await {
                                         Ok(response) => response,
                                         Err(e) => e
                                     };
-                                    
+
                                     // Show AI response in toast
                                     let mut t = *toast_counter;
                                     t += 1;
                                     toast_counter.set(t);
-                                    
+
                                     toast_state.set(ToastProps {
                                         visible: true,
                                         message: format!("AI Suggestion: {}", ai_response),
                                         is_error: false,
                                     });
-                                    
+
                                     web_sys::console::log_1(&format!("AI Response: {}", ai_response).into());
                                 });
                             })
@@ -1998,7 +2064,7 @@ fn app() -> Html {
                     >
                         {"AI Suggestions"}
                     </button>
-                    <button 
+                    <button
                         class="nav-button graph-button"
                         onclick={on_analyze}
                     >
@@ -2012,9 +2078,9 @@ fn app() -> Html {
                     </button>
                 </div>
             </div>
-            
+
             {content}
-            
+
             // Render the Toast component
             <Toast
                 visible={toast_state.visible}
@@ -2027,10 +2093,10 @@ fn app() -> Html {
             { if visualization_state.visible {
                 let data = &visualization_state.data;
                 let colors1 = assign_colors(data.len(), vec![
-                                                                "#3498db".to_string(), 
-                                                                "#2ecc71".to_string(), 
+                                                                "#3498db".to_string(),
+                                                                "#2ecc71".to_string(),
                                                                 "#e74c3c".to_string(),
-                                                                "#f1c40f".to_string(), 
+                                                                "#f1c40f".to_string(),
                                                                 "#9b59b6".to_string()
                                                             ]);
                 html! {
@@ -2050,7 +2116,7 @@ fn app() -> Html {
                                             1 => "#2ecc71", // Green
                                             _ => "#e74c3c", // Red
                                         };
-                                        
+
                                         html! {
                                             <div class="chart-section">
                                                 <h3>{title}</h3>
@@ -2059,17 +2125,17 @@ fn app() -> Html {
                                                         <h4>{"Bar Chart"}</h4>
                                                         <div class="chart-container">
                                                             <div class="bar-chart">
-                                                                { 
+                                                                {
                                                                     {
                                                                         // Calculate max value outside html! macro
                                                                         let max_value = data.iter()
                                                                             .map(|(_, value)| *value)
                                                                             .fold(0.0_f64, |a, b| a.max(b));
-                                                                        
+
                                                                         // Generate bars inside a block expression
                                                                         data.iter().map(move |(label, value)| {
                                                                             let height_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
-                                                                            
+
                                                                             html! {
                                                                                 <div class="bar" style={format!("height: {}%; background-color: {};", height_percent, chart_color)}>
                                                                                     <div class="bar-value">{format!("{:.1}", value)}</div>
@@ -2082,14 +2148,14 @@ fn app() -> Html {
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    
+
                                                     <div class="chart-column">
                                                         <h4>{"Line Chart"}</h4>
                                                         <div class="chart-container">
-                                                            <LineChart 
-                                                                label={title.clone()} 
-                                                                data={data.clone()} 
-                                                                color={chart_color.to_string()} 
+                                                            <LineChart
+                                                                label={title.clone()}
+                                                                data={data.clone()}
+                                                                color={chart_color.to_string()}
                                                             />
                                                         </div>
                                                     </div>
@@ -2097,7 +2163,7 @@ fn app() -> Html {
                                                     <div class="chart-column">
                                                         <h4>{"Pie Chart"}</h4>
                                                         <div class="chart-container">
-                                                            <PieChart 
+                                                            <PieChart
                                                                 title={title.clone()}
                                                                 data={data.clone()}
                                                                 colors={colors1.clone()}
@@ -2105,11 +2171,11 @@ fn app() -> Html {
                                                             />
                                                         </div>
                                                     </div>
-                                                    
+
                                                     <div class="chart-column">
                                                         <h4>{"Heat Map"}</h4>
                                                         <div class="chart-container">
-                                                            <HeatMap 
+                                                            <HeatMap
                                                                 title={title.clone()}
                                                                 data={data.clone()}
                                                                 color_scale={vec![
@@ -2162,40 +2228,43 @@ fn toast(props: &ToastProps) -> Html {
     let visible = use_state(|| props.visible);
     let message = use_state(|| props.message.clone());
     let is_error = use_state(|| props.is_error);
-    
+
     // Add a timestamp state to track when the message was last updated
     let timestamp = use_state(js_sys::Date::now);
-    
+
     // Update the internal state whenever props change
     {
         let visible = visible.clone();
         let message = message.clone();
         let is_error = is_error.clone();
         let timestamp = timestamp.clone();
-        
+
         use_effect_with_deps(
             move |(new_visible, new_message, new_is_error)| {
                 // Don't create a default cleanup closure, instead initialize with None
                 let mut cleanup_fn = None;
-                
+
                 // Always show a new toast when props.visible is true, regardless if the message is the same
                 if *new_visible {
                     visible.set(true);
                     message.set(new_message.clone());
                     is_error.set(*new_is_error);
-                    
+
                     timestamp.set(js_sys::Date::now());
-                    
+
                     // Auto-hide toast after 3 seconds
                     let visible_clone = visible.clone();
                     let window = web_sys::window().unwrap();
-                    let timeout_id = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-                        &Closure::once_into_js(move || {
-                            visible_clone.set(false);
-                        }).into(),
-                        5000,
-                    ).unwrap();
-                    
+                    let timeout_id = window
+                        .set_timeout_with_callback_and_timeout_and_arguments_0(
+                            &Closure::once_into_js(move || {
+                                visible_clone.set(false);
+                            })
+                            .into(),
+                            5000,
+                        )
+                        .unwrap();
+
                     // Create the timeout cleanup closure of the expected type
                     cleanup_fn = Some(Box::new(move || {
                         window.clear_timeout_with_handle(timeout_id);
@@ -2204,17 +2273,17 @@ fn toast(props: &ToastProps) -> Html {
                     // Handle when toast should be hidden
                     visible.set(false);
                 }
-                
+
                 // Return the cleanup function or a no-op function of the right type
                 match cleanup_fn {
                     Some(cleanup) => cleanup,
-                    None => Box::new(|| {}) as Box<dyn FnOnce()>
+                    None => Box::new(|| {}) as Box<dyn FnOnce()>,
                 }
             },
             (props.visible, props.message.clone(), props.is_error),
         );
     }
-    
+
     let toast_class = if *visible {
         if *is_error {
             "toast toast-visible toast-error"
@@ -2224,7 +2293,7 @@ fn toast(props: &ToastProps) -> Html {
     } else {
         "toast toast-hidden"
     };
-    
+
     html! {
         <div class={toast_class} key={(*timestamp).to_string()}>
             {(*message).clone()}
@@ -2249,15 +2318,17 @@ struct BarChartProps {
 /// automatically scales based on the maximum value in the dataset.
 #[function_component(BarChart)]
 fn bar_chart(props: &BarChartProps) -> Html {
-    let max_value = props.data.iter()
+    let max_value = props
+        .data
+        .iter()
         .map(|(_, value)| *value)
         .fold(0.0_f64, |a, b| a.max(b));
-    
+
     let chart_height = 300.0;
     let bar_width = 80;
     let gap = 20;
     let chart_width = (bar_width + gap) * props.data.len();
-    
+
     html! {
         <div class="chart-container">
             <h3>{ &props.label }</h3>
@@ -2267,11 +2338,11 @@ fn bar_chart(props: &BarChartProps) -> Html {
                         let height_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
                         let bar_height = (height_percent / 100.0) * chart_height;
                         let position = index * (bar_width + gap);
-                        
+
                         html! {
                             <div class="chart-bar-container" style={format!("left: {}px; width: {}px;", position, bar_width)}>
-                                <div class="chart-bar" 
-                                     style={format!("height: {}px; background-color: {};", 
+                                <div class="chart-bar"
+                                     style={format!("height: {}px; background-color: {};",
                                                   bar_height, props.color)}>
                                 </div>
                                 <div class="chart-value">{format!("{:.1}", value)}</div>
@@ -2300,10 +2371,12 @@ struct LineChartProps {
 #[function_component(LineChart)]
 fn line_chart(props: &LineChartProps) -> Html {
     // Find the maximum value for scaling
-    let max_value = props.data.iter()
+    let max_value = props
+        .data
+        .iter()
         .map(|(_, value)| *value)
         .fold(0.0_f64, |a, b| a.max(b));
-    
+
     // Chart dimensions
     let chart_height = 300.0;
     let chart_width = 500;
@@ -2311,7 +2384,7 @@ fn line_chart(props: &LineChartProps) -> Html {
     let padding_bottom = 40.0;
     let padding_left = 40;
     let padding_right = 20;
-    
+
     // If no data, return empty container
     if props.data.is_empty() {
         return html! {
@@ -2321,39 +2394,51 @@ fn line_chart(props: &LineChartProps) -> Html {
             </div>
         };
     }
-    
+
     // Calculate the usable area
     let usable_width = chart_width - padding_left - padding_right;
     let usable_height = chart_height - padding_top - padding_bottom;
-    
+
     // Calculate horizontal spacing between points
     let point_spacing = if props.data.len() > 1 {
         usable_width as f64 / (props.data.len() - 1) as f64
     } else {
         usable_width as f64 / 2.0 // Center single point
     };
-    
+
     // Generate SVG path for the line
-    let path_points = props.data.iter().enumerate().map(|(i, (_, value))| {
-        let x = padding_left as f64 + (i as f64 * point_spacing);
-        let y_ratio = if max_value > 0.0 { value / max_value } else { 0.0 };
-        let y = (chart_height - padding_bottom) - (y_ratio * usable_height);
-        format!("{},{}", x, y)
-    }).collect::<Vec<String>>().join(" L ");
-    
+    let path_points = props
+        .data
+        .iter()
+        .enumerate()
+        .map(|(i, (_, value))| {
+            let x = padding_left as f64 + (i as f64 * point_spacing);
+            let y_ratio = if max_value > 0.0 {
+                value / max_value
+            } else {
+                0.0
+            };
+            let y = (chart_height - padding_bottom) - (y_ratio * usable_height);
+            format!("{},{}", x, y)
+        })
+        .collect::<Vec<String>>()
+        .join(" L ");
+
     let path_d = if !path_points.is_empty() {
         format!("M {}", path_points)
     } else {
         String::new()
     };
-    
+
     // Calculate grid lines
-    let grid_lines = (0..5).map(|i| {
-        let y_pos = chart_height - padding_bottom - (i as f64 / 4.0) * usable_height;
-        let value = (i as f64 / 4.0) * max_value;
-        (y_pos, value)
-    }).collect::<Vec<(f64, f64)>>();
-    
+    let grid_lines = (0..5)
+        .map(|i| {
+            let y_pos = chart_height - padding_bottom - (i as f64 / 4.0) * usable_height;
+            let value = (i as f64 / 4.0) * max_value;
+            (y_pos, value)
+        })
+        .collect::<Vec<(f64, f64)>>();
+
     html! {
         <div class="chart-container">
             <h3>{ &props.label }</h3>
@@ -2363,16 +2448,16 @@ fn line_chart(props: &LineChartProps) -> Html {
                     grid_lines.iter().map(|(y_pos, value)| {
                         html! {
                             <>
-                                <line 
-                                    x1={padding_left.to_string()} y1={y_pos.to_string()} 
-                                    x2={(chart_width - padding_right).to_string()} y2={y_pos.to_string()} 
-                                    stroke="#eee" stroke-width="1" stroke-dasharray="4,4" 
+                                <line
+                                    x1={padding_left.to_string()} y1={y_pos.to_string()}
+                                    x2={(chart_width - padding_right).to_string()} y2={y_pos.to_string()}
+                                    stroke="#eee" stroke-width="1" stroke-dasharray="4,4"
                                 />
-                                <text 
-                                    x={(padding_left - 5).to_string()} y={y_pos.to_string()} 
-                                    text-anchor="end" 
+                                <text
+                                    x={(padding_left - 5).to_string()} y={y_pos.to_string()}
+                                    text-anchor="end"
                                     dominant-baseline="middle"
-                                    font-size="10" 
+                                    font-size="10"
                                     fill="#777"
                                 >
                                     {format!("{:.1}", value)}
@@ -2381,71 +2466,71 @@ fn line_chart(props: &LineChartProps) -> Html {
                         }
                     }).collect::<Html>()
                 }
-                
+
                 // X and Y axes
-                <line 
-                    x1={padding_left.to_string()} y1={(chart_height - padding_bottom).to_string()} 
-                    x2={(chart_width - padding_right).to_string()} y2={(chart_height - padding_bottom).to_string()} 
-                    stroke="#aaa" stroke-width="1.5" 
+                <line
+                    x1={padding_left.to_string()} y1={(chart_height - padding_bottom).to_string()}
+                    x2={(chart_width - padding_right).to_string()} y2={(chart_height - padding_bottom).to_string()}
+                    stroke="#aaa" stroke-width="1.5"
                 />
-                <line 
-                    x1={padding_left.to_string()} y1={padding_top.to_string()} 
-                    x2={padding_left.to_string()} y2={(chart_height - padding_bottom).to_string()} 
-                    stroke="#aaa" stroke-width="1.5" 
+                <line
+                    x1={padding_left.to_string()} y1={padding_top.to_string()}
+                    x2={padding_left.to_string()} y2={(chart_height - padding_bottom).to_string()}
+                    stroke="#aaa" stroke-width="1.5"
                 />
-                
+
                 // Draw the line path connecting all data points
-                <path 
-                    d={path_d.clone()} 
-                    fill="none" 
-                    stroke={props.color.clone()} 
-                    stroke-width="2.5" 
+                <path
+                    d={path_d.clone()}
+                    fill="none"
+                    stroke={props.color.clone()}
+                    stroke-width="2.5"
                     stroke-linejoin="round"
                     stroke-linecap="round"
                     style="animation: dash 1.5s ease-in-out forwards;"
                 />
-                
+
                 // Area fill under the line (with transparency)
-                <path 
-                    d={format!("{} L {},{} L {},{} Z", 
+                <path
+                    d={format!("{} L {},{} L {},{} Z",
                         path_d,
-                        padding_left as f64 + ((props.data.len() - 1) as f64 * point_spacing), 
+                        padding_left as f64 + ((props.data.len() - 1) as f64 * point_spacing),
                         chart_height - padding_bottom,
                         padding_left,
                         chart_height - padding_bottom
-                    )} 
+                    )}
                     fill={format!("{}40", props.color)} // 40 is hex for 25% opacity
                 />
-                
+
                 // Data points and labels
                 {props.data.iter().enumerate().map(|(i, (label, value))| {
                     let x = padding_left as f64 + (i as f64 * point_spacing);
                     let y_ratio = if max_value > 0.0 { value / max_value } else { 0.0 };
                     let y = (chart_height - padding_bottom) - (y_ratio * usable_height);
-                    
+
                     html! {
                         <>
                             // Point circle
-                            <circle 
-                                cx={x.to_string()} cy={y.to_string()} 
-                                r="4" fill="white" stroke={props.color.clone()} stroke-width="2" 
+                            <circle
+                                cx={x.to_string()} cy={y.to_string()}
+                                r="4" fill="white" stroke={props.color.clone()} stroke-width="2"
                             />
-                            
+
                             // Value label above point
-                            <text 
-                                x={x.to_string()} y={(y - 10.0).to_string()} 
-                                text-anchor="middle" 
-                                font-size="12" 
+                            <text
+                                x={x.to_string()} y={(y - 10.0).to_string()}
+                                text-anchor="middle"
+                                font-size="12"
                                 fill="#333"
                             >
                                 {format!("{:.1}", value)}
                             </text>
-                            
+
                             // X-axis label
-                            <text 
-                                x={x.to_string()} y={(chart_height - padding_bottom + 15.0).to_string()} 
-                                text-anchor="middle" 
-                                font-size="11" 
+                            <text
+                                x={x.to_string()} y={(chart_height - padding_bottom + 15.0).to_string()}
+                                text-anchor="middle"
+                                font-size="11"
                                 fill="#555"
                                 transform={format!("rotate(45, {}, {})", x, chart_height - padding_bottom + 5.0)}
                             >
@@ -2515,20 +2600,20 @@ fn pie_chart(props: &PieChartProps) -> Html {
                             // Start angle is cumulative of all previous angles
                             let start_angle = if i == 0 { 0.0 } else { angles[..i].iter().map(|(_, a)| *a).sum::<f64>() };
                             let end_angle = start_angle + angle;
-                    
+
                             // Convert angles to radians for trigonometric functions
                             let start_radians = start_angle.to_radians();
                             let end_radians = end_angle.to_radians();
-                    
+
                             // Compute SVG coordinates for the start and end points of the arc
                             let x1 = 150.0 + 150.0 * start_radians.cos();
                             let y1 = 150.0 + 150.0 * start_radians.sin();
                             let x2 = 150.0 + 150.0 * end_radians.cos();
                             let y2 = 150.0 + 150.0 * end_radians.sin();
-                    
+
                             // Determine if this arc is greater than 180 degrees
                             let large_arc = if *angle > 180.0 { 1 } else { 0 };
-                    
+
                             html! {
                                 <path
                                     d={format!("M 150,150 L {},{} A 150,150 0 {} 1 {},{} Z", x1, y1, large_arc, x2, y2)}
@@ -2537,7 +2622,7 @@ fn pie_chart(props: &PieChartProps) -> Html {
                             }
                         }).collect::<Html>()
                     }
-                    
+
                     // Add labels to the pie slices
                     {
                         angles.iter().enumerate().map(|(i, (value, angle))| {
@@ -2563,8 +2648,6 @@ fn pie_chart(props: &PieChartProps) -> Html {
         }
     }
 }
-
-
 
 // Pie Chart Props
 #[derive(Properties, PartialEq)]
@@ -2593,7 +2676,7 @@ struct VisualizationProps {
 fn visualization(props: &VisualizationProps) -> Html {
     let house_data = props.data.get("house").cloned().unwrap_or_default();
     let eat_data = props.data.get("eat").cloned().unwrap_or_default();
-    
+
     html! {
         <div class="visualization-overlay">
             <div class="visualization-container">
@@ -2628,24 +2711,28 @@ struct HeatMapProps {
 #[function_component(HeatMap)]
 fn heat_map(props: &HeatMapProps) -> Html {
     // Find min and max values for color scaling
-    let min_value = props.data.iter()
+    let min_value = props
+        .data
+        .iter()
         .map(|(_, value)| *value)
         .fold(f64::INFINITY, |a, b| a.min(b));
-        
-    let max_value = props.data.iter()
+
+    let max_value = props
+        .data
+        .iter()
         .map(|(_, value)| *value)
         .fold(f64::NEG_INFINITY, |a, b| a.max(b));
-    
+
     // Determine grid dimensions - try to make it roughly square
     let total_cells = props.data.len();
     let grid_width = (total_cells as f64).sqrt().ceil() as usize;
     let grid_height = (total_cells as f64 / grid_width as f64).ceil() as usize;
-    
+
     // Cell size calculation
     let cell_width = props.width / grid_width;
     let cell_height = props.height / grid_height;
     let font_size = (cell_width.min(cell_height) / 4).max(8);
-    
+
     // If no data, return empty container
     if props.data.is_empty() {
         return html! {
@@ -2655,7 +2742,7 @@ fn heat_map(props: &HeatMapProps) -> Html {
             </div>
         };
     }
-    
+
     html! {
         <div class="chart-container">
             <h3>{ &props.title }</h3>
@@ -2664,26 +2751,26 @@ fn heat_map(props: &HeatMapProps) -> Html {
                     props.data.iter().enumerate().map(|(index, (label, value))| {
                         let row = index / grid_width;
                         let col = index % grid_width;
-                        
+
                         // Normalize value to 0-1 range for color interpolation
                         let normalized_value = if max_value > min_value {
                             (value - min_value) / (max_value - min_value)
                         } else {
                             0.5 // If all values are the same
                         };
-                        
+
                         // Color selection based on normalized value
                         let color_index = (normalized_value * (props.color_scale.len() - 1) as f64).round() as usize;
                         let color = &props.color_scale[color_index];
-                        
+
                         // Text color - use white for dark backgrounds, black for light ones
                         let is_dark = color_index > props.color_scale.len() / 2;
                         let text_color = if is_dark { "#ffffff" } else { "#333333" };
-                        
+
                         html! {
-                            <div class="heat-map-cell" 
+                            <div class="heat-map-cell"
                                  style={format!("width: {}px; height: {}px; top: {}px; left: {}px; background-color: {}; color: {};",
-                                              cell_width - 2, cell_height - 2, 
+                                              cell_width - 2, cell_height - 2,
                                               row * cell_height, col * cell_width,
                                               color, text_color)}>
                                 <div class="heat-map-value" style={format!("font-size: {}px;", font_size)}>
@@ -2714,7 +2801,6 @@ fn heat_map(props: &HeatMapProps) -> Html {
     }
 }
 
-
 // StatisticsView Component Props
 #[derive(Properties, PartialEq)]
 struct StatisticsViewProps {
@@ -2725,34 +2811,37 @@ struct StatisticsViewProps {
 
 /// Component for displaying financial statistics and visualizations
 ///
-/// Analyzes spreadsheet data to display income sources, expenses, 
+/// Analyzes spreadsheet data to display income sources, expenses,
 /// savings, and financial summaries in an interactive dashboard.
 #[function_component(StatisticsView)]
 fn statistics_view(props: &StatisticsViewProps) -> Html {
     // Parse data from cell_values
     let all_data = &props.data;
-    
+
     // Extract numeric values and labels for financial data
     let mut financial_data: HashMap<String, f64> = HashMap::new();
     let mut income_sources: Vec<(String, f64)> = Vec::new();
     let mut expenses: Vec<(String, f64)> = Vec::new();
-    
+
     // Extract main title from A1
-    let title = all_data.get("A1").cloned().unwrap_or_else(|| "Personal Financial Analysis".to_string());
-    
+    let title = all_data
+        .get("A1")
+        .cloned()
+        .unwrap_or_else(|| "Personal Financial Analysis".to_string());
+
     // Process data rows (assuming similar structure to visualization data)
-    for row in 2..=3 {  // 
+    for row in 2..=3 {
+        //
         let row_label_cell = format!("A{}", row);
         if let Some(row_label) = all_data.get(&row_label_cell) {
             if row_label.trim().is_empty() || row_label == "0" {
                 continue;
             }
-            
+
             // Process data in this row (columns B-I)
             for col in 2..=10 {
                 let column_label_cell = format!("{}1", get_column_label(col));
                 if let Some(col_label) = all_data.get(&column_label_cell) {
-                    
                     let cell_id = format!("{}{}", get_column_label(col), row);
                     if let Some(value_str) = all_data.get(&cell_id) {
                         if let Ok(value) = value_str.parse::<f64>() {
@@ -2764,7 +2853,7 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                                     // Later rows likely expenses
                                     expenses.push((col_label.clone(), value));
                                 }
-                                
+
                                 financial_data.insert(col_label.clone(), value);
                             }
                         }
@@ -2778,24 +2867,37 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
     let mut savings: Vec<(String, f64)> = Vec::new();
     for col in 2..=10 {
         let col_label = get_column_label(col);
-        let header = all_data.get(&format!("{}1", col_label)).cloned().unwrap_or_default();
-        if header.is_empty() { continue; }
-        let income = income_sources.iter().find(|(label, _)| label == &header).map(|(_, v)| *v).unwrap_or(0.0);
-        let expense = expenses.iter().find(|(label, _)| label == &header).map(|(_, v)| *v).unwrap_or(0.0);
+        let header = all_data
+            .get(&format!("{}1", col_label))
+            .cloned()
+            .unwrap_or_default();
+        if header.is_empty() {
+            continue;
+        }
+        let income = income_sources
+            .iter()
+            .find(|(label, _)| label == &header)
+            .map(|(_, v)| *v)
+            .unwrap_or(0.0);
+        let expense = expenses
+            .iter()
+            .find(|(label, _)| label == &header)
+            .map(|(_, v)| *v)
+            .unwrap_or(0.0);
         let saving = income - expense;
         if income != 0.0 || expense != 0.0 {
             savings.push((header, saving));
         }
     }
-    
+
     // Sort expenses by value for top expenses
     expenses.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    
+
     // Calculate financial summary
     let total_income: f64 = income_sources.iter().map(|(_, value)| *value).sum();
     let total_expenses: f64 = expenses.iter().map(|(_, value)| *value).sum();
     let net_amount = total_income - total_expenses;
-    
+
     html! {
         <div class="statistics-overlay">
             <div class="statistics-container">
@@ -2809,7 +2911,7 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                         <button class="close-button" onclick={props.onclose.reform(|_| ())}>{"×"}</button>
                     </div>
                 </header>
-                
+
                 <div class="dashboard">
                     <div class="card expenses-by-category">
                         <h2 class="card-title">{"Expenses"}</h2>
@@ -2820,7 +2922,7 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                                     expenses.iter().take(6).map(|(category, value)| {
                                         let max_value = expenses.iter().map(|(_, v)| *v).fold(0.0, f64::max);
                                         let width_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
-                                        
+
                                         html! {
                                             <div class="chart-bar-row">
                                                 <span class="chart-bar-label">{category}</span>
@@ -2843,7 +2945,7 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                                 expenses.iter().take(5).map(|(category, value)| {
                                     let max_value = expenses.iter().take(5).map(|(_, v)| *v).fold(0.0, f64::max);
                                     let width_percent = if max_value > 0.0 { (value / max_value) * 100.0 } else { 0.0 };
-                                    
+
                                     html! {
                                         <div class="expense-bar">
                                         <div class="expense-bar-label">{category}</div>
@@ -2893,8 +2995,8 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                             }).collect::<Html>()
                         }
                     </div>
-                    
-                    
+
+
                     // {
                     //     expenses.iter().take(6).enumerate().map(|(i, (category, value))| {
                     //         // Assign different colors and icons based on category types
@@ -2906,7 +3008,7 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
                     //             4 => ("#34495e", "fas fa-shopping-bag"),
                     //             _ => ("#6c5ce7", "fas fa-car"),
                     //         };
-                            
+
                     //         html! {
                     //             <div class="expense-card" style={format!("background-color: {}", bg_color)}>
                     //                 <i class={format!("{} expense-card-icon", icon)}></i>
@@ -2936,9 +3038,9 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
     }
 }
 
-fn main(){
-// Entry point for the Rusty Spreadsheet frontend application
-// 
-// Initializes the Yew framework and mounts the root App component to the DOM.
-    yew::Renderer::<App>::new().render();   
+fn main() {
+    // Entry point for the Rusty Spreadsheet frontend application
+    //
+    // Initializes the Yew framework and mounts the root App component to the DOM.
+    yew::Renderer::<App>::new().render();
 }

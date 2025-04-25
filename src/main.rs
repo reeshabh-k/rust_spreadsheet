@@ -63,7 +63,7 @@ fn main() {
         if print_sheet {
             sheet.print_sheet();
         }
-        print!("{}", dashboard);
+        print!("{dashboard}");
 
         io::stdout().flush().unwrap();
     }

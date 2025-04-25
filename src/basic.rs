@@ -47,6 +47,7 @@ pub struct Formula {
     pub expression: Expression,
 }
 
+#[derive(PartialEq, Debug, Clone)]
 pub enum SpreadSheetError {
     InvalidInput,
     Cycle,

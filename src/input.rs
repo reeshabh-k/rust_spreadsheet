@@ -315,6 +315,300 @@ mod formula_tests {
         assert_eq!(form_out, form);
     }
 
+    fn test_range_op(inp_cell: &str, op: &str, cell1: &str, cell2: &str, form: Formula) {
+        let input = format!("{inp_cell}={op}({cell1}:{cell2})");
+
+        let mut buf_inp = Cursor::new(input);
+        let form_out = get_formula(&mut buf_inp).expect("Incorrect Input");
+
+        assert_eq!(form_out, form);
+    }
+    fn test_sleep_op(inp_cell: &str, val: &str, form: Formula) {
+        let input = format!("{inp_cell}=SLEEP({val})");
+
+        let mut buf_inp = Cursor::new(input);
+        let form_out = get_formula(&mut buf_inp).expect("Incorrect Input");
+
+        assert_eq!(form_out, form);
+    }
+    fn test_constant_op(inp_cell: &str, val: &str, form: Formula) {
+        let input = format!("{inp_cell}={val}");
+
+        let mut buf_inp = Cursor::new(input);
+        let form_out = get_formula(&mut buf_inp).expect("Incorrect Input");
+
+        assert_eq!(form_out, form);
+    }
+    fn test_command_op(command: &str, form: Formula) {
+        let input = format!("{command}");
+
+        let mut buf_inp = Cursor::new(input);
+        let form_out = get_formula(&mut buf_inp).expect("Incorrect Input");
+
+        assert_eq!(form_out, form);
+    }
+    fn test_scroll_op(scroll: &str, form: Formula) {
+        let input = format!("{scroll}");
+
+        let mut buf_inp = Cursor::new(input);
+        let form_out = get_formula(&mut buf_inp).expect("Incorrect Input");
+
+        assert_eq!(form_out, form);
+    }
+
+    fn test_scroll_to_op(cell: &str, form: Formula) {
+        let input = format!("scroll_to {cell}");
+
+        let mut buf_inp = Cursor::new(input);
+        let form_out = get_formula(&mut buf_inp).expect("Incorrect Input");
+
+        assert_eq!(form_out, form);
+    }
+
+    #[test]
+    fn scroll_to_op() {
+        test_scroll_to_op(
+            "A1",
+            Formula {
+                inp_cell: Cell { row: 0, col: 0 },
+                expression: Expression::ScrollTo(Cell { row: 1, col: 1 }),
+            },
+        );
+
+        test_scroll_to_op(
+            "ZZZ898",
+            Formula {
+                inp_cell: Cell { row: 0, col: 0 },
+                expression: Expression::ScrollTo(Cell { row: 898, col: 18278 }),
+            },
+        );
+    }
+
+    #[test]
+    fn range_op() {
+        test_range_op(
+            "A1",
+            "MAX",
+            "A2",
+            "B3",
+            Formula {
+                inp_cell: Cell { row: 1, col: 1 },
+                expression: Expression::Max(
+                    Cell { row: 2, col: 1 },
+                    Cell { row: 3, col: 2 },
+                ),
+            },
+        );
+
+        test_range_op(
+            "ZZZ898",
+            "MIN",
+            "A2",
+            "B3",
+            Formula {
+                inp_cell: Cell {
+                    row: 898,
+                    col: 18278,
+                },
+                expression: Expression::Min(
+                    Cell { row: 2, col: 1 },
+                    Cell { row: 3, col: 2 },
+                ),
+            },
+        );
+
+        test_range_op(
+            "ZZZ898",
+            "AVG",
+            "A2",
+            "B3",
+            Formula {
+                inp_cell: Cell {
+                    row: 898,
+                    col: 18278,
+                },
+                expression: Expression::Avg(
+                    Cell { row: 2, col: 1 },
+                    Cell { row: 3, col: 2 },
+                ),
+            },
+        );
+
+        test_range_op(
+            "ZZZ898",
+            "STDEV",
+            "A2",
+            "B3",
+            Formula {
+                inp_cell: Cell {
+                    row: 898,
+                    col: 18278,
+                },
+                expression: Expression::Stdev(
+                    Cell { row: 2, col: 1 },
+                    Cell { row: 3, col: 2 },
+                ),
+            },
+        );
+
+        test_range_op(
+            "ZZZ898",
+            "SUM",
+            "A2",
+            "B3",
+            Formula {
+                inp_cell: Cell {
+                    row: 898,
+                    col: 18278,
+                },
+                expression: Expression::Sum(
+                    Cell { row: 2, col: 1 },
+                    Cell { row: 3, col: 2 },
+                ),
+            },
+        );
+    }
+
+    #[test]
+    fn sleep_op() {
+        test_sleep_op(
+            "A1",
+            "3",
+            Formula {
+                inp_cell: Cell { row: 1, col: 1 },
+                expression: Expression::Sleep(Value::Num(3)),
+            },
+        );
+
+        test_sleep_op(
+            "ZZZ898",
+            "-4",
+            Formula {
+                inp_cell: Cell {
+                    row: 898,
+                    col: 18278,
+                },
+                expression: Expression::Sleep(Value::Num(-4)),
+            },
+        );
+    }
+
+    #[test]
+    fn constant_op() {
+        test_constant_op(
+            "A1",
+            "3",
+            Formula {
+                inp_cell: Cell { row: 1, col: 1 },
+                expression: Expression::Constant(Value::Num(3)),
+            },
+        );
+
+        test_constant_op(
+            "ZZZ898",
+            "-4",
+            Formula {
+                inp_cell: Cell {
+                    row: 898,
+                    col: 18278,
+                },
+                expression: Expression::Constant(Value::Num(-4)),
+            },
+        );
+    }
+
+    #[test]
+    fn command_op() {
+        test_command_op(
+            "q",
+            Formula {
+                inp_cell: Cell { row: 0, col: 0 },
+                expression: Expression::Quit,
+            },
+        );
+
+        test_command_op(
+            "enable_output",
+            Formula {
+                inp_cell: Cell {
+                    row: 0,
+                    col: 0,
+                },
+                expression: Expression::Enable,
+            },
+        );
+
+        test_command_op(
+            "disable_output",
+            Formula {
+                inp_cell: Cell {
+                    row: 0,
+                    col: 0,
+                },
+                expression: Expression::Disable,
+            },
+        );
+    }
+    
+    #[test]
+    fn scroll_op() {
+        test_scroll_op(
+            "w",
+            Formula {
+                inp_cell: Cell { row: 0, col: 0 },
+                expression: Expression::ScrollUp,
+            },
+        );
+
+        test_scroll_op(
+            "a",
+            Formula {
+                inp_cell: Cell {
+                    row: 0,
+                    col: 0,
+                },
+                expression: Expression::ScrollLeft,
+            },
+        );
+
+        test_scroll_op(
+            "s",
+            Formula {
+                inp_cell: Cell {
+                    row: 0,
+                    col: 0,
+                },
+                expression: Expression::ScrollDown,
+            },
+        );
+
+        test_scroll_op(
+            "d",
+            Formula {
+                inp_cell: Cell {
+                    row: 0,
+                    col: 0,
+                },
+                expression: Expression::ScrollRight,
+            },
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn invalid_scroll() {
+        test_scroll_op(
+            "x",
+            Formula {
+                inp_cell: Cell {
+                    row: 0,
+                    col: 0,
+                },
+                expression: Expression::ScrollRight,
+            },
+        );
+    }
+
     #[test]
     fn binary_op() {
         test_binary_op(
@@ -399,6 +693,29 @@ mod col_tests {
         assert_eq!(num, num_out);
     }
 
+    fn test_str_to_num(col_str: &str, num: u16) {
+        let col_out = Col::from_str_to_num(col_str).expect("Invalid Column String");
+        assert_eq!(col_out, num);
+    }
+
+    fn test_to_str(col: Col, col_str: &str) {
+        let col_out = col.as_str();
+        assert_eq!(col_out, col_str);
+    }
+
+    #[test]
+    fn col_to_str() {
+        let col = Col::from_str("A").expect("Invalid Column String");
+        test_to_str(col, "A");
+
+        let col = Col::from_str("ZZZ").expect("Invalid Column String");
+        test_to_str(col, "ZZZ");
+
+        let col = Col::from_str("AB").expect("Invalid Column String");
+        test_to_str(col, "AB");
+    }
+
+
     #[test]
     fn create_a() {
         let col_str = "A";
@@ -460,6 +777,18 @@ mod col_tests {
     }
 
     #[test]
+    fn num_of_str() {
+        test_str_to_num("A", 1);
+        test_str_to_num("D", 4);
+        test_str_to_num("AB", 28);
+        test_str_to_num("MA", 339);
+        test_str_to_num("YE", 655);
+        test_str_to_num("DEF", 2840);
+        test_str_to_num("ZKM", 17875);
+        test_str_to_num("ZZZ", 18278);
+    }
+
+    #[test]
     fn col_of_num() {
         test_col_of_num("A", 1);
         test_col_of_num("D", 4);
@@ -478,5 +807,72 @@ mod col_tests {
         for i in 1..=18278 {
             test_num_of_col_of_num(i);
         }
+    }
+}
+
+#[cfg(test)]
+mod row_tests {
+    use super::*;
+    fn test_row(row_str: &str, row: u32) {
+        let row_out = parse_row(row_str).expect("Invalid Row");
+        assert_eq!(row_out, row);
+    }
+    #[test]
+    fn row() {
+        test_row("1", 1);
+        test_row("999", 999);
+        test_row("110", 110);
+        // test_row("0", 0);
+        test_row("100", 100);
+        test_row("10", 10);
+    }
+    #[test]
+    #[should_panic]
+    fn row_out_of_range() {
+        test_row("1000", 1000);
+    }
+    #[test]
+    #[should_panic]
+    fn row_zero() {
+        test_row("-1", 0);
+    }
+
+}
+
+
+#[cfg(test)]
+mod parse_tests {
+    use super::*;
+
+    fn test_parse_cell(cell_str: &str, cell: Cell) {
+        let cell_out = parse_cell(cell_str).expect("Invalid Cell");
+        assert_eq!(cell_out, cell);
+    }
+
+    fn test_parse_val(val_str: &str, val: Value) {
+        let val_out = parse_val(val_str).expect("Invalid Value");
+        assert_eq!(val_out, val);
+    }
+
+    #[test]
+    fn parse_cell_test() {
+        test_parse_cell("A1", Cell { col: 1, row: 1 });
+        test_parse_cell("ZZZ898", Cell { col: 18278, row: 898 });
+        test_parse_cell("AB10", Cell { col: 28, row: 10 });
+        test_parse_cell("MA339", Cell { col: 339, row: 339 });
+        test_parse_cell("YE655", Cell { col: 655, row: 655 });
+        test_parse_cell("DEF280", Cell { col: 2840, row: 280 });
+        test_parse_cell("ZKM175", Cell { col: 17875, row: 175 });
+        test_parse_cell("ZZZ188", Cell { col: 18278, row: 188 });
+    }
+
+    #[test]
+    fn parse_val_test() {
+        test_parse_val("A1", Value::Ref(Cell { col: 1, row: 1 }));
+        test_parse_val("ZZZ898", Value::Ref(Cell { col: 18278, row: 898 }));
+        test_parse_val("-4", Value::Num(-4));
+        test_parse_val("3", Value::Num(3));
+        test_parse_val("0", Value::Num(0));
+        test_parse_val("100", Value::Num(100));
     }
 }

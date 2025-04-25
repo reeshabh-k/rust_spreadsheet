@@ -22,6 +22,22 @@ fn parse_int(int_str: &str) -> Option<i32> {
 }
 
 impl Col {
+    fn from_str_to_num(col_str: &str) -> Option<u16> {
+        if col_str.len() > 3 {
+            return None;
+        } else {
+            let mut val = 0;
+            for bt in col_str.as_bytes() {
+                if !(&b'A'..=&b'Z').contains(&bt) {
+                    return None;
+                }
+                val *= 26;
+                val += ((bt - b'A') as u16 ) + 1;
+            }
+            Some(val)
+        }
+    }
+
     fn from_str(col_str: &str) -> Option<Col> {
         if col_str.len() > 3 {
             None
@@ -82,8 +98,8 @@ impl Col {
 // RE.is_match(haystack)
 
 fn parse_cell(cell_str: &str) -> Option<Cell> {
-    let cell_re = Lazy::new(|| Regex::new(r"(?P<col>[A-Z]+)(?P<row>[0-9]+)").unwrap());
-    let caps = cell_re.captures(cell_str)?;
+    static CELL_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?P<col>[A-Z]+)(?P<row>[0-9]+)").unwrap());
+    let caps = CELL_RE.captures(cell_str)?;
 
     Some(Cell {
         col: Col::from_str(&caps["col"])?.num_of_col() as u16,
@@ -111,37 +127,38 @@ pub fn get_formula<R: BufRead>(reader: &mut R) -> Option<Formula> {
     let mut line = String::new();
     let _bytes_read = reader.read_line(&mut line);
 
-    let binary_op_re = Lazy::new(|| {
+    static BINARY_OP_RE: Lazy<Regex> = Lazy::new(|| {
         Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<val1>-?\d+|[A-Z]+[0-9]+)\s*(?P<op>[*/+-])\s*(?P<val2>-?\d+|[A-Z]+[0-9]+)\s*$").unwrap()
     });
-    let range_op_re = Lazy::new(|| {
+    static RANGE_OP_RE: Lazy<Regex> = Lazy::new(|| {
         Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<op>MAX|MIN|STDEV|AVG|SUM)\s*['(']\s*(?P<cell1>[A-Z]+[0-9]+)\s*:\s*(?P<cell2>[A-Z]+[0-9]+)\s*[')']\s*$").unwrap()
     });
-    let sleep_op_re = Lazy::new(|| {
+    static SLEEP_OP_RE: Lazy<Regex> = Lazy::new(|| {
         Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*SLEEP\s*['(']\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*[')']\s*$").unwrap()
     });
-    let constant_op_re = Lazy::new(|| {
-        Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*$").unwrap()
+    static CONSTANT_OP_RE: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r"^(?P<cell_col>[A-Z]+)(?P<cell_row>[0-9]+)\s*=\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*$").unwrap()
     });
-    let commands_re =
+    static COMMANDS_RE: Lazy<Regex>  =
         Lazy::new(|| Regex::new(r"^\s*(?P<command>q|enable_output|disable_output)\s*$").unwrap());
-    let scroll_re = Lazy::new(|| Regex::new(r"^\s*(?P<scroll>w|a|s|d)\s*$").unwrap());
-    let scroll_to_re =
+    static SCROLL_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s*(?P<scroll>w|a|s|d)\s*$").unwrap());
+    static SCROLL_TO_RE: Lazy<Regex> =
         Lazy::new(|| Regex::new(r"^\s*scroll_to\s*(?P<cell>[A-Z]+[0-9]+)\s*$").unwrap());
 
-    if let Some(caps) = constant_op_re.captures(&line) {
-        let cell = parse_cell(&caps["cell"])?;
+    if let Some(caps) = CONSTANT_OP_RE.captures(&line) {
+        let cell_col  = Col::from_str_to_num(&caps["cell_col"])?;
+        let cell_row: u16 = caps["cell_row"].parse::<u16>().ok()?;
         let val = parse_val(&caps["val"])?;
 
         let form = Formula {
-            inp_cell: cell,
+            inp_cell: Cell { col: cell_col, row: cell_row},
             expression: Expression::Constant(val),
         };
 
         return Some(form);
     }
 
-    if let Some(caps) = scroll_to_re.captures(&line) {
+    if let Some(caps) = SCROLL_TO_RE.captures(&line) {
         let cell = parse_cell(&caps["cell"])?;
 
         let form = Formula {
@@ -152,7 +169,7 @@ pub fn get_formula<R: BufRead>(reader: &mut R) -> Option<Formula> {
         return Some(form);
     }
 
-    if let Some(caps) = binary_op_re.captures(&line) {
+    if let Some(caps) = BINARY_OP_RE.captures(&line) {
         let cell = parse_cell(&caps["cell"])?;
         let val1 = parse_val(&caps["val1"])?;
         let val2 = parse_val(&caps["val2"])?;
@@ -181,7 +198,7 @@ pub fn get_formula<R: BufRead>(reader: &mut R) -> Option<Formula> {
 
         return Some(form);
     }
-    if let Some(caps) = range_op_re.captures(&line) {
+    if let Some(caps) = RANGE_OP_RE.captures(&line) {
         let cell = parse_cell(&caps["cell"])?;
         let cell1 = parse_cell(&caps["cell1"])?;
         let cell2 = parse_cell(&caps["cell2"])?;
@@ -214,7 +231,7 @@ pub fn get_formula<R: BufRead>(reader: &mut R) -> Option<Formula> {
 
         return Some(form);
     }
-    if let Some(caps) = sleep_op_re.captures(&line) {
+    if let Some(caps) = SLEEP_OP_RE.captures(&line) {
         let cell = parse_cell(&caps["cell"])?;
         let val = parse_val(&caps["val"])?;
 
@@ -225,7 +242,7 @@ pub fn get_formula<R: BufRead>(reader: &mut R) -> Option<Formula> {
 
         return Some(form);
     }
-    if let Some(caps) = commands_re.captures(&line) {
+    if let Some(caps) = COMMANDS_RE.captures(&line) {
         let command = &caps["command"];
 
         match command {
@@ -250,7 +267,7 @@ pub fn get_formula<R: BufRead>(reader: &mut R) -> Option<Formula> {
             _ => panic!("Invalid Sheet Command!"),
         }
     }
-    if let Some(caps) = scroll_re.captures(&line) {
+    if let Some(caps) = SCROLL_RE.captures(&line) {
         let scroll = &caps["scroll"];
 
         match scroll {

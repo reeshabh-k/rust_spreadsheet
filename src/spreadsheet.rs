@@ -349,6 +349,7 @@ impl SpreadSheet {
             None => return SpreadSheetError::InvalidInput,
             Some(valid_form) => valid_form,
         };
+        let cell_pointer = self.col * form.inp_cell.row as usize + form.inp_cell.col as usize;
         match form.expression {
             Expression::Quit => return SpreadSheetError::Quit,
             Expression::Disable => return SpreadSheetError::Disable,
@@ -383,28 +384,20 @@ impl SpreadSheet {
                     return SpreadSheetError::InvalidInput;
                 }
             }
+            | Expression::Constant(Value::Num(i)) => {
+                if self.constant_mode == 1 {
+                self.val[cell_pointer] = i;
+                return SpreadSheetError::Valid;
+                }
+            }
+
             _ => (),
         }
         if self.check_cycle(form.clone()) {
             return SpreadSheetError::Cycle;
         }
 
-        let cell_pointer = self.col * form.inp_cell.row as usize + form.inp_cell.col as usize;
-
-        if self.constant_mode == 1 {
-            match form.expression {
-                | Expression::Constant(Value::Num(i)) => {
-                    self.val[cell_pointer] = i;
-                    return SpreadSheetError::Valid;
-                }
-    
-                _ => {
-                    self.constant_mode = 0;
-                    ()
-                }
-            }
-
-        }
+        
 
         self.remove_children(form.inp_cell);
 

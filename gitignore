@@ -1,4 +1,0 @@
-*.out
-*.o
-check*.rs 
-yew-app/

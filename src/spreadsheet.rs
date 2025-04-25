@@ -23,7 +23,6 @@ pub struct SpreadSheet {
     valid: Vec<u8>,
     exprs: HashMap<Cell, Expression>,
     constant_mode: u32,
-
 }
 
 impl SpreadSheet {
@@ -255,13 +254,11 @@ impl SpreadSheet {
     }
 
     fn remove_children(&mut self, inp_cell: Cell) {
-        let expr;
-
-        if self.exprs.contains_key(&inp_cell) {
-            expr = self.exprs.get(&inp_cell).expect("Weird!").clone();
+        let expr = if self.exprs.contains_key(&inp_cell) {
+            self.exprs.get(&inp_cell).expect("Weird!").clone()
         } else {
             return;
-        }
+        };
 
         match expr {
             Expression::Add(v1, v2)
@@ -282,8 +279,8 @@ impl SpreadSheet {
             | Expression::Sum(c1, c2)
             | Expression::Stdev(c1, c2) => {
                 for i in c1.row..=c2.row {
-                    for j in c1.col..= c2.col {
-                        let c = Cell { row: i, col: j};
+                    for j in c1.col..=c2.col {
+                        let c = Cell { row: i, col: j };
                         self.remove_children_helper(Value::Ref(c), &inp_cell);
                     }
                 }
@@ -332,8 +329,8 @@ impl SpreadSheet {
             | Expression::Sum(c1, c2)
             | Expression::Stdev(c1, c2) => {
                 for i in c1.row..=c2.row {
-                    for j in c1.col..= c2.col {
-                        let c = Cell { row: i, col: j};
+                    for j in c1.col..=c2.col {
+                        let c = Cell { row: i, col: j };
                         self.add_children_helper(Value::Ref(c), &inp_cell);
                     }
                 }
@@ -380,12 +377,13 @@ impl SpreadSheet {
             | Expression::Min(c1, c2)
             | Expression::Sum(c1, c2)
             | Expression::Stdev(c1, c2) => {
-                if c1.row > c2.row || c1.col > c2.col { //comment
-                    return SpreadSheetError::InvalidInput; 
+                if c1.row > c2.row || c1.col > c2.col {
+                    //comment
+                    return SpreadSheetError::InvalidInput;
                 }
                 self.constant_mode = 0;
             }
-            | Expression::Constant(Value::Num(i)) => {
+            Expression::Constant(Value::Num(i)) => {
                 if self.constant_mode == 1 {
                     self.val[cell_pointer] = i;
                     return SpreadSheetError::Valid;
@@ -394,7 +392,7 @@ impl SpreadSheet {
 
             _ => {
                 self.constant_mode = 0;
-            },
+            }
         }
         if self.check_cycle(form.clone()) {
             return SpreadSheetError::Cycle;

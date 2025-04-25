@@ -28,6 +28,9 @@ jobs:
         toolchain: ${{ matrix.rust }}
         profile: minimal
         components: rustfmt, clippy
+    ## step 2.5: fmt check
+    - name: Format code
+      run: cargo fmt
 
     # Step 3: Build the Rust project
     - name: Build project

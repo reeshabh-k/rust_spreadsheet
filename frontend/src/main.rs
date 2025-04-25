@@ -22,12 +22,7 @@ use web_sys::{HtmlInputElement, InputEvent, KeyboardEvent, HtmlElement, MouseEve
 use std::collections::HashMap;
 use helper::*;
 use wasm_bindgen::{JsCast, closure::Closure};
-use serde::{Serialize, Deserialize};
-use std::rc::Rc;
-use std::cell::RefCell;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::console;
-use std::fs::OpenOptions;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use serde_json::json;
@@ -183,9 +178,9 @@ fn get_column_number(col_label: &str) -> u32 {
     
     for &byte in col_label.as_bytes() {
         // Check if character is A-Z
-        if byte >= b'A' && byte <= b'Z' {
+        if (b'A'..=b'Z').contains(&byte) {
             // Multiply existing result by 26 (base 26 number system)
-            result = result * 26;
+            result *= 26;
             // Add the value of the current character (A=1, B=2, etc.)
             result += (byte - b'A' + 1) as u32;
         }
@@ -392,7 +387,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                 let display_value = if current_value.starts_with(&format!("{}=", cell_id)) || current_value.starts_with('=') {
                     // Extract the formula part after the equals sign
                     let formula_parts: Vec<&str> = current_value.splitn(2, '=').collect();
-                    if (formula_parts.len() > 1) {
+                    if formula_parts.len() > 1 {
                         formula_parts[1].to_string()
                     } else {
                         current_value
@@ -600,7 +595,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                 // Find the index where the digits start
                 let mut digit_start_index = 0;
                 for (i, c) in current_cell.chars().enumerate() {
-                    if c.is_digit(10) {
+                    if c.is_ascii_digit() {
                         digit_start_index = i;
                         break;
                     }
@@ -679,7 +674,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                 div.set_scroll_left(new_left);
                 
                 // Apply vertical scrolling only if shift key is not pressed or there's actual vertical delta
-                if (!e.shift_key() || e.delta_x() != 0.0) {
+                if !e.shift_key() || e.delta_x() != 0.0 {
                     let new_top = (div.scroll_top() as f64 + e.delta_y()) as i32;
                     div.set_scroll_top(new_top);
                 }
@@ -708,11 +703,11 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
             
             // Check if this cell is currently selected
             let is_selected = selected_cell.as_ref()
-                .map_or(false, |id| *id == cell_id);
+                .is_some_and(|id| *id == cell_id);
             
             // Check if this cell is currently being edited
             let is_editing = editing_cell.as_ref()
-                .map_or(false, |id| *id == cell_id);
+                .is_some_and(|id| *id == cell_id);
             
             // Apply appropriate CSS classes
             let cell_class = if is_editing {
@@ -850,7 +845,7 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String
     The next formula should be of similar type and complexity as the previous ones. Each line would contain a different formula. Just give the formula, no explanation: \n".to_string();
     let mut prompt_list = vec![];
     let mut i = 0;
-    while formulas.len() > 0 && i < 5{
+    while !formulas.is_empty() && i < 5{
         prompt_list.push(formulas.pop().unwrap());
         i += 1;
     }
@@ -875,7 +870,7 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>> ) -> Result<String, String
     if let Some(text) = json["text"].as_str() {
         // self.conversation.push(format!("Cohere: {}", text));
         println!("Cohere: {}", text);  // Print the response text
-        let mut resp = text.to_string();
+        let resp = text.to_string();
         // resp.push_str(&format!("\nPrompt: {}", prompt));
         Ok(resp)
     } else {
@@ -910,7 +905,7 @@ fn app() -> Html {
     });
     
     // Validation messages for each form field
-    let messages = use_state(|| HashMap::<String, String>::new());
+    let messages = use_state(HashMap::<String, String>::new);
     
     // State for toast notifications displayed to the user
     let toast_state = use_state(|| ToastProps {
@@ -1119,7 +1114,7 @@ fn app() -> Html {
                         // Subtract header sizes to account for the fixed headers
                         // Start exact at top-left corner of the target cell
                         let scroll_top = ((row - 1) as f64 * cell_height) as i32 ;  // No extra offset needed vertically
-                        let scroll_left = ((col_num - 1) * cell_width) + 0; // No extra offset needed horizontally
+                        let scroll_left = ((col_num - 1) * cell_width); // No extra offset needed horizontally
                         
                         // Set scroll position
                         container_element.set_scroll_top(scroll_top);
@@ -1187,7 +1182,7 @@ fn app() -> Html {
                                 let formula = field.value();
                                 
                                 // Use the shared process_formula function from helper library
-                                if let Some((cell_id, _value)) = process_formula(&formula) {
+                                if let Some((cell_id, _value)) = process_formula(formula) {
                                     // Send the formula to the backend for processing
                                     match update_cell_logic(cell_id.as_str(), _value.as_str(), (*formulas).clone()).await {
                                         Ok((row_str, val_str)) => {
@@ -1199,7 +1194,7 @@ fn app() -> Html {
 
                                             if row_str == "IV" && &_value[0..1] == "\"" && &_value[_value.len()-1..] == "\""  {
                                                 updated.insert(cell_id.clone(), _value[1.._value.len()-1].to_string());
-                                                web_sys::console::log_1(&format!("Went into IF statement!").into());
+                                                web_sys::console::log_1(&"Went into IF statement!".to_string().into());
                                                 cell_values.set(updated);
                                             } else if row_str == "IV" {
                                                 toast_state.set(ToastProps {
@@ -1254,7 +1249,7 @@ fn app() -> Html {
                                             }
                                             else {
                                                 for i in 0..row_parts.len() {
-                                                    updated.insert((row_parts[i].to_string()), val_parts[i].to_string());
+                                                    updated.insert(row_parts[i].to_string(), val_parts[i].to_string());
                                                 }
                                                 cell_values.set(updated);
                                                 updated_messages.insert(field_id.clone(), 
@@ -1401,7 +1396,7 @@ fn app() -> Html {
 
                                             if row_str == "IV" && &_value[0..1] == "\"" && &_value[_value.len()-1..] == "\""  {
                                                 updated.insert(cell_id.clone(), _value[1.._value.len()-1].to_string());
-                                                web_sys::console::log_1(&format!("Went into IF statement!").into());
+                                                web_sys::console::log_1(&"Went into IF statement!".to_string().into());
                                                 cell_values.set(updated);
                                             } else if row_str == "IV" {
                                                 toast_state.set(ToastProps {
@@ -1456,7 +1451,7 @@ fn app() -> Html {
                                             }
                                             else {
                                                 for i in 0..row_parts.len() {
-                                                    updated.insert((row_parts[i].to_string()), val_parts[i].to_string());
+                                                    updated.insert(row_parts[i].to_string(), val_parts[i].to_string());
                                                 }
                                                 cell_values.set(updated);
                                             }
@@ -1629,7 +1624,7 @@ fn app() -> Html {
                                     cell_values_inner.set(updated_cells);
                                     
                                     // Update toast counter to force re-render
-                                    let mut t = (*toast_counter_inner).clone();
+                                    let mut t = (*toast_counter_inner);
                                     t += 1;
                                     toast_counter_inner.set(t);
                                     
@@ -1792,7 +1787,7 @@ fn app() -> Html {
                             let blob_props = binding.type_("text/csv");
                             let blob = web_sys::Blob::new_with_str_sequence_and_options(
                                 &js_sys::Array::of1(&wasm_bindgen::JsValue::from_str(&csv_data)),
-                                &blob_props
+                                blob_props
                             ).unwrap();
                             let url = web_sys::Url::create_object_url_with_blob(&blob).unwrap();
 
@@ -1909,7 +1904,7 @@ fn app() -> Html {
                                                     cell_values_inner.set(updated_cells);
                                                     
                                                     // Update toast counter to force re-render
-                                                    let mut t = (*toast_counter_inner).clone();
+                                                    let mut t = (*toast_counter_inner);
                                                     t += 1;
                                                     toast_counter_inner.set(t);
                                                     
@@ -1986,7 +1981,7 @@ fn app() -> Html {
                                     };
                                     
                                     // Show AI response in toast
-                                    let mut t = (*toast_counter).clone();
+                                    let mut t = (*toast_counter);
                                     t += 1;
                                     toast_counter.set(t);
                                     
@@ -2169,7 +2164,7 @@ fn toast(props: &ToastProps) -> Html {
     let is_error = use_state(|| props.is_error);
     
     // Add a timestamp state to track when the message was last updated
-    let timestamp = use_state(|| js_sys::Date::now());
+    let timestamp = use_state(js_sys::Date::now);
     
     // Update the internal state whenever props change
     {
@@ -2342,7 +2337,7 @@ fn line_chart(props: &LineChartProps) -> Html {
     let path_points = props.data.iter().enumerate().map(|(i, (_, value))| {
         let x = padding_left as f64 + (i as f64 * point_spacing);
         let y_ratio = if max_value > 0.0 { value / max_value } else { 0.0 };
-        let y = (chart_height - padding_bottom) - (y_ratio * usable_height as f64);
+        let y = (chart_height - padding_bottom) - (y_ratio * usable_height);
         format!("{},{}", x, y)
     }).collect::<Vec<String>>().join(" L ");
     
@@ -2354,7 +2349,7 @@ fn line_chart(props: &LineChartProps) -> Html {
     
     // Calculate grid lines
     let grid_lines = (0..5).map(|i| {
-        let y_pos = chart_height - padding_bottom - (i as f64 / 4.0) * usable_height as f64;
+        let y_pos = chart_height - padding_bottom - (i as f64 / 4.0) * usable_height;
         let value = (i as f64 / 4.0) * max_value;
         (y_pos, value)
     }).collect::<Vec<(f64, f64)>>();
@@ -2426,7 +2421,7 @@ fn line_chart(props: &LineChartProps) -> Html {
                 {props.data.iter().enumerate().map(|(i, (label, value))| {
                     let x = padding_left as f64 + (i as f64 * point_spacing);
                     let y_ratio = if max_value > 0.0 { value / max_value } else { 0.0 };
-                    let y = (chart_height - padding_bottom) - (y_ratio * usable_height as f64);
+                    let y = (chart_height - padding_bottom) - (y_ratio * usable_height);
                     
                     html! {
                         <>

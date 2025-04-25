@@ -89,7 +89,7 @@ ext1:
 
 # Only running tests on the autograder part as specified on piazza
 coverage:
-	cargo tarpaulin --workspace --exclude-files "frontend/*" 
+	cargo tarpaulin --workspace --exclude-files "frontend/*" "backend/src/main.rs" "src/main.rs"
 
 test:
 	cargo test
@@ -97,7 +97,7 @@ test:
 
 docs:
 	cd report && pdflatex main.tex
-	mv report/main.pdf main.pdf
+	mv report/main.pdf report.pdf
 	cargo doc --workspace
 	@xdg-open target/doc/backend/index.html || open target/doc/backend/index.html || start target/doc/backend/index.html || echo "Could not open browser automatically"
 	@xdg-open target/doc/frontend/index.html || open target/doc/frontend/index.html || start  target/doc/frontend/index.html || echo "Could not open browser automatically"

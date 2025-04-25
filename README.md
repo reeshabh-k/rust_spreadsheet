@@ -32,3 +32,14 @@ Backend uses port 8080 and frontend uses port 8000, both on local:
 - Statistical analysis for a budget sheet with first row as income and second row as expense with the columns being various sources of income and expense.
 - Import/export functionality for CSV and JSON formats
 - AI-powered formula suggestions
+
+## Docs
+- On Running make docs, report.pdf will appear in the home directory of the project.
+- The documentations for frontend, backend and autograded file will automatically open in the browser.
+
+## Ext1
+- On Running make ext1, Backend serve will start on port 8080 and Frontend Server on port 8000. 
+- If the ports are busy it will show an error.
+
+## Test/Coverage
+- make test will run all the files, while make coverage will run tarpaulin

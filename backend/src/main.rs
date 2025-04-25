@@ -1,25 +1,17 @@
-use axum::{
-    routing::get,
-    Json, Router,
-    response::IntoResponse,
-};
+use axum::extract::State;
+use axum::routing::post;
+use axum::{Json, Router};
+use serde::Deserialize;
 use serde_json::json;
 use std::net::SocketAddr;
-use tower_http::cors::{Any, CorsLayer};
 use std::sync::{Arc, Mutex};
-use axum::extract::State;
-use axum::extract::Query;
-use axum::routing::post;
-use serde::Deserialize;
+use tower_http::cors::CorsLayer;
 
-mod spreadsheet;
-mod basic; 
+mod basic;
 mod input;
-mod ai;
+mod spreadsheet;
+
 use std::io::Cursor;
-
-
-use crate::basic::{Formula, Expression, Cell};
 
 type SharedSheet = Arc<Mutex<spreadsheet::SpreadSheet>>;
 
@@ -53,11 +45,9 @@ async fn get_value(
     Json(json!({ "row": x, "col": y, "val": z }))
 }
 
-
 #[tokio::main]
 async fn main() {
-
-    let mut state = AppState {
+    let state = AppState {
         sheet: Arc::new(Mutex::new(spreadsheet::SpreadSheet::new(101, 101))),
         formula_stack: Arc::new(Mutex::new(vec![])),
     };
@@ -65,9 +55,9 @@ async fn main() {
     // let spreadsheet: SharedSheet = Arc::new(Mutex::new(spreadsheet::SpreadSheet::new(100, 55)));
     // Create CORS middleware
     let cors = CorsLayer::very_permissive(); // or configure more strictly if needed
-    // let formula_stack: Formula_stack = Arc::new(Mutex::new(vec![]));
-    // let cohere = ai::CohereChat::new("tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi");
-    // Build app with CORS
+                                             // let formula_stack: Formula_stack = Arc::new(Mutex::new(vec![]));
+                                             // let cohere = ai::CohereChat::new("tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi");
+                                             // Build app with CORS
 
     // let cors = CorsLayer::new()
     //     .allow_origin(Any)

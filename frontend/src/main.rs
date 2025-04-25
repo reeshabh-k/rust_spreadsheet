@@ -312,6 +312,9 @@ fn get_column_number(col_label: &str) -> u32 {
 /// Properties for the Spreadsheet component.
 ///
 /// Defines all the required configuration and callbacks for the spreadsheet grid.
+/// Properties for the Spreadsheet component
+///
+/// Defines all the required configuration and callbacks for the spreadsheet grid
 #[derive(Properties, PartialEq)]
 pub struct SpreadsheetProps {
     /// Number of rows to display in the spreadsheet
@@ -332,6 +335,20 @@ pub struct SpreadsheetProps {
     pub on_scroll_to_cell_ref: Callback<UseStateHandle<Option<Callback<String>>>>, // Get reference to the scroll_to_cell callback
 }
 
+
+/// The main spreadsheet component that renders an interactive grid of cells
+///
+/// Displays a grid of editable cells with row and column headers, handling user
+/// interactions such as selection, editing, and formula input. Supports keyboard
+/// navigation, scrolling, and formula preview.
+///
+/// # Properties
+/// * `rows` - The number of rows to display
+/// * `cols` - The number of columns to display
+/// * `on_cell_select` - Callback triggered when a cell is selected
+/// * `cell_values` - Map of cell values where keys are cell IDs (e.g., "A1")
+/// * `on_formula` - Callback for when a formula is entered in a cell
+/// * `on_scroll_to_cell_ref` - Callback to get the function reference for scrolling to a specific cell
 #[function_component(Spreadsheet)]
 fn spreadsheet(props: &SpreadsheetProps) -> Html {
     // State for the currently selected cell
@@ -789,6 +806,11 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     }
 }
 
+
+/// Asynchronously fetches a message from the backend API's hello endpoint
+/// 
+/// # Returns
+/// * `Result<String, String>` - On success, returns the message from the API. On error, returns the error message.
 async fn _fetch_message() -> Result<String, String> {
     let resp = reqwest::get("http://localhost:8080/api/hello")
         .await
@@ -847,6 +869,17 @@ async fn update_cell_logic(
     Ok((x, y))
 }
 
+
+/// Requests AI-generated formula suggestions based on the formula history
+///
+/// Sends the most recent formulas to the Cohere AI API to predict logical
+/// continuations or pattern completions for spreadsheet formulas.
+///
+/// # Arguments
+/// * `formulas` - Thread-safe reference to the formula history
+///
+/// # Returns
+/// * `Result<String, String>` - On success, returns the AI's suggested formula. On error, returns the error message.
 async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>>) -> Result<String, String> {
     // Get data from the mutex before any async operations
     let default_prompt = "you are a math assistant, i will give you some formulas, and you have to predict the next formula. The formulas would contain a right hand side an equals sign and a left hand side, the formula could contain cell names as in excel sheet cell names, for example : A1, B3, etc.
@@ -1575,6 +1608,18 @@ fn app() -> Html {
         }
     };
 
+
+    /// Helper function to assign colors to data series from a palette
+    ///
+    /// Distributes colors from a palette to data points, cycling through the palette
+    /// if there are more data points than colors.
+    ///
+    /// # Arguments
+    /// * `data_len` - Number of data points that need colors
+    /// * `palette` - Vector of color strings to use
+    ///
+    /// # Returns
+    /// * `Vec<String>` - Vector of color strings assigned to each data point
     fn assign_colors(data_len: usize, palette: Vec<String>) -> Vec<String> {
         (0..data_len)
             .map(|i| palette[i % palette.len()].clone())
@@ -2234,6 +2279,17 @@ fn app() -> Html {
     }
 }
 
+
+/// Toast notification component for displaying temporary messages
+///
+/// Renders a styled notification that appears and disappears automatically,
+/// with different styling based on whether it's an error or success message.
+///
+/// # Arguments
+/// * `props` - The Toast component's properties
+/// 
+/// # Returns
+/// * `Html` - Rendered toast notification component
 #[function_component(Toast)]
 /// Component for displaying temporary toast notifications to the user
 ///
@@ -2317,7 +2373,9 @@ fn toast(props: &ToastProps) -> Html {
     }
 }
 
-// Bar Chart Component Props
+/// Properties for the BarChart component
+///
+/// Configures a bar chart visualization with data series, labels, and styling options
 #[derive(Properties, PartialEq, Clone)]
 struct BarChartProps {
     /// The title label to display above the chart
@@ -2328,10 +2386,16 @@ struct BarChartProps {
     color: String,
 }
 
-/// Component for rendering a bar chart visualization
+/// Renders a bar chart visualization for data series
 ///
-/// Creates vertical bars whose heights correspond to their values,
-/// automatically scales based on the maximum value in the dataset.
+/// Creates a vertical bar chart where each bar represents a value in the data series,
+/// with auto-scaling based on the maximum value.
+///
+/// # Arguments
+/// * `props` - Configuration properties for the bar chart
+///
+/// # Returns
+/// * `Html` - Rendered bar chart component
 #[function_component(BarChart)]
 fn bar_chart(props: &BarChartProps) -> Html {
     let max_value = props
@@ -2372,7 +2436,9 @@ fn bar_chart(props: &BarChartProps) -> Html {
     }
 }
 
-// Line Chart Component Props - Similar to BarChartProps
+/// Properties for the LineChart component
+///
+/// Configures a line chart visualization with data points connected by lines
 #[derive(Properties, PartialEq, Clone)]
 struct LineChartProps {
     /// Title displayed above the line chart
@@ -2383,7 +2449,16 @@ struct LineChartProps {
     color: String,
 }
 
-// Line Chart Component
+/// Renders a line chart visualization with points and connecting lines
+///
+/// Creates an SVG-based line chart with coordinate axes, data points, and a 
+/// connecting line with area fill, suitable for trend visualization.
+///
+/// # Arguments
+/// * `props` - Configuration properties for the line chart
+///
+/// # Returns
+/// * `Html` - Rendered line chart component
 #[function_component(LineChart)]
 fn line_chart(props: &LineChartProps) -> Html {
     // Find the maximum value for scaling
@@ -2560,6 +2635,17 @@ fn line_chart(props: &LineChartProps) -> Html {
     }
 }
 
+
+/// Renders a pie chart visualization for proportional data representation
+///
+/// Creates an SVG-based pie chart where each slice represents a proportion
+/// of the whole, with labels showing values and percentages.
+///
+/// # Arguments
+/// * `props` - Configuration properties for the pie chart
+///
+/// # Returns
+/// * `Html` - Rendered pie chart component
 #[function_component(PieChart)]
 fn pie_chart(props: &PieChartProps) -> Html {
     use ordered_float::OrderedFloat;
@@ -2665,7 +2751,9 @@ fn pie_chart(props: &PieChartProps) -> Html {
     }
 }
 
-// Pie Chart Props
+/// Properties for the PieChart component
+///
+/// Configures a pie chart visualization with proportional segments
 #[derive(Properties, PartialEq)]
 struct PieChartProps {
     /// Title displayed above the pie chart
@@ -2679,15 +2767,28 @@ struct PieChartProps {
     radius: f64,
 }
 
-// Visualization Component Props
+/// Properties for the Visualization component
+///
+/// Configures the visualization panel with data series and callbacks
 #[derive(Properties, PartialEq, Clone)]
 struct VisualizationProps {
+    /// Collection of data series to visualize, organized by category
     data: HashMap<String, Vec<(String, f64)>>,
+    /// Callback triggered when the visualization is closed
     #[prop_or_default]
     onclose: Callback<()>,
 }
 
-// Visualization Component that shows all charts
+/// Renders a comprehensive visualization panel with multiple chart types
+///
+/// Displays a modal overlay with bar charts, line charts, and other
+/// visualizations based on spreadsheet data.
+///
+/// # Arguments
+/// * `props` - Configuration and data for the visualization
+///
+/// # Returns
+/// * `Html` - Rendered visualization panel
 #[function_component(Visualization)]
 fn visualization(props: &VisualizationProps) -> Html {
     let house_data = props.data.get("house").cloned().unwrap_or_default();
@@ -2709,6 +2810,9 @@ fn visualization(props: &VisualizationProps) -> Html {
     }
 }
 
+/// Properties for the HeatMap component
+///
+/// Configures a heat map visualization where color intensity represents data values
 #[derive(Properties, PartialEq, Clone)]
 struct HeatMapProps {
     /// Title displayed above the heat map
@@ -2717,13 +2821,25 @@ struct HeatMapProps {
     data: Vec<(String, f64)>,
     /// Color scale to use for the heat map, from low to high
     color_scale: Vec<String>,
+    /// Width of the heat map in pixels (defaults to 300)
     #[prop_or(300)]
     width: usize,
+    /// Height of the heat map in pixels (defaults to 300)
     #[prop_or(300)]
     height: usize,
 }
 
-// HeatMap Component
+
+/// Renders a heat map visualization for data intensity
+///
+/// Creates a grid of colored cells where color intensity represents
+/// data values, with a color gradient legend for reference.
+///
+/// # Arguments
+/// * `props` - Configuration properties for the heat map
+///
+/// # Returns
+/// * `Html` - Rendered heat map component
 #[function_component(HeatMap)]
 fn heat_map(props: &HeatMapProps) -> Html {
     // Find min and max values for color scaling
@@ -2817,10 +2933,14 @@ fn heat_map(props: &HeatMapProps) -> Html {
     }
 }
 
-// StatisticsView Component Props
+/// Properties for the StatisticsView component
+///
+/// Configures the financial statistics dashboard with cell data and callbacks
 #[derive(Properties, PartialEq)]
 struct StatisticsViewProps {
+    /// Spreadsheet cell data containing financial information
     data: HashMap<String, String>,
+    /// Callback triggered when the statistics view is closed
     #[prop_or_default]
     onclose: Callback<()>,
 }
@@ -3054,9 +3174,10 @@ fn statistics_view(props: &StatisticsViewProps) -> Html {
     }
 }
 
+
+/// Entry point for the Rusty Spreadsheet frontend application
+///
+/// Initializes the Yew framework and mounts the root App component to the DOM.
 fn main() {
-    // Entry point for the Rusty Spreadsheet frontend application
-    //
-    // Initializes the Yew framework and mounts the root App component to the DOM.
     yew::Renderer::<App>::new().render();
 }

@@ -21,6 +21,7 @@ pub enum Value {
     Ref(Cell),
 }
 
+#[allow(dead_code)]
 /// Represents an expression used in a formula.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {

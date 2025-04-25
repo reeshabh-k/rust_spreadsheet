@@ -23,13 +23,13 @@ use std::collections::HashMap;
 use helper::*;
 use wasm_bindgen::{JsCast, closure::Closure};
 use wasm_bindgen_futures::spawn_local;
-use std::io::Write;
+// use std::io::Write;
 use std::sync::{Arc, Mutex};
 use serde_json::json;
 
 
 /// Base URL for API endpoints
-const API_URL: &str = "http://localhost:8080/api";
+const _API_URL: &str = "http://localhost:8080/api";
 
 /// State structure for visualization panels that display charts and graphs
 /// 
@@ -44,16 +44,16 @@ struct VisualizationState {
     title: String,  // Main title from cell A1
 }
 
-impl VisualizationState {
-    /// Creates a new, hidden visualization state with empty data
-    fn new() -> Self {
-        Self {
-            visible: false,
-            data: Vec::new(),
-            title: "Data Analysis".to_string(),
-        }
-    }
-}
+// impl VisualizationState {
+//     /// Creates a new, hidden visualization state with empty data
+//     fn new() -> Self {
+//         Self {
+//             visible: false,
+//             data: Vec::new(),
+//             title: "Data Analysis".to_string(),
+//         }
+//     }
+// }
 
 // // Structure to represent the context menu state
 // #[derive(Clone, PartialEq)]
@@ -75,36 +75,36 @@ impl VisualizationState {
 //     }
 // }
 
-/// Toast notification component for displaying temporary messages and errors
-#[derive(Clone, PartialEq)]
-struct ToastNotification {
-    /// Whether the toast is currently visible
-    visible: bool,
-    /// Text message to display in the toast
-    message: String,
-    /// Whether this is an error message (affects styling)
-    is_error: bool,
-}
+// /// Toast notification component for displaying temporary messages and errors
+// #[derive(Clone, PartialEq)]
+// struct ToastNotification {
+//     /// Whether the toast is currently visible
+//     visible: bool,
+//     /// Text message to display in the toast
+//     message: String,
+//     /// Whether this is an error message (affects styling)
+//     is_error: bool,
+// }
 
-impl ToastNotification {
-    /// Creates a new, hidden toast notification
-    fn new() -> Self {
-        Self {
-            visible: false,
-            message: String::new(),
-            is_error: false,
-        }
-    }
+// impl ToastNotification {
+//     /// Creates a new, hidden toast notification
+//     fn new() -> Self {
+//         Self {
+//             visible: false,
+//             message: String::new(),
+//             is_error: false,
+//         }
+//     }
     
-    /// Creates a visible error toast notification with the specified message
-    fn show_error(message: String) -> Self {
-        Self {
-            visible: true,
-            message,
-            is_error: true,
-        }
-    }
-}
+//     /// Creates a visible error toast notification with the specified message
+//     fn show_error(message: String) -> Self {
+//         Self {
+//             visible: true,
+//             message,
+//             is_error: true,
+//         }
+//     }
+// }
 
 /// Properties for the Toast component
 #[derive(Properties, PartialEq)]
@@ -361,7 +361,7 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
         let edit_input_value = edit_input_value.clone();
         let cell_input_ref = cell_input_ref.clone();
         let cell_values = props.cell_values.clone();
-        let props_on_formula = props.on_formula.clone();
+        let _props_on_formula = props.on_formula.clone();
         let container_ref = container_ref.clone();
         
         Callback::from(move |e: MouseEvent| {
@@ -432,14 +432,14 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
             edit_input_value.set(value.clone());
             
             // Check if the input starts with "=" to handle as a formula
-            if value.starts_with('=') {
+            if let Some(formula_value) = value.strip_prefix('=') {
                 // When typing a formula directly in a cell, update the formula field in the parent component
                 if let Some(cell_id) = (*editing_cell).clone() {
                     on_cell_select.emit(cell_id.clone()); // Update the cell reference field
                     
                     // Only update the formula field in parent, but DON'T apply the formula yet
                     // Use the special prefix "__preview__" to indicate this is just for display
-                    props_on_formula.emit(format!("__preview__{}={}", cell_id, &value[1..]));
+                    props_on_formula.emit(format!("__preview__{}={}", cell_id, formula_value));
                 }
             }
         })
@@ -461,8 +461,8 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
                     let value = (*edit_input_value).clone();
                     
                     // If input starts with =, treat as formula but remove the =
-                    let formula = if value.starts_with('=') {
-                        format!("{}={}", cell_id, &value[1..]) // Remove the = from the start
+                    let formula = if let Some(formula_value) = value.strip_prefix('=') {
+                        format!("{}={}", cell_id, formula_value) // Remove the = from the start
                     } else {
                         format!("{}={}", cell_id, value)
                     };
@@ -493,13 +493,13 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     };
     
     // Handle clicking outside of the editing cell to exit edit mode
-    let on_click_outside = {
-        let editing_cell = editing_cell.clone();
+    // let on_click_outside = {
+    //     let editing_cell = editing_cell.clone();
         
-        Callback::from(move |_: MouseEvent| {
-            editing_cell.set(None);
-        })
-    };
+    //     Callback::from(move |_: MouseEvent| {
+    //         editing_cell.set(None);
+    //     })
+    // };
     
     // Effect to add global click handler to detect clicks outside the editing cell
     {
@@ -566,15 +566,15 @@ fn spreadsheet(props: &SpreadsheetProps) -> Html {
     //     })
     // };
 
-    // Handle "Add Formula" option from context menu
-    let on_add_formula = {
-        let on_formula = props.on_formula.clone();
+    // // Handle "Add Formula" option from context menu
+    // let _on_add_formula = {
+    //     let on_formula = props.on_formula.clone();
          
-        Callback::from(move |formula: String| {
-            // Emit formula event to parent to process and update cell values
-            on_formula.emit(formula);
-        })
-    };
+    //     Callback::from(move |formula: String| {
+    //         // Emit formula event to parent to process and update cell values
+    //         on_formula.emit(formula);
+    //     })
+    // };
 
     // Handle keyboard navigation
     let onkeydown = {
@@ -806,7 +806,7 @@ async fn fetch_message() -> Result<String, String> {
 ///
 /// # Returns
 /// * `Result<(String, String), String>` - Success returns the affected row and updated value,
-///  Error returns an error description
+/// * Error returns an error description
 async fn update_cell_logic(cell_id: &str, val: &str, formulas: Arc<Mutex<Vec<String>>>) -> Result<(String, String), String> {
     let client = reqwest::Client::new();
     let params = serde_json::json!({
@@ -1063,7 +1063,7 @@ fn app() -> Html {
     };
     let on_toggle_statistics = {
         let statistics_state = statistics_state.clone();
-        let cell_values = cell_values.clone();
+        let _cell_values = cell_values.clone();
         
         Callback::from(move |_| {
             // Toggle statistics visibility
@@ -1081,7 +1081,7 @@ fn app() -> Html {
                 // Try to find the cell by its data-id attribute
                 let selector = format!("td[data-id=\"{}\"]", cell_id);
                 if let Ok(Some(element)) = document.query_selector(&selector) {
-                    let cell_element = element.dyn_into::<HtmlElement>().unwrap();
+                    let _cell_element = element.dyn_into::<HtmlElement>().unwrap();
                     
                     // Get the container element
                     if let Ok(Some(container)) = document.query_selector(".spreadsheet-container") {
@@ -1107,8 +1107,8 @@ fn app() -> Html {
                         // From CSS: .row-header, .column-header are in similar dimensions
                         let cell_width = 80;       // Exact width from CSS
                         let cell_height = 35.11;      // Exact height from CSS
-                        let row_header_width = 40; // Width of the row headers (1, 2, 3...)
-                        let col_header_height = 35; // Height of the column headers (A, B, C...)
+                        let _row_header_width = 40; // Width of the row headers (1, 2, 3...)
+                        let _col_header_height = 35; // Height of the column headers (A, B, C...)
                         
                         // Calculate the exact pixel offset
                         // Subtract header sizes to account for the fixed headers
@@ -1262,8 +1262,8 @@ fn app() -> Html {
                                             on_cell_select.emit(cell_id.clone());
                                             
                                         }
-                                        Err(err) => {
-                                            ();
+                                        Err(_err) => {
+                                            // ();
                                         }
                                     }
                                 }
@@ -1364,7 +1364,7 @@ fn app() -> Html {
                             let formulas = formulas.clone();
                             let cell_values = cell_values.clone();
                             let on_cell_select = on_cell_select.clone();
-                            let scroll_to_cell = scroll_to_cell.clone();
+                            let _scroll_to_cell = scroll_to_cell.clone();
                             let fields = fields.clone();
                             let toast_state = toast_state.clone();
                             
@@ -1461,8 +1461,8 @@ fn app() -> Html {
                                             on_cell_select.emit(cell_id.clone());
                                             
                                         }
-                                        Err(err) => {
-                                            ();
+                                        Err(_err) => {
+                                            
                                         }
                                     }
                                 }
@@ -1783,11 +1783,11 @@ fn app() -> Html {
                             let element = element.dyn_into::<web_sys::HtmlElement>().unwrap();
 
                             // Create a blob URL for the CSV data
-                            let mut binding = web_sys::BlobPropertyBag::new();
-                            let blob_props = binding.type_("text/csv");
+                            let blob_props = web_sys::BlobPropertyBag::new();
+                            blob_props.set_type("text/csv");
                             let blob = web_sys::Blob::new_with_str_sequence_and_options(
                                 &js_sys::Array::of1(&wasm_bindgen::JsValue::from_str(&csv_data)),
-                                blob_props
+                                &blob_props
                             ).unwrap();
                             let url = web_sys::Url::create_object_url_with_blob(&blob).unwrap();
 
@@ -1859,7 +1859,7 @@ fn app() -> Html {
                                                     
                                                     for (cell_id, value) in loaded_data_inner.iter() {
                                                         // Apply formula for each cell
-                                                        let formula = format!("{}={}", cell_id, value);
+                                                        let _formula = format!("{}={}", cell_id, value);
                                                         
                                                         match update_cell_logic(cell_id, value, (*formulas).clone()).await {
                                                             Ok((row_str, val_str)) => {
@@ -2473,7 +2473,7 @@ fn pie_chart(props: &PieChartProps) -> Html {
     // Check if there's only one distinct value
     if counts.len() == 1 {
         // Special case: single value (100% fill)
-        let (single_value, single_count) = counts.iter().next().unwrap();
+        let (single_value, _single_count) = counts.iter().next().unwrap();
         html! {
             <div class="chart-container">
                 <h3>{ &props.title }</h3>
@@ -2511,7 +2511,7 @@ fn pie_chart(props: &PieChartProps) -> Html {
                 <svg class="pie-chart" viewBox="0 0 300 300">
                     // Generate pie chart slices
                     {
-                        angles.iter().enumerate().map(|(i, (value, angle))| {
+                        angles.iter().enumerate().map(|(i, (_value, angle))| {
                             // Start angle is cumulative of all previous angles
                             let start_angle = if i == 0 { 0.0 } else { angles[..i].iter().map(|(_, a)| *a).sum::<f64>() };
                             let end_angle = start_angle + angle;

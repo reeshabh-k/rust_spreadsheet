@@ -22,7 +22,7 @@ struct Cell { row: u32, col: u32 }
 /// - Num: A direct numeric value (e.g., "5" in "A1=5+B2")
 /// - Ref: A reference to another cell (e.g., "B2" in "A1=5+B2")
 #[derive(Debug)]
-enum Value { Num(i32), Ref(Cell) }
+enum _Value { _Num(i32), _Ref(Cell) }
 
 /// Arithmetic and aggregation expressions supported in formulas.
 ///
@@ -32,25 +32,25 @@ enum Value { Num(i32), Ref(Cell) }
 #[derive(Debug)]
 enum Expression {
     /// Addition of two values
-    Add(Value, Value),
+    Add((),()),
     /// Subtraction of two values
-    Sub(Value, Value),
+    _Sub(_Value, _Value),
     /// Multiplication of two values
-    Mul(Value, Value),
+    _Mul(_Value, _Value),
     /// Division of two values
-    Div(Value, Value),
+    _Div(_Value, _Value),
     /// Minimum value in a cell range
-    Min(Cell, Cell),
+    _Min(Cell, Cell),
     /// Maximum value in a cell range
-    Max(Cell, Cell),
+    _Max(Cell, Cell),
     /// Average of values in a cell range
-    Avg(Cell, Cell),
+    _Avg(Cell, Cell),
     /// Sum of values in a cell range
-    Sum(Cell, Cell),
+    _Sum(Cell, Cell),
     /// Standard deviation of values in a cell range
-    Stdev(Cell, Cell),
+    _Stdev(Cell, Cell),
     /// Simulated delay (for testing/demonstration)
-    Sleep(Value),
+    _Sleep(_Value),
 }
 
 /// A parsed formula: input cell and the expression to compute.
@@ -64,7 +64,7 @@ enum Expression {
 /// - inp_cell: Cell { row: 1, col: 1 }  // A1
 /// - expression: Expression::Add(Value::Ref(Cell { row: 2, col: 2 }), Value::Ref(Cell { row: 3, col: 3 }))
 #[derive(Debug)]
-struct Formula { inp_cell: Cell, expression: Expression }
+struct Formula { inp_cell: Cell, _expression: Expression }
 
 /// Context menu state (moved from main.rs)
 #[derive(Clone, PartialEq)]
@@ -96,12 +96,12 @@ fn parse_row(row_str: &str) -> Option<u32> {
     }
 }
 
-/// Parse a string into an integer value.
-///
-/// Returns `Some(i32)` if parsing succeeds, otherwise `None`.
-fn parse_int(int_str: &str) -> Option<i32> {
-    Some(int_str.parse::<i32>().ok()?)
-}
+// /// Parse a string into an integer value.
+// ///
+// /// Returns `Some(i32)` if parsing succeeds, otherwise `None`.
+// fn parse_int(int_str: &str) -> Option<i32> {
+//     Some(int_str.parse::<i32>().ok()?)
+// }
 
 /// Parse a cell reference string like "A1" or "BC23" into a `Cell`.
 ///
@@ -140,18 +140,18 @@ fn parse_cell(cell_str: &str) -> Option<Cell> {
     }
 }
 
-/// Parse a value string as either a numeric literal or a cell reference.
-///
-/// Returns `Some(Value::Num)` or `Some(Value::Ref)` on success, otherwise `None`.
-fn parse_val(val_str: &str) -> Option<Value> {
-    if let Some(cell_out) = parse_cell(val_str) {
-        return Some(Value::Ref(cell_out));
-    } 
-    if let Some(val_int) = parse_int(val_str) {
-        return Some(Value::Num(val_int));
-    }
-    None
-}
+// /// Parse a value string as either a numeric literal or a cell reference.
+// ///
+// /// Returns `Some(Value::Num)` or `Some(Value::Ref)` on success, otherwise `None`.
+// fn parse_val(val_str: &str) -> Option<Value> {
+//     if let Some(cell_out) = parse_cell(val_str) {
+//         return Some(Value::Ref(cell_out));
+//     } 
+//     if let Some(val_int) = parse_int(val_str) {
+//         return Some(Value::Num(val_int));
+//     }
+//     None
+// }
 
 /// Parse a full formula string of the form "A1=expr".
 ///
@@ -168,7 +168,7 @@ fn parse_formula(formula_str: &str) -> Option<Formula> {
         // since we're just accepting any formula pattern
         return Some(Formula {
             inp_cell: cell,
-            expression: Expression::Add(Value::Num(0), Value::Num(0))
+            _expression: Expression::Add((), ())
         });
     }
     
@@ -409,27 +409,3 @@ pub fn process_formula(formula_str: &str) -> Option<(String, String)> {
     Some(("ERROR".to_string(), "Error: invalid formula format".to_string()))
 }
 
-/// Convert a column number (1-based) into its spreadsheet label (e.g., 27 -> "AA").
-fn column_number_to_label(col_num: u32) -> String {
-    if col_num == 0 {
-        return String::new();
-    }
-    
-    let mut result = String::new();
-    let mut n = col_num;
-    
-    while n > 0 {
-        // Convert to 0-based for calculation
-        n -= 1;
-        // Get the remainder when divided by 26 (A-Z)
-        let remainder = n % 26;
-        // Convert to ASCII character (A-Z)
-        let ch = (b'A' + remainder as u8) as char;
-        // Add to the beginning of the result
-        result.insert(0, ch);
-        // Integer division to get the next digit
-        n /= 26;
-    }
-    
-    result
-}

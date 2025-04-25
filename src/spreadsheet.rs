@@ -386,12 +386,14 @@ impl SpreadSheet {
             }
             | Expression::Constant(Value::Num(i)) => {
                 if self.constant_mode == 1 {
-                self.val[cell_pointer] = i;
-                return SpreadSheetError::Valid;
+                    self.val[cell_pointer] = i;
+                    return SpreadSheetError::Valid;
                 }
             }
 
-            _ => (),
+            _ => {
+                self.constant_mode = 0;
+            },
         }
         if self.check_cycle(form.clone()) {
             return SpreadSheetError::Cycle;
@@ -401,28 +403,32 @@ impl SpreadSheet {
 
         self.remove_children(form.inp_cell);
 
+        self.exprs.insert(form.inp_cell, form.expression.clone());
+
+        self.add_children(form.inp_cell, form.expression);
+
         
 
-        match form.expression {
-            Expression::Add(Value::Num(_), Value::Num(_))
-            | Expression::Mul(Value::Num(_), Value::Num(_))
-            | Expression::Div(Value::Num(_), Value::Num(_))
-            | Expression::Sub(Value::Num(_), Value::Num(_))
-            | Expression::Sleep(Value::Num(_))
-            | Expression::Constant(Value::Num(_)) => {
-                if self.exprs.contains_key(&form.inp_cell) {
-                    self.exprs.remove(&form.inp_cell);
-                }
-                self.val[cell_pointer] = self
-                    .get_expr_res(form.expression.clone())
-                    .expect("Invalid Expression");
-            }
+        // match form.expression {
+        //     Expression::Add(Value::Num(_), Value::Num(_))
+        //     | Expression::Mul(Value::Num(_), Value::Num(_))
+        //     | Expression::Div(Value::Num(_), Value::Num(_))
+        //     | Expression::Sub(Value::Num(_), Value::Num(_))
+        //     | Expression::Sleep(Value::Num(_))
+        //     | Expression::Constant(Value::Num(_)) => {
+        //         if self.exprs.contains_key(&form.inp_cell) {
+        //             self.exprs.remove(&form.inp_cell);
+        //         }
+        //         self.val[cell_pointer] = self
+        //             .get_expr_res(form.expression.clone())
+        //             .expect("Invalid Expression");
+        //     }
 
-            _ => {
-                self.exprs.insert(form.inp_cell, form.expression.clone());
-                self.add_children(form.inp_cell, form.expression);
-            }
-        }
+        //     _ => {
+        //         self.exprs.insert(form.inp_cell, form.expression.clone());
+        //         self.add_children(form.inp_cell, form.expression);
+        //     }
+        // }
 
         self.update_children(form.inp_cell);
 

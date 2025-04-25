@@ -7,7 +7,6 @@ use crate::basic::{Cell, Expression, Formula, Value};
 
 #[derive(Debug, Clone, PartialEq)]
 
-
 /// Represents a column that holds up to 3 `u8` values.
 ///
 /// This struct is a wrapper around an `ArrayVec<u8, 3>`, which is a fixed-size
@@ -18,22 +17,19 @@ use crate::basic::{Cell, Expression, Formula, Value};
 /// efficient in terms of memory usage and performance when the number of elements is small.
 pub struct Col(pub ArrayVec<u8, 3>);
 
-
-
-
 /// Parses a row string into a `u32` value.
-/// 
+///
 /// This function attempts to parse a string slice into an unsigned integer (`u32`).
 /// It returns the parsed value wrapped in `Some(u32)` if the number is within the
 /// range 1 to 999 (inclusive), or `None` if the value is out of range or the
 /// string cannot be parsed into a `u32`.
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `row_str`: A string slice that represents the row number to be parsed.
-/// 
+///
 /// # Returns
-/// 
+///
 /// - `Option<u32>`: Returns `Some(u32)` if the row number is valid and within the
 ///   allowed range, or `None` if parsing fails or the value is out of range.
 fn parse_row(row_str: &str) -> Option<u32> {
@@ -45,12 +41,11 @@ fn parse_row(row_str: &str) -> Option<u32> {
     }
 }
 
-
 /// Parses a string representation of an integer into an `Option<i32>`.
 ///
 /// This function attempts to convert the input string into a valid `i32` value. If successful,
 /// it returns `Some(i32)`. If the conversion fails (e.g., due to an invalid format), it returns `None`.
-/// 
+///
 /// # Arguments
 /// * `int_str` - A string slice that represents the integer to parse.
 ///
@@ -82,7 +77,7 @@ impl Col {
                     return None;
                 }
                 val *= 26;
-                val += ((bt - b'A') as u16 ) + 1;
+                val += ((bt - b'A') as u16) + 1;
             }
             Some(val)
         }
@@ -161,7 +156,6 @@ impl Col {
         val
     }
 
-
     /// Converts the column to a string representation.
     ///
     /// # Returns
@@ -174,7 +168,6 @@ impl Col {
 // static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"...").unwrap());
 // RE.is_match(haystack)
 
-
 /// Parses a string containing a cell reference (e.g., "A1") into a `Cell` struct.
 ///
 /// The function extracts the column and row parts from the string using regular expressions,
@@ -186,7 +179,8 @@ impl Col {
 /// # Returns
 /// * `Option<Cell>` - `Some(Cell)` if the cell reference is valid, otherwise `None`.
 fn parse_cell(cell_str: &str) -> Option<Cell> {
-    static CELL_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?P<col>[A-Z]+)(?P<row>[0-9]+)").unwrap());
+    static CELL_RE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"(?P<col>[A-Z]+)(?P<row>[0-9]+)").unwrap());
     let caps = CELL_RE.captures(cell_str)?;
 
     Some(Cell {
@@ -194,7 +188,6 @@ fn parse_cell(cell_str: &str) -> Option<Cell> {
         row: parse_row(&caps["row"])? as u16,
     })
 }
-
 
 /// Attempts to parse a value (either a number or a cell reference) from the given string.
 ///
@@ -222,7 +215,6 @@ fn parse_val(val_str: &str) -> Option<Value> {
 
 // const BINARY_OP_RE: &str = r"(?P<cell>[A-Z]+[0-9]+)";
 
-
 /// Reads and parses a formula from the given reader.
 ///
 /// This function attempts to read a line from the provided `reader` and parse it into
@@ -249,21 +241,28 @@ pub fn get_formula<R: BufRead>(reader: &mut R) -> Option<Formula> {
         Regex::new(r"^(?P<cell>[A-Z]+[0-9]+)\s*=\s*SLEEP\s*['(']\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*[')']\s*$").unwrap()
     });
     static CONSTANT_OP_RE: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r"^(?P<cell_col>[A-Z]+)(?P<cell_row>[0-9]+)\s*=\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*$").unwrap()
+        Regex::new(
+            r"^(?P<cell_col>[A-Z]+)(?P<cell_row>[0-9]+)\s*=\s*(?P<val>-?\d+|[A-Z]+[0-9]+)\s*$",
+        )
+        .unwrap()
     });
-    static COMMANDS_RE: Lazy<Regex>  =
+    static COMMANDS_RE: Lazy<Regex> =
         Lazy::new(|| Regex::new(r"^\s*(?P<command>q|enable_output|disable_output)\s*$").unwrap());
-    static SCROLL_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s*(?P<scroll>w|a|s|d)\s*$").unwrap());
+    static SCROLL_RE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"^\s*(?P<scroll>w|a|s|d)\s*$").unwrap());
     static SCROLL_TO_RE: Lazy<Regex> =
         Lazy::new(|| Regex::new(r"^\s*scroll_to\s*(?P<cell>[A-Z]+[0-9]+)\s*$").unwrap());
 
     if let Some(caps) = CONSTANT_OP_RE.captures(&line) {
-        let cell_col  = Col::from_str_to_num(&caps["cell_col"])?;
+        let cell_col = Col::from_str_to_num(&caps["cell_col"])?;
         let cell_row: u16 = caps["cell_row"].parse::<u16>().ok()?;
         let val = parse_val(&caps["val"])?;
 
         let form = Formula {
-            inp_cell: Cell { col: cell_col, row: cell_row},
+            inp_cell: Cell {
+                col: cell_col,
+                row: cell_row,
+            },
             expression: Expression::Constant(val),
         };
 
@@ -491,7 +490,10 @@ mod formula_tests {
             "ZZZ898",
             Formula {
                 inp_cell: Cell { row: 0, col: 0 },
-                expression: Expression::ScrollTo(Cell { row: 898, col: 18278 }),
+                expression: Expression::ScrollTo(Cell {
+                    row: 898,
+                    col: 18278,
+                }),
             },
         );
     }
@@ -506,7 +508,6 @@ mod formula_tests {
             expression: Expression::Constant(Value::Ref(Cell { row: 2, col: 2 })),
         };
         assert_eq!(form_out, form_exp);
-        
     }
 
     #[test]
@@ -550,10 +551,7 @@ mod formula_tests {
             "B3",
             Formula {
                 inp_cell: Cell { row: 1, col: 1 },
-                expression: Expression::Max(
-                    Cell { row: 2, col: 1 },
-                    Cell { row: 3, col: 2 },
-                ),
+                expression: Expression::Max(Cell { row: 2, col: 1 }, Cell { row: 3, col: 2 }),
             },
         );
 
@@ -567,10 +565,7 @@ mod formula_tests {
                     row: 898,
                     col: 18278,
                 },
-                expression: Expression::Min(
-                    Cell { row: 2, col: 1 },
-                    Cell { row: 3, col: 2 },
-                ),
+                expression: Expression::Min(Cell { row: 2, col: 1 }, Cell { row: 3, col: 2 }),
             },
         );
 
@@ -584,10 +579,7 @@ mod formula_tests {
                     row: 898,
                     col: 18278,
                 },
-                expression: Expression::Avg(
-                    Cell { row: 2, col: 1 },
-                    Cell { row: 3, col: 2 },
-                ),
+                expression: Expression::Avg(Cell { row: 2, col: 1 }, Cell { row: 3, col: 2 }),
             },
         );
 
@@ -601,10 +593,7 @@ mod formula_tests {
                     row: 898,
                     col: 18278,
                 },
-                expression: Expression::Stdev(
-                    Cell { row: 2, col: 1 },
-                    Cell { row: 3, col: 2 },
-                ),
+                expression: Expression::Stdev(Cell { row: 2, col: 1 }, Cell { row: 3, col: 2 }),
             },
         );
 
@@ -618,10 +607,7 @@ mod formula_tests {
                     row: 898,
                     col: 18278,
                 },
-                expression: Expression::Sum(
-                    Cell { row: 2, col: 1 },
-                    Cell { row: 3, col: 2 },
-                ),
+                expression: Expression::Sum(Cell { row: 2, col: 1 }, Cell { row: 3, col: 2 }),
             },
         );
     }
@@ -687,10 +673,7 @@ mod formula_tests {
         test_command_op(
             "enable_output",
             Formula {
-                inp_cell: Cell {
-                    row: 0,
-                    col: 0,
-                },
+                inp_cell: Cell { row: 0, col: 0 },
                 expression: Expression::Enable,
             },
         );
@@ -698,15 +681,12 @@ mod formula_tests {
         test_command_op(
             "disable_output",
             Formula {
-                inp_cell: Cell {
-                    row: 0,
-                    col: 0,
-                },
+                inp_cell: Cell { row: 0, col: 0 },
                 expression: Expression::Disable,
             },
         );
     }
-    
+
     #[test]
     fn scroll_op() {
         test_scroll_op(
@@ -720,10 +700,7 @@ mod formula_tests {
         test_scroll_op(
             "a",
             Formula {
-                inp_cell: Cell {
-                    row: 0,
-                    col: 0,
-                },
+                inp_cell: Cell { row: 0, col: 0 },
                 expression: Expression::ScrollLeft,
             },
         );
@@ -731,10 +708,7 @@ mod formula_tests {
         test_scroll_op(
             "s",
             Formula {
-                inp_cell: Cell {
-                    row: 0,
-                    col: 0,
-                },
+                inp_cell: Cell { row: 0, col: 0 },
                 expression: Expression::ScrollDown,
             },
         );
@@ -742,10 +716,7 @@ mod formula_tests {
         test_scroll_op(
             "d",
             Formula {
-                inp_cell: Cell {
-                    row: 0,
-                    col: 0,
-                },
+                inp_cell: Cell { row: 0, col: 0 },
                 expression: Expression::ScrollRight,
             },
         );
@@ -757,10 +728,7 @@ mod formula_tests {
         test_scroll_op(
             "x",
             Formula {
-                inp_cell: Cell {
-                    row: 0,
-                    col: 0,
-                },
+                inp_cell: Cell { row: 0, col: 0 },
                 expression: Expression::ScrollRight,
             },
         );
@@ -871,7 +839,6 @@ mod col_tests {
         let col = Col::from_str("AB").expect("Invalid Column String");
         test_to_str(col, "AB");
     }
-
 
     #[test]
     fn create_a() {
@@ -1013,9 +980,7 @@ mod row_tests {
     fn row_zero() {
         test_row("-1", 0);
     }
-
 }
-
 
 #[cfg(test)]
 mod parse_tests {
@@ -1038,19 +1003,49 @@ mod parse_tests {
     #[test]
     fn parse_cell_test() {
         test_parse_cell("A1", Cell { col: 1, row: 1 });
-        test_parse_cell("ZZZ898", Cell { col: 18278, row: 898 });
+        test_parse_cell(
+            "ZZZ898",
+            Cell {
+                col: 18278,
+                row: 898,
+            },
+        );
         test_parse_cell("AB10", Cell { col: 28, row: 10 });
         test_parse_cell("MA339", Cell { col: 339, row: 339 });
         test_parse_cell("YE655", Cell { col: 655, row: 655 });
-        test_parse_cell("DEF280", Cell { col: 2840, row: 280 });
-        test_parse_cell("ZKM175", Cell { col: 17875, row: 175 });
-        test_parse_cell("ZZZ188", Cell { col: 18278, row: 188 });
+        test_parse_cell(
+            "DEF280",
+            Cell {
+                col: 2840,
+                row: 280,
+            },
+        );
+        test_parse_cell(
+            "ZKM175",
+            Cell {
+                col: 17875,
+                row: 175,
+            },
+        );
+        test_parse_cell(
+            "ZZZ188",
+            Cell {
+                col: 18278,
+                row: 188,
+            },
+        );
     }
 
     #[test]
     fn parse_val_test() {
         test_parse_val("A1", Value::Ref(Cell { col: 1, row: 1 }));
-        test_parse_val("ZZZ898", Value::Ref(Cell { col: 18278, row: 898 }));
+        test_parse_val(
+            "ZZZ898",
+            Value::Ref(Cell {
+                col: 18278,
+                row: 898,
+            }),
+        );
         test_parse_val("-4", Value::Num(-4));
         test_parse_val("3", Value::Num(3));
         test_parse_val("0", Value::Num(0));

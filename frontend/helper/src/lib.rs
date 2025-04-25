@@ -4,9 +4,9 @@
 //! This module contains form field validation, trait definitions, and helper functions
 //! that are reused across the application.
 
-use std::collections::HashMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use std::collections::HashMap;
 
 // --- Structs & Enums ------------------------------------
 /// Represents a spreadsheet cell by its row and column indices.
@@ -14,7 +14,10 @@ use regex::Regex;
 /// This struct is used internally for parsing cell references and validating formulas.
 /// It holds the 1-based row and column indices of a cell.
 #[derive(Debug)]
-struct Cell { row: u32, col: u32 }
+struct Cell {
+    row: u32,
+    col: u32,
+}
 
 /// Value in a formula: either a numeric literal or a reference to another cell.
 ///
@@ -22,7 +25,10 @@ struct Cell { row: u32, col: u32 }
 /// - Num: A direct numeric value (e.g., "5" in "A1=5+B2")
 /// - Ref: A reference to another cell (e.g., "B2" in "A1=5+B2")
 #[derive(Debug)]
-enum _Value { _Num(i32), _Ref(Cell) }
+enum _Value {
+    _Num(i32),
+    _Ref(Cell),
+}
 
 /// Arithmetic and aggregation expressions supported in formulas.
 ///
@@ -32,7 +38,7 @@ enum _Value { _Num(i32), _Ref(Cell) }
 #[derive(Debug)]
 enum Expression {
     /// Addition of two values
-    Add((),()),
+    Add((), ()),
     /// Subtraction of two values
     _Sub(_Value, _Value),
     /// Multiplication of two values
@@ -57,14 +63,17 @@ enum Expression {
 ///
 /// This struct represents the parsed structure of a formula in the spreadsheet,
 /// storing both the target cell and the expression to calculate.
-/// 
+///
 /// # Examples
-/// 
+///
 /// For a formula like "A1=B2+C3", it would store:
 /// - inp_cell: Cell { row: 1, col: 1 }  // A1
 /// - expression: Expression::Add(Value::Ref(Cell { row: 2, col: 2 }), Value::Ref(Cell { row: 3, col: 3 }))
 #[derive(Debug)]
-struct Formula { inp_cell: Cell, _expression: Expression }
+struct Formula {
+    inp_cell: Cell,
+    _expression: Expression,
+}
 
 // /// Context menu state (moved from main.rs)
 // #[derive(Clone, PartialEq)]
@@ -107,34 +116,37 @@ fn parse_row(row_str: &str) -> Option<u32> {
 ///
 /// Returns `Some(Cell)` if the reference is valid, otherwise `None`.
 fn parse_cell(cell_str: &str) -> Option<Cell> {
-    static CELL_RE: Lazy<Regex> = Lazy::new(|| 
-        Regex::new(r"(?P<col>[A-Z]+)(?P<row>[0-9]+)").unwrap());
-    
+    static CELL_RE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"(?P<col>[A-Z]+)(?P<row>[0-9]+)").unwrap());
+
     if let Some(caps) = CELL_RE.captures(cell_str) {
         let col_str = &caps["col"];
         let row_str = &caps["row"];
-        
+
         // Parse column
         if col_str.len() > 3 {
             return None;
         }
-        
+
         for bt in col_str.as_bytes() {
             if bt < &b'A' || bt > &b'Z' {
                 return None;
             }
         }
-        
+
         let mut col_val: u32 = 0;
         for &bt in col_str.as_bytes() {
             col_val *= 26;
             col_val += ((bt - b'A') as u32) + 1;
         }
-        
+
         // Parse row
         let row_num = parse_row(row_str)?;
-        
-        Some(Cell { row: row_num, col: col_val })
+
+        Some(Cell {
+            row: row_num,
+            col: col_val,
+        })
     } else {
         None
     }
@@ -146,7 +158,7 @@ fn parse_cell(cell_str: &str) -> Option<Cell> {
 // fn parse_val(val_str: &str) -> Option<Value> {
 //     if let Some(cell_out) = parse_cell(val_str) {
 //         return Some(Value::Ref(cell_out));
-//     } 
+//     }
 //     if let Some(val_int) = parse_int(val_str) {
 //         return Some(Value::Num(val_int));
 //     }
@@ -158,9 +170,9 @@ fn parse_cell(cell_str: &str) -> Option<Cell> {
 /// Returns `Some(Formula)` if the pattern matches, else `None`.
 fn parse_formula(formula_str: &str) -> Option<Formula> {
     // Allow any formula that starts with a valid cell reference followed by =
-    static ANY_FORMULA_RE: Lazy<Regex> = Lazy::new(|| 
-        Regex::new(r"(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<expr>.+)").unwrap());
-        
+    static ANY_FORMULA_RE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<expr>.+)").unwrap());
+
     // First check if it's any valid formula pattern with a cell on the left
     if let Some(caps) = ANY_FORMULA_RE.captures(formula_str) {
         let cell = parse_cell(&caps["cell"])?;
@@ -168,10 +180,10 @@ fn parse_formula(formula_str: &str) -> Option<Formula> {
         // since we're just accepting any formula pattern
         return Some(Formula {
             inp_cell: cell,
-            _expression: Expression::Add((), ())
+            _expression: Expression::Add((), ()),
         });
     }
-    
+
     // If it doesn't even match the basic pattern of cell=anything, return None
     None
 }
@@ -202,7 +214,7 @@ pub trait FormField {
 
 // Public struct for a general cell input field
 /// A form field for specifying a cell reference (e.g., "A1", "BC23")
-/// 
+///
 /// Validates that the specified cell is within the spreadsheet's bounds
 /// by checking against the configured row and column limits.
 #[derive(Clone)]
@@ -212,24 +224,32 @@ pub struct CellField {
 }
 
 impl FormField for CellField {
-    fn id(&self) -> &str { "cell" }
-    fn label(&self) -> &str { "Enter cell" }
-    fn value(&self) -> &str { &self.value }
-    fn set_value(&mut self, value: String) { self.value = value; }
+    fn id(&self) -> &str {
+        "cell"
+    }
+    fn label(&self) -> &str {
+        "Enter cell"
+    }
+    fn value(&self) -> &str {
+        &self.value
+    }
+    fn set_value(&mut self, value: String) {
+        self.value = value;
+    }
     fn validate(&self, fields: &HashMap<String, Box<dyn FormField>>) -> Result<String, String> {
         let rows_field = fields.get("rows").unwrap();
         let cols_field = fields.get("cols").unwrap();
-        
+
         let max_rows = match rows_field.value().parse::<u32>() {
             Ok(rows) if rows > 0 => rows,
-            _ => return Err("Invalid rows configuration".to_string())
+            _ => return Err("Invalid rows configuration".to_string()),
         };
-        
+
         let max_cols = match cols_field.value().parse::<u32>() {
             Ok(cols) if cols > 0 => cols,
-            _ => return Err("Invalid columns configuration".to_string())
+            _ => return Err("Invalid columns configuration".to_string()),
         };
-        
+
         match parse_cell(&self.value) {
             Some(cell) => {
                 if cell.row > max_rows {
@@ -239,8 +259,8 @@ impl FormField for CellField {
                 } else {
                     Ok(format!("You entered cell: {}", self.value))
                 }
-            },
-            None => Err("Enter a valid cell (e.g. A1, BC23)".to_string())
+            }
+            None => Err("Enter a valid cell (e.g. A1, BC23)".to_string()),
         }
     }
     fn clone_box(&self) -> Box<dyn FormField> {
@@ -250,7 +270,7 @@ impl FormField for CellField {
 
 // Public struct for rows input field
 /// A form field for specifying the number of rows in the spreadsheet
-/// 
+///
 /// Validates that the row count is within the allowed range (1-100)
 /// and provides appropriate error messages when validation fails.
 #[derive(Clone)]
@@ -261,7 +281,7 @@ pub struct RowsField {
 
 // Public struct for columns input field
 /// A form field for specifying the number of columns in the spreadsheet
-/// 
+///
 /// Validates that the column count is within the allowed range (1-26)
 /// and provides appropriate error messages when validation fails.
 #[derive(Clone)]
@@ -271,10 +291,18 @@ pub struct ColsField {
 }
 
 impl FormField for RowsField {
-    fn id(&self) -> &str { "rows" }
-    fn label(&self) -> &str { "Number of rows" }
-    fn value(&self) -> &str { &self.value }
-    fn set_value(&mut self, value: String) { self.value = value; }
+    fn id(&self) -> &str {
+        "rows"
+    }
+    fn label(&self) -> &str {
+        "Number of rows"
+    }
+    fn value(&self) -> &str {
+        &self.value
+    }
+    fn set_value(&mut self, value: String) {
+        self.value = value;
+    }
     fn validate(&self, _fields: &HashMap<String, Box<dyn FormField>>) -> Result<String, String> {
         match self.value.parse::<u32>() {
             Ok(rows) if rows > 0 && rows <= 100 => Ok(format!("Rows: {}", rows)),
@@ -282,19 +310,33 @@ impl FormField for RowsField {
             Err(_) => Err("Enter a valid number".to_string()),
         }
     }
-    fn input_type(&self) -> &str { "number" }
-    fn min(&self) -> Option<&str> { Some("1") }
-    fn max(&self) -> Option<&str> { Some("100") }
+    fn input_type(&self) -> &str {
+        "number"
+    }
+    fn min(&self) -> Option<&str> {
+        Some("1")
+    }
+    fn max(&self) -> Option<&str> {
+        Some("100")
+    }
     fn clone_box(&self) -> Box<dyn FormField> {
         Box::new(self.clone())
     }
 }
 
 impl FormField for ColsField {
-    fn id(&self) -> &str { "cols" }
-    fn label(&self) -> &str { "Number of columns" }
-    fn value(&self) -> &str { &self.value }
-    fn set_value(&mut self, value: String) { self.value = value; }
+    fn id(&self) -> &str {
+        "cols"
+    }
+    fn label(&self) -> &str {
+        "Number of columns"
+    }
+    fn value(&self) -> &str {
+        &self.value
+    }
+    fn set_value(&mut self, value: String) {
+        self.value = value;
+    }
     fn validate(&self, _fields: &HashMap<String, Box<dyn FormField>>) -> Result<String, String> {
         match self.value.parse::<u32>() {
             Ok(cols) if cols > 0 && cols <= 26 => Ok(format!("Columns: {}", cols)),
@@ -302,9 +344,15 @@ impl FormField for ColsField {
             Err(_) => Err("Enter a valid number".to_string()),
         }
     }
-    fn input_type(&self) -> &str { "number" }
-    fn min(&self) -> Option<&str> { Some("1") }
-    fn max(&self) -> Option<&str> { Some("26") }
+    fn input_type(&self) -> &str {
+        "number"
+    }
+    fn min(&self) -> Option<&str> {
+        Some("1")
+    }
+    fn max(&self) -> Option<&str> {
+        Some("26")
+    }
     fn clone_box(&self) -> Box<dyn FormField> {
         Box::new(self.clone())
     }
@@ -319,7 +367,7 @@ impl Clone for Box<dyn FormField> {
 
 // Public struct for formula input field
 /// A form field for entering spreadsheet formulas
-/// 
+///
 /// Validates that the formula has the correct syntax (cell=expression)
 /// and that all cell references are within the spreadsheet's bounds.
 #[derive(Clone)]
@@ -329,38 +377,49 @@ pub struct FormulaField {
 }
 
 impl FormField for FormulaField {
-    fn id(&self) -> &str { "formula" }
-    fn label(&self) -> &str { "Enter formula" }
-    fn value(&self) -> &str { &self.value }
-    fn set_value(&mut self, value: String) { self.value = value; }
+    fn id(&self) -> &str {
+        "formula"
+    }
+    fn label(&self) -> &str {
+        "Enter formula"
+    }
+    fn value(&self) -> &str {
+        &self.value
+    }
+    fn set_value(&mut self, value: String) {
+        self.value = value;
+    }
     fn validate(&self, fields: &HashMap<String, Box<dyn FormField>>) -> Result<String, String> {
         let rows_field = fields.get("rows").unwrap();
         let cols_field = fields.get("cols").unwrap();
-        
+
         let max_rows = match rows_field.value().parse::<u32>() {
             Ok(rows) if rows > 0 => rows,
-            _ => return Err("Invalid rows configuration".to_string())
+            _ => return Err("Invalid rows configuration".to_string()),
         };
-        
+
         let max_cols = match cols_field.value().parse::<u32>() {
             Ok(cols) if cols > 0 => cols,
-            _ => return Err("Invalid columns configuration".to_string())
+            _ => return Err("Invalid columns configuration".to_string()),
         };
-        
+
         match parse_formula(&self.value) {
             Some(formula) => {
                 // Check if the target cell is within bounds
                 if formula.inp_cell.row > max_rows {
                     Err(format!("Formula target row exceeds maximum ({})", max_rows))
                 } else if formula.inp_cell.col > max_cols {
-                    Err(format!("Formula target column exceeds maximum ({})", max_cols))
+                    Err(format!(
+                        "Formula target column exceeds maximum ({})",
+                        max_cols
+                    ))
                 } else {
                     // Additional check for referenced cells could be done here,
                     // but for now we'll just validate the target cell
                     Ok(format!("Formula: {}", self.value))
                 }
-            },
-            None => Err("Enter a valid formula (e.g. A1=B2+C3, A1=SUM(B1:B10))".to_string())
+            }
+            None => Err("Enter a valid formula (e.g. A1=B2+C3, A1=SUM(B1:B10))".to_string()),
         }
     }
     fn clone_box(&self) -> Box<dyn FormField> {
@@ -389,23 +448,25 @@ pub fn parse_input_formula(input: &str) -> bool {
 /// Always returns `Some((cell_id, result))`. Errors in format yield an error message in the second element.
 pub fn process_formula(formula_str: &str) -> Option<(String, String)> {
     // Use a regex to extract the cell reference and everything after the equals sign
-    static FORMULA_PARTS_RE: Lazy<Regex> = Lazy::new(|| 
-        Regex::new(r"(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<expr>.+)").unwrap());
+    static FORMULA_PARTS_RE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"(?P<cell>[A-Z]+[0-9]+)\s*=\s*(?P<expr>.+)").unwrap());
 
     if let Some(caps) = FORMULA_PARTS_RE.captures(formula_str) {
         let cell_id = caps["cell"].to_string();
         let expression = caps["expr"].trim().to_string();
-        
+
         // Check if the expression is empty
         if expression.is_empty() {
             return Some((cell_id, "Error: empty formula".to_string()));
         }
-        
+
         // Return the actual expression text
         return Some((cell_id, expression));
     }
-    
-    // Instead of returning None, return an error message
-    Some(("ERROR".to_string(), "Error: invalid formula format".to_string()))
-}
 
+    // Instead of returning None, return an error message
+    Some((
+        "ERROR".to_string(),
+        "Error: invalid formula format".to_string(),
+    ))
+}

@@ -17,18 +17,18 @@ use crate::basic::{Cell, Expression, Formula, Value};
 pub struct Col(pub ArrayVec<u8, 3>);
 
 /// Parses a row string into a `u32` value.
-/// 
+///
 /// This function attempts to parse a string slice into an unsigned integer (`u32`).
 /// It returns the parsed value wrapped in `Some(u32)` if the number is within the
 /// range 1 to 999 (inclusive), or `None` if the value is out of range or the
 /// string cannot be parsed into a `u32`.
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `row_str`: A string slice that represents the row number to be parsed.
-/// 
+///
 /// # Returns
-/// 
+///
 /// - `Option<u32>`: Returns `Some(u32)` if the row number is valid and within the
 ///   allowed range, or `None` if parsing fails or the value is out of range.
 fn parse_row(row_str: &str) -> Option<u32> {
@@ -44,7 +44,7 @@ fn parse_row(row_str: &str) -> Option<u32> {
 ///
 /// This function attempts to convert the input string into a valid `i32` value. If successful,
 /// it returns `Some(i32)`. If the conversion fails (e.g., due to an invalid format), it returns `None`.
-/// 
+///
 /// # Arguments
 /// * `int_str` - A string slice that represents the integer to parse.
 ///
@@ -393,7 +393,6 @@ pub fn get_formula<R: BufRead>(reader: &mut R) -> Option<Formula> {
     None
 }
 
-
 #[cfg(test)]
 mod formula_tests {
     use super::*;
@@ -472,7 +471,10 @@ mod formula_tests {
             "ZZZ898",
             Formula {
                 inp_cell: Cell { row: 0, col: 0 },
-                expression: Expression::ScrollTo(Cell { row: 898, col: 18278 }),
+                expression: Expression::ScrollTo(Cell {
+                    row: 898,
+                    col: 18278,
+                }),
             },
         );
     }
@@ -486,10 +488,7 @@ mod formula_tests {
             "B3",
             Formula {
                 inp_cell: Cell { row: 1, col: 1 },
-                expression: Expression::Max(
-                    Cell { row: 2, col: 1 },
-                    Cell { row: 3, col: 2 },
-                ),
+                expression: Expression::Max(Cell { row: 2, col: 1 }, Cell { row: 3, col: 2 }),
             },
         );
 
@@ -503,10 +502,7 @@ mod formula_tests {
                     row: 898,
                     col: 18278,
                 },
-                expression: Expression::Min(
-                    Cell { row: 2, col: 1 },
-                    Cell { row: 3, col: 2 },
-                ),
+                expression: Expression::Min(Cell { row: 2, col: 1 }, Cell { row: 3, col: 2 }),
             },
         );
 
@@ -520,10 +516,7 @@ mod formula_tests {
                     row: 898,
                     col: 18278,
                 },
-                expression: Expression::Avg(
-                    Cell { row: 2, col: 1 },
-                    Cell { row: 3, col: 2 },
-                ),
+                expression: Expression::Avg(Cell { row: 2, col: 1 }, Cell { row: 3, col: 2 }),
             },
         );
 
@@ -537,10 +530,7 @@ mod formula_tests {
                     row: 898,
                     col: 18278,
                 },
-                expression: Expression::Stdev(
-                    Cell { row: 2, col: 1 },
-                    Cell { row: 3, col: 2 },
-                ),
+                expression: Expression::Stdev(Cell { row: 2, col: 1 }, Cell { row: 3, col: 2 }),
             },
         );
 
@@ -554,10 +544,7 @@ mod formula_tests {
                     row: 898,
                     col: 18278,
                 },
-                expression: Expression::Sum(
-                    Cell { row: 2, col: 1 },
-                    Cell { row: 3, col: 2 },
-                ),
+                expression: Expression::Sum(Cell { row: 2, col: 1 }, Cell { row: 3, col: 2 }),
             },
         );
     }
@@ -623,10 +610,7 @@ mod formula_tests {
         test_command_op(
             "enable_output",
             Formula {
-                inp_cell: Cell {
-                    row: 0,
-                    col: 0,
-                },
+                inp_cell: Cell { row: 0, col: 0 },
                 expression: Expression::Enable,
             },
         );
@@ -634,15 +618,12 @@ mod formula_tests {
         test_command_op(
             "disable_output",
             Formula {
-                inp_cell: Cell {
-                    row: 0,
-                    col: 0,
-                },
+                inp_cell: Cell { row: 0, col: 0 },
                 expression: Expression::Disable,
             },
         );
     }
-    
+
     #[test]
     fn scroll_op() {
         test_scroll_op(
@@ -656,10 +637,7 @@ mod formula_tests {
         test_scroll_op(
             "a",
             Formula {
-                inp_cell: Cell {
-                    row: 0,
-                    col: 0,
-                },
+                inp_cell: Cell { row: 0, col: 0 },
                 expression: Expression::ScrollLeft,
             },
         );
@@ -667,10 +645,7 @@ mod formula_tests {
         test_scroll_op(
             "s",
             Formula {
-                inp_cell: Cell {
-                    row: 0,
-                    col: 0,
-                },
+                inp_cell: Cell { row: 0, col: 0 },
                 expression: Expression::ScrollDown,
             },
         );
@@ -678,10 +653,7 @@ mod formula_tests {
         test_scroll_op(
             "d",
             Formula {
-                inp_cell: Cell {
-                    row: 0,
-                    col: 0,
-                },
+                inp_cell: Cell { row: 0, col: 0 },
                 expression: Expression::ScrollRight,
             },
         );
@@ -693,10 +665,7 @@ mod formula_tests {
         test_scroll_op(
             "x",
             Formula {
-                inp_cell: Cell {
-                    row: 0,
-                    col: 0,
-                },
+                inp_cell: Cell { row: 0, col: 0 },
                 expression: Expression::ScrollRight,
             },
         );
@@ -803,7 +772,6 @@ mod col_tests {
         test_to_str(col, "AB");
     }
 
-
     #[test]
     fn create_a() {
         let col_str = "A";
@@ -864,8 +832,6 @@ mod col_tests {
         test_num_of_col("ZZZ", 18278);
     }
 
-    
-
     #[test]
     fn col_of_num() {
         test_col_of_num("A", 1);
@@ -914,9 +880,7 @@ mod row_tests {
     fn row_zero() {
         test_row("-1", 0);
     }
-
 }
-
 
 #[cfg(test)]
 mod parse_tests {
@@ -935,23 +899,52 @@ mod parse_tests {
     #[test]
     fn parse_cell_test() {
         test_parse_cell("A1", Cell { col: 1, row: 1 });
-        test_parse_cell("ZZZ898", Cell { col: 18278, row: 898 });
+        test_parse_cell(
+            "ZZZ898",
+            Cell {
+                col: 18278,
+                row: 898,
+            },
+        );
         test_parse_cell("AB10", Cell { col: 28, row: 10 });
         test_parse_cell("MA339", Cell { col: 339, row: 339 });
         test_parse_cell("YE655", Cell { col: 655, row: 655 });
-        test_parse_cell("DEF280", Cell { col: 2840, row: 280 });
-        test_parse_cell("ZKM175", Cell { col: 17875, row: 175 });
-        test_parse_cell("ZZZ188", Cell { col: 18278, row: 188 });
+        test_parse_cell(
+            "DEF280",
+            Cell {
+                col: 2840,
+                row: 280,
+            },
+        );
+        test_parse_cell(
+            "ZKM175",
+            Cell {
+                col: 17875,
+                row: 175,
+            },
+        );
+        test_parse_cell(
+            "ZZZ188",
+            Cell {
+                col: 18278,
+                row: 188,
+            },
+        );
     }
 
     #[test]
     fn parse_val_test() {
         test_parse_val("A1", Value::Ref(Cell { col: 1, row: 1 }));
-        test_parse_val("ZZZ898", Value::Ref(Cell { col: 18278, row: 898 }));
+        test_parse_val(
+            "ZZZ898",
+            Value::Ref(Cell {
+                col: 18278,
+                row: 898,
+            }),
+        );
         test_parse_val("-4", Value::Num(-4));
         test_parse_val("3", Value::Num(3));
         test_parse_val("0", Value::Num(0));
         test_parse_val("100", Value::Num(100));
     }
 }
-

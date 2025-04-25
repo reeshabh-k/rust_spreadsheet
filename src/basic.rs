@@ -1,7 +1,5 @@
 use std::hash::Hash;
 
-
-
 /// Represents a cell in the spreadsheet identified by a row and column.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Cell {
@@ -22,6 +20,8 @@ pub enum Value {
     Num(i32),
     Ref(Cell),
 }
+
+#[allow(dead_code)]
 /// Represents an expression used in a formula.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {

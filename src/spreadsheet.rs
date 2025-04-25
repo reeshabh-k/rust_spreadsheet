@@ -8,7 +8,6 @@ use std::time::Duration;
 
 use std::{collections::HashMap, collections::HashSet};
 
-
 /// A structure that holds information about a cell, such as its children (dependent cells).
 /// This helps in managing dependencies between cells when formulas are used.
 #[derive(Clone, Debug)]
@@ -29,7 +28,6 @@ pub struct SpreadSheet {
     exprs: HashMap<Cell, Expression>,
     constant_mode: u32,
 }
-
 
 impl SpreadSheet {
     /// Creates a new `SpreadSheet` with the given number of rows and columns.
@@ -87,7 +85,6 @@ impl SpreadSheet {
             }
         }
     }
-
 
     /// Extracts a numerical value from a `Value` enum.
     ///
@@ -221,7 +218,6 @@ impl SpreadSheet {
         }
         Some(min)
     }
-
 
     /// Finds the stdev value in a range of cells.
     ///
@@ -452,7 +448,6 @@ impl SpreadSheet {
         }
     }
 
-    
     /// Handles formula calls, processes different expressions, updates spreadsheet state, and handles cycles.
     ///
     /// # Arguments
@@ -461,7 +456,7 @@ impl SpreadSheet {
     /// # Returns
     /// * `SpreadSheetError`: A type indicating the outcome of the operation, such as `Valid`, `InvalidInput`, or `Cycle`.
     ///
-    /// This function processes various spreadsheet expressions, handles scrolling, and evaluates cell expressions. 
+    /// This function processes various spreadsheet expressions, handles scrolling, and evaluates cell expressions.
     /// It also ensures that cyclic dependencies are checked to prevent infinite loops.
     pub fn call_formula(&mut self, form: Option<Formula>) -> SpreadSheetError {
         // println!("Constant Mode: {}", self.constant_mode);
@@ -624,7 +619,6 @@ impl SpreadSheet {
         }
     }
 
-
     /// Checks if the given formula `form` creates a cyclic dependency in the spreadsheet.
     ///
     /// # Arguments
@@ -633,7 +627,7 @@ impl SpreadSheet {
     /// # Returns
     /// * `bool`: Returns `true` if the formula introduces a cycle, otherwise `false`.
     ///
-    /// This function traverses the dependencies of a given formula to check for cyclic references, 
+    /// This function traverses the dependencies of a given formula to check for cyclic references,
     /// ensuring that the spreadsheet doesn't enter an infinite loop of formula evaluations.
     fn check_cycle(&self, form: Formula) -> bool {
         let inp_cell = form.inp_cell;
@@ -667,7 +661,7 @@ impl SpreadSheet {
 
     /// Prints the current state of the spreadsheet, showing the values and headers for the visible range.
     ///
-    /// This function prints a portion of the spreadsheet, including the column headers and row values, 
+    /// This function prints a portion of the spreadsheet, including the column headers and row values,
     /// as well as handling cases where cells are invalid or contain errors.
     pub fn print_sheet(&self) {
         let width = 10.min(self.col as u32 - self.col_pointer as u32 + 1);
@@ -694,7 +688,6 @@ impl SpreadSheet {
     }
 }
 
-
 #[cfg(test)]
 
 mod spreadsheet_tests {
@@ -709,9 +702,17 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 1);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -719,11 +720,24 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 1);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell{row : 2, col: 2})].children.len(), 1);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            1
+        );
         ss.remove_children(cell);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell{row : 2, col: 2})].children.len(), 0);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            0
+        );
     }
 
     #[test]
@@ -760,14 +774,23 @@ mod spreadsheet_tests {
         let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
         let ptr = ss.get_pointer(&Cell { row: 2, col: 2 });
         ss.val[ptr] = 3;
-        assert_eq!(ss.check_cycle(Formula { inp_cell: cell, expression: expr }), false);
+        assert_eq!(
+            ss.check_cycle(Formula {
+                inp_cell: cell,
+                expression: expr
+            }),
+            false
+        );
     }
 
     #[test]
     fn test_update_children() {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
-        ss.call_formula(Some(Formula { inp_cell: cell, expression: Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 })) }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 })),
+        }));
         let ptr = ss.get_pointer(&Cell { row: 2, col: 2 });
         ss.val[ptr] = 3;
         ss.update_children(cell);
@@ -789,7 +812,10 @@ mod spreadsheet_tests {
         let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
         let ptr = ss.get_pointer(&Cell { row: 2, col: 2 });
         ss.val[ptr] = 3;
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Valid);
     }
 
@@ -800,7 +826,10 @@ mod spreadsheet_tests {
         ss.val[ptr] = 5;
         ptr = ss.get_pointer(&Cell { row: 1, col: 2 });
         ss.val[ptr] = 3;
-        assert_eq!(ss.get_avg(Cell { row: 1, col: 1 }, Cell { row: 1, col: 2 }), Some(4));
+        assert_eq!(
+            ss.get_avg(Cell { row: 1, col: 1 }, Cell { row: 1, col: 2 }),
+            Some(4)
+        );
     }
 
     #[test]
@@ -810,7 +839,10 @@ mod spreadsheet_tests {
         ss.val[ptr] = 5;
         ptr = ss.get_pointer(&Cell { row: 1, col: 2 });
         ss.val[ptr] = 3;
-        assert_eq!(ss.get_max(Cell { row: 1, col: 1 }, Cell { row: 1, col: 2 }), Some(5));
+        assert_eq!(
+            ss.get_max(Cell { row: 1, col: 1 }, Cell { row: 1, col: 2 }),
+            Some(5)
+        );
     }
 
     #[test]
@@ -820,7 +852,10 @@ mod spreadsheet_tests {
         ss.val[ptr] = 5;
         ptr = ss.get_pointer(&Cell { row: 1, col: 2 });
         ss.val[ptr] = 3;
-        assert_eq!(ss.get_min(Cell { row: 1, col: 1 }, Cell { row: 1, col: 2 }), Some(3));
+        assert_eq!(
+            ss.get_min(Cell { row: 1, col: 1 }, Cell { row: 1, col: 2 }),
+            Some(3)
+        );
     }
 
     #[test]
@@ -830,7 +865,10 @@ mod spreadsheet_tests {
         ss.val[ptr] = 5;
         ptr = ss.get_pointer(&Cell { row: 1, col: 2 });
         ss.val[ptr] = 3;
-        assert_eq!(ss.get_stddev(Cell { row: 1, col: 1 }, Cell { row: 1, col: 2 }), Some(1));
+        assert_eq!(
+            ss.get_stddev(Cell { row: 1, col: 1 }, Cell { row: 1, col: 2 }),
+            Some(1)
+        );
     }
 
     #[test]
@@ -840,7 +878,10 @@ mod spreadsheet_tests {
         ss.val[ptr] = 5;
         ptr = ss.get_pointer(&Cell { row: 1, col: 2 });
         ss.val[ptr] = 3;
-        assert_eq!(ss.get_sum(Cell { row: 1, col: 1 }, Cell { row: 1, col: 2 }), Some(8));
+        assert_eq!(
+            ss.get_sum(Cell { row: 1, col: 1 }, Cell { row: 1, col: 2 }),
+            Some(8)
+        );
     }
 
     #[test]
@@ -857,17 +898,26 @@ mod spreadsheet_tests {
     fn test_extract_value_num_invalid() {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
-        ss.call_formula(Some(Formula { inp_cell: cell, expression: Expression::Avg(Cell {row: 1, col:4 }, Cell{row: 2, col: 3}) }));
-        assert_eq!(ss.extract_value_num(Value::Ref(Cell { row: 1, col: 1 })), Some(0));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: Expression::Avg(Cell { row: 1, col: 4 }, Cell { row: 2, col: 3 }),
+        }));
+        assert_eq!(
+            ss.extract_value_num(Value::Ref(Cell { row: 1, col: 1 })),
+            Some(0)
+        );
     }
 
-    #[test] 
+    #[test]
     fn test_spreadsheet() {
         let mut ss = SpreadSheet::new(10, 10);
         ss.print_sheet();
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Valid);
         ss.print_sheet();
     }
@@ -878,8 +928,14 @@ mod spreadsheet_tests {
         let cell2 = Cell { row: 2, col: 2 };
         let expr1 = Expression::Add(Value::Num(5), Value::Ref(cell2));
         let expr2 = Expression::Add(Value::Num(3), Value::Ref(cell1));
-        let form1 = Formula { inp_cell: cell1, expression: expr1 };
-        let form2 = Formula { inp_cell: cell2, expression: expr2 };
+        let form1 = Formula {
+            inp_cell: cell1,
+            expression: expr1,
+        };
+        let form2 = Formula {
+            inp_cell: cell2,
+            expression: expr2,
+        };
         assert_eq!(ss.call_formula(Some(form1)), SpreadSheetError::Valid);
         assert_eq!(ss.call_formula(Some(form2)), SpreadSheetError::Cycle);
     }
@@ -888,7 +944,10 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Valid);
         assert_eq!(ss.call_formula(None), SpreadSheetError::InvalidInput);
     }
@@ -897,7 +956,10 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::Quit;
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Quit);
     }
     #[test]
@@ -905,7 +967,10 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::Enable;
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Enable);
     }
     #[test]
@@ -913,7 +978,10 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::Disable;
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Disable);
     }
     #[test]
@@ -921,7 +989,10 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::ScrollDown;
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Valid);
     }
     #[test]
@@ -929,7 +1000,10 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::ScrollUp;
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Valid);
     }
     #[test]
@@ -937,7 +1011,10 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::ScrollRight;
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Valid);
     }
     #[test]
@@ -945,7 +1022,10 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::ScrollLeft;
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Valid);
     }
     #[test]
@@ -953,7 +1033,10 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::ScrollTo(Cell { row: 2, col: 2 });
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Valid);
     }
     #[test]
@@ -961,7 +1044,10 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::Avg(Cell { row: 2, col: 2 }, Cell { row: 1, col: 1 });
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::InvalidInput);
     }
     #[test]
@@ -969,7 +1055,10 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Valid);
     }
     #[test]
@@ -977,7 +1066,10 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Valid);
     }
     #[test]
@@ -985,7 +1077,10 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Valid);
     }
     #[test]
@@ -993,7 +1088,10 @@ mod spreadsheet_tests {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
         let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
-        let form = Formula { inp_cell: cell, expression: expr };
+        let form = Formula {
+            inp_cell: cell,
+            expression: expr,
+        };
         assert_eq!(ss.call_formula(Some(form)), SpreadSheetError::Valid);
     }
 
@@ -1001,100 +1099,188 @@ mod spreadsheet_tests {
     fn test_add_children2() {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
-        let expr = Expression::Sub (Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        let expr = Expression::Sub(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 1);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            1
+        );
     }
     #[test]
     fn test_add_children3() {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
-        let expr = Expression::Div (Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        let expr = Expression::Div(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 1);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            1
+        );
     }
     #[test]
     fn test_add_children4() {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
-        let expr = Expression::Mul (Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        let expr = Expression::Mul(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 1);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            1
+        );
     }
     #[test]
     fn test_add_children5() {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
-        let expr = Expression::Sleep (Value::Num(1));
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        let expr = Expression::Sleep(Value::Num(1));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 1);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 0);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            0
+        );
     }
     #[test]
     fn test_add_children6() {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
-        let expr = Expression::Constant (Value::Num(5));
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        let expr = Expression::Constant(Value::Num(5));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 0);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 0);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            0
+        );
     }
     #[test]
     fn test_add_children7() {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
-        let expr = Expression::Avg (Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        let expr = Expression::Avg(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 1);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            1
+        );
     }
     #[test]
     fn test_add_children8() {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
-        let expr = Expression::Max (Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        let expr = Expression::Max(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 1);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            1
+        );
     }
     #[test]
     fn test_add_children9() {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
-        let expr = Expression::Min (Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        let expr = Expression::Min(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 1);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            1
+        );
     }
     #[test]
     fn test_add_children10() {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
-        let expr = Expression::Sum (Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        let expr = Expression::Sum(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 1);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            1
+        );
     }
     #[test]
     fn test_add_children11() {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
-        let expr = Expression::Stdev (Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        let expr = Expression::Stdev(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 1);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            1
+        );
     }
     #[test]
     fn test_add_children12() {
         let mut ss = SpreadSheet::new(10, 10);
         let cell = Cell { row: 1, col: 1 };
-        let expr = Expression::Stdev (Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        let expr = Expression::Stdev(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 1);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -1104,12 +1290,28 @@ mod spreadsheet_tests {
         let cell2 = Cell { row: 2, col: 2 };
         let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
         let expr2 = Expression::Avg(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
-        ss.call_formula(Some(Formula{ inp_cell: cell2, expression: expr2.clone() }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell2,
+            expression: expr2.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 1);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            1
+        );
         ss.remove_children(cell);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell{row : 2, col: 2})].children.len(), 0);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            0
+        );
     }
 
     #[test]
@@ -1127,15 +1329,44 @@ mod spreadsheet_tests {
         let expr4 = Expression::Min(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
         let expr5 = Expression::Stdev(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
         let expr6 = Expression::Sum(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
-        ss.call_formula(Some(Formula{ inp_cell: cell2, expression: expr2.clone() }));
-        ss.call_formula(Some(Formula{ inp_cell: cell3, expression: expr3.clone() }));
-        ss.call_formula(Some(Formula{ inp_cell: cell4, expression: expr4.clone() }));
-        ss.call_formula(Some(Formula{ inp_cell: cell5, expression: expr5.clone() }));
-        ss.call_formula(Some(Formula{ inp_cell: cell6, expression: expr6.clone() }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell2,
+            expression: expr2.clone(),
+        }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell3,
+            expression: expr3.clone(),
+        }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell4,
+            expression: expr4.clone(),
+        }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell5,
+            expression: expr5.clone(),
+        }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell6,
+            expression: expr6.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 4);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 4);
-        assert_eq!(ss.check_cycle(Formula{ inp_cell: cell4, expression: expr4 }), false);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            4
+        );
+        assert_eq!(
+            ss.check_cycle(Formula {
+                inp_cell: cell4,
+                expression: expr4
+            }),
+            false
+        );
     }
 
     #[test]
@@ -1146,13 +1377,22 @@ mod spreadsheet_tests {
         let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
         let _expr2 = Expression::Avg(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
         let expr3 = Expression::Sleep(Value::Num(1));
-        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
-        ss.call_formula(Some(Formula{ inp_cell: cell2, expression: expr3.clone() }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell,
+            expression: expr.clone(),
+        }));
+        ss.call_formula(Some(Formula {
+            inp_cell: cell2,
+            expression: expr3.clone(),
+        }));
         assert_eq!(ss.exprs.len(), 2);
         // assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
         ss.remove_children(cell2);
-        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell{row : 2, col: 2})].children.len(), 1);
+        assert_eq!(
+            ss.spreadsheet[ss.get_pointer(&Cell { row: 2, col: 2 })]
+                .children
+                .len(),
+            1
+        );
     }
-   
-   
 }

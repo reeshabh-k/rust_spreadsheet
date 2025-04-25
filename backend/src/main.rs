@@ -58,7 +58,7 @@ async fn get_value(
 async fn main() {
 
     let mut state = AppState {
-        sheet: Arc::new(Mutex::new(spreadsheet::SpreadSheet::new(999, 999))),
+        sheet: Arc::new(Mutex::new(spreadsheet::SpreadSheet::new(101, 101))),
         formula_stack: Arc::new(Mutex::new(vec![])),
     };
 

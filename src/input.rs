@@ -3,7 +3,6 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use std::io::BufRead;
 
-
 use crate::basic::{Cell, Expression, Formula, Value};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -287,9 +286,8 @@ pub fn get_formula<R: BufRead>(reader: &mut R) -> Option<Formula> {
 
 #[cfg(test)]
 mod formula_tests {
-    use std::io::Cursor;
     use super::*;
-
+    use std::io::Cursor;
     fn test_binary_op(inp_cell: &str, op: &str, val1: &str, val2: &str, form: Formula) {
         let input = format!("{inp_cell}={val1}{op}{val2}");
 

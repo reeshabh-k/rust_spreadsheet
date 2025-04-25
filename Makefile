@@ -45,15 +45,19 @@ run: build
 	@wait
 
 # Run the backend server
-# Run the backend server
 run-backend:
 	@echo "Checking if backend server is already running on $(URL)..."
 	@if curl -s --head $(URL) > /dev/null 2>&1; then \
-		echo "🔄 Backend is already running at $(URL)"; \
-	else \
-		echo "🚀 Starting backend server on $(URL)..."; \
-		cd $(BACKEND_DIR) && cargo run --release; \
+		echo "🔄 Backend is already running at $(URL). Stopping the existing process..."; \
+		PID=$$(lsof -t -i:$(PORT) 2>/dev/null); \
+		if [ -n "$$PID" ]; then \
+			echo "Stopping process $$PID running on port $(PORT)..."; \
+			kill -9 $$PID 2>/dev/null || echo "Could not kill process"; \
+			sleep 1; \
+		fi; \
 	fi
+	@echo "🚀 Starting backend server on $(URL)..."; \
+	cd $(BACKEND_DIR) && cargo run --release;
 
 # Run the frontend development server
 run-frontend-dev:

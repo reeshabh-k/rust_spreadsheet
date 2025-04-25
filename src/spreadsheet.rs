@@ -341,7 +341,7 @@ impl SpreadSheet {
     }
 
     pub fn call_formula(&mut self, form: Option<Formula>) -> SpreadSheetError {
-        println!("Constant Mode: {}", self.constant_mode);
+        // println!("Constant Mode: {}", self.constant_mode);
         let form = match form {
             None => return SpreadSheetError::InvalidInput,
             Some(valid_form) => valid_form,

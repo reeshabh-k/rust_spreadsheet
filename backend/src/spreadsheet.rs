@@ -6,6 +6,8 @@ use std::time::Duration;
 
 use std::{collections::HashMap, collections::HashSet};
 
+/// A structure that holds information about a cell, such as its children (dependent cells).
+/// This helps in managing dependencies between cells when formulas are used.
 #[allow(private_interfaces)]
 #[derive(Clone, Debug)]
 pub struct CellData {
@@ -17,6 +19,8 @@ pub enum CellVal {
     IntC(i32),
     StrC(String),
 }
+/// A structure representing the entire spreadsheet, holding the data for all cells.
+/// It supports expressions, formulas, and dependency tracking between cells.
 #[allow(dead_code)]
 pub struct SpreadSheet {
     row_pointer: usize,
@@ -31,6 +35,14 @@ pub struct SpreadSheet {
 
 #[allow(dead_code)]
 impl SpreadSheet {
+    /// Creates a new `SpreadSheet` with the given number of rows and columns.
+    ///
+    /// # Parameters
+    /// - `row`: The number of rows in the spreadsheet.
+    /// - `col`: The number of columns in the spreadsheet.
+    ///
+    /// # Returns
+    /// A `SpreadSheet` instance initialized with the given dimensions.
     pub fn new(row: usize, col: usize) -> SpreadSheet {
         let default_cell = CellData {
             children: HashSet::new(),
@@ -47,6 +59,13 @@ impl SpreadSheet {
         }
     }
 
+    /// Updates the value of a cell based on its expression.
+    ///
+    /// If the cell has an expression, it will evaluate the expression and update
+    /// the value of the cell accordingly.
+    ///
+    /// # Parameters
+    /// - `cell`: The cell to update.
     fn update_cell(&mut self, cell: Cell) -> CellVal {
         let row = cell.row as usize;
         let col = cell.col as usize;
@@ -77,6 +96,13 @@ impl SpreadSheet {
         self.val[cell_loc].clone()
     }
 
+    /// Extracts a numerical value from a `Value` enum.
+    ///
+    /// # Parameters
+    /// - `val`: The value to extract.
+    ///
+    /// # Returns
+    /// An optional `i32` value. If the value is a reference to another cell, it will return `None`.
     fn extract_value_num(&self, val: Value) -> Option<i32> {
         match val {
             Value::Num(i) => Some(i),
@@ -93,6 +119,14 @@ impl SpreadSheet {
         }
     }
 
+    /// Calculates the sum of a range of cells.
+    ///
+    /// # Parameters
+    /// - `c1`: The top-left corner of the range.
+    /// - `c2`: The bottom-right corner of the range.
+    ///
+    /// # Returns
+    /// An optional sum of the values in the specified range.
     fn get_sum(&self, c1: Cell, c2: Cell) -> Option<i32> {
         let mut sum = 0;
         for i in c1.row..=c2.row {
@@ -110,6 +144,14 @@ impl SpreadSheet {
         Some(sum)
     }
 
+    /// Calculates the average of a range of cells.
+    ///
+    /// # Parameters
+    /// - `c1`: The top-left corner of the range.
+    /// - `c2`: The bottom-right corner of the range.
+    ///
+    /// # Returns
+    /// An optional average of the values in the specified range.
     fn get_avg(&self, c1: Cell, c2: Cell) -> Option<i32> {
         let mut sum = 0;
         let mut cnt = 0;
@@ -131,6 +173,14 @@ impl SpreadSheet {
         Some(mean)
     }
 
+    /// Finds the maximum value in a range of cells.
+    ///
+    /// # Parameters
+    /// - `c1`: The top-left corner of the range.
+    /// - `c2`: The bottom-right corner of the range.
+    ///
+    /// # Returns
+    /// An optional maximum value of the specified range.
     fn get_max(&self, c1: Cell, c2: Cell) -> Option<i32> {
         let mut max;
         // let mut min;
@@ -161,6 +211,14 @@ impl SpreadSheet {
         Some(max)
     }
 
+    /// Finds the minimum value in a range of cells.
+    ///
+    /// # Parameters
+    /// - `c1`: The top-left corner of the range.
+    /// - `c2`: The bottom-right corner of the range.
+    ///
+    /// # Returns
+    /// An optional minimum value of the specified range.
     fn get_min(&self, c1: Cell, c2: Cell) -> Option<i32> {
         // let mut max;
         let mut min;
@@ -192,6 +250,14 @@ impl SpreadSheet {
         Some(min)
     }
 
+    /// Finds the stdev value in a range of cells.
+    ///
+    /// # Parameters
+    /// - `c1`: The top-left corner of the range.
+    /// - `c2`: The bottom-right corner of the range.
+    ///
+    /// # Returns
+    /// An optional stdev value of the specified range.
     fn get_stddev(&self, c1: Cell, c2: Cell) -> Option<i32> {
         let mut mean = 0;
         let mut variance = 0.0;
@@ -241,6 +307,16 @@ impl SpreadSheet {
         }
     }
 
+    /// Evaluates the result of an expression.
+    ///
+    /// # Parameters
+    /// - `expr`: The expression to evaluate.
+    ///
+    /// # Returns
+    /// The evaluated result as an `Option<i32>`. Returns `None` for invalid or undefined expressions (e.g., division by zero).
+    ///
+    /// # Panics
+    /// This function will panic if the expression is not supposed to be called.    
     fn get_expr_res(&self, expr: Expression) -> Option<CellVal> {
         match expr {
             Expression::Add(v1, v2) => Some(CellVal::IntC(
@@ -301,11 +377,25 @@ impl SpreadSheet {
         }
     }
 
+    /// Helper function to get a pointer (index) for a given cell.
+    ///
+    /// # Parameters
+    /// - `cell`: The cell for which to get the pointer.
+    ///
+    /// # Returns
+    /// An index in the vector representing the cell.
     #[inline]
     pub fn get_pointer(&self, inp_cell: &Cell) -> usize {
         inp_cell.row as usize * self.col + inp_cell.col as usize
     }
 
+    /// Removes all children (dependencies) of a given cell from the spreadsheet.
+    ///
+    /// # Parameters
+    /// - `inp_cell`: The cell for which to remove children.
+    ///
+    /// # Returns
+    /// Nothing. The children of the specified cell are removed.
     fn remove_children(&mut self, inp_cell: Cell) {
         let expr = if self.exprs.contains_key(&inp_cell) {
             self.exprs.get(&inp_cell).expect("Weird!").clone()
@@ -343,6 +433,11 @@ impl SpreadSheet {
         }
     }
 
+    /// Helper function to add a cell as a child to another cell.
+    ///
+    /// # Parameters
+    /// - `v`: The value associated with the cell (either a number or a reference to another cell).
+    /// - `inp_cell`: The cell to which the value will be added as a child.
     fn add_children_helper(&mut self, v: Value, inp_cell: &Cell) {
         match v {
             Value::Num(_) => (),
@@ -353,6 +448,11 @@ impl SpreadSheet {
         }
     }
 
+    /// Helper function to remove a cell as a child from another cell.
+    ///
+    /// # Parameters
+    /// - `v`: The value associated with the cell (either a number or a reference to another cell).
+    /// - `inp_cell`: The cell to be removed as a child.
     fn remove_children_helper(&mut self, v: Value, inp_cell: &Cell) {
         match v {
             Value::Num(_) => (),
@@ -363,6 +463,14 @@ impl SpreadSheet {
         }
     }
 
+    /// Adds a new child (dependency) to a cell.
+    ///
+    /// # Parameters
+    /// - `inp_cell`: The cell for which to add a dependency.
+    /// - `expr`: The expression that defines the dependency.
+    ///
+    /// # Returns
+    /// Nothing. The child (dependency) is added to the specified cell.
     fn add_children(&mut self, inp_cell: Cell, expr: Expression) {
         match expr {
             Expression::Add(v1, v2)
@@ -395,6 +503,16 @@ impl SpreadSheet {
         }
     }
 
+    /// Handles formula calls, processes different expressions, updates spreadsheet state, and handles cycles.
+    ///
+    /// # Arguments
+    /// * `form`: An `Option<Formula>`, where `Some(valid_form)` contains a valid formula and `None` indicates invalid input.
+    ///
+    /// # Returns
+    /// * A tuple of strings in which the changed cells (row and column) with their modified values is stored with spaces in between, for ease of formatting to json.
+    ///
+    /// This function processes various spreadsheet expressions, handles scrolling, and evaluates cell expressions. 
+    /// It also ensures that cyclic dependencies are checked to prevent infinite loops.
     pub fn call_formula_api(&mut self, form: Option<Formula>) -> (String, String, String) {
         let form = match form {
             None => return (String::from("IV"), String::new(), String::new()),
@@ -432,6 +550,13 @@ impl SpreadSheet {
         (x, y, z)
     }
 
+    /// Updates all children cells for a given cell `inp_cell` based on its dependencies and expression results.
+    ///
+    /// # Arguments
+    /// * `inp_cell`: The `Cell` whose children need to be updated.
+    ///
+    /// # Returns
+    /// Returns a tuple of strings which contains the changed cells and their modified values separated by spaces
     fn update_children_api(&mut self, inp_cell: Cell) -> (String, String, String) {
         let mut cell_counts: HashMap<Cell, u32> = HashMap::new();
         cell_counts.insert(inp_cell, 0);
@@ -487,6 +612,14 @@ impl SpreadSheet {
         (x, y, z)
     }
 
+    /// Determines if a given `expr` belongs to a given cell `c` based on the expression type and operands.
+    ///
+    /// # Arguments
+    /// * `expr`: A reference to the `Expression` to check.
+    /// * `c`: The `Cell` to check for membership in the expression.
+    ///
+    /// # Returns
+    /// * `bool`: Returns `true` if the expression belongs to the cell, `false` otherwise.
     fn belongs_to_expression(&self, expr: &Expression, c: Cell) -> bool {
         let val = Value::Ref(c);
 
@@ -512,6 +645,16 @@ impl SpreadSheet {
         }
     }
 
+    /// Checks if the given formula `form` creates a cyclic dependency in the spreadsheet.
+    ///
+    /// # Arguments
+    /// * `form`: The `Formula` to check for cycles.
+    ///
+    /// # Returns
+    /// * `bool`: Returns `true` if the formula introduces a cycle, otherwise `false`.
+    ///
+    /// This function traverses the dependencies of a given formula to check for cyclic references, 
+    /// ensuring that the spreadsheet doesn't enter an infinite loop of formula evaluations.
     fn check_cycle(&self, form: Formula) -> bool {
         let inp_cell = form.inp_cell;
         let expr = form.expression;
@@ -542,6 +685,10 @@ impl SpreadSheet {
         false
     }
 
+    /// Prints the current state of the spreadsheet, showing the values and headers for the visible range.
+    ///
+    /// This function prints a portion of the spreadsheet, including the column headers and row values, 
+    /// as well as handling cases where cells are invalid or contain errors.
     pub fn print_sheet(&self) {
         let width = 10.min(self.col as u32 - self.col_pointer as u32 + 1);
         let length = 10.min(self.row as u32 - self.row_pointer as u32 + 1);

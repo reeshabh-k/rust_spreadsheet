@@ -698,6 +698,8 @@ impl SpreadSheet {
 #[cfg(test)]
 
 mod spreadsheet_tests {
+    use std::cell;
+
     use super::*;
     use crate::basic::Expression;
     use crate::basic::Value;
@@ -849,6 +851,14 @@ mod spreadsheet_tests {
         ss.val[ptr] = 5;
         assert_eq!(ss.extract_value_num(Value::Num(5)), Some(5));
         assert_eq!(ss.extract_value_num(Value::Ref(cell)), Some(5));
+    }
+
+    #[test]
+    fn test_extract_value_num_invalid() {
+        let mut ss = SpreadSheet::new(10, 10);
+        let cell = Cell { row: 1, col: 1 };
+        ss.call_formula(Some(Formula { inp_cell: cell, expression: Expression::Avg(Cell {row: 1, col:4 }, Cell{row: 2, col: 3}) }));
+        assert_eq!(ss.extract_value_num(Value::Ref(Cell { row: 1, col: 1 })), Some(0));
     }
 
     #[test] 
@@ -1085,6 +1095,63 @@ mod spreadsheet_tests {
         ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
         assert_eq!(ss.exprs.len(), 1);
         assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
+    }
+
+    #[test]
+    fn test_remove_children2() {
+        let mut ss = SpreadSheet::new(10, 10);
+        let cell = Cell { row: 1, col: 1 };
+        let cell2 = Cell { row: 2, col: 2 };
+        let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
+        let expr2 = Expression::Avg(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
+        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        ss.call_formula(Some(Formula{ inp_cell: cell2, expression: expr2.clone() }));
+        assert_eq!(ss.exprs.len(), 1);
+        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
+        ss.remove_children(cell);
+        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell{row : 2, col: 2})].children.len(), 0);
+    }
+
+    #[test]
+    fn test_check_cycle2() {
+        let mut ss = SpreadSheet::new(10, 10);
+        let cell = Cell { row: 1, col: 1 };
+        let cell2 = Cell { row: 2, col: 2 };
+        let cell3 = Cell { row: 3, col: 3 };
+        let cell4 = Cell { row: 4, col: 4 };
+        let cell5 = Cell { row: 5, col: 5 };
+        let cell6 = Cell { row: 6, col: 6 };
+        let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
+        let expr2 = Expression::Avg(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
+        let expr3 = Expression::Max(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
+        let expr4 = Expression::Min(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
+        let expr5 = Expression::Stdev(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
+        let expr6 = Expression::Sum(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
+        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        ss.call_formula(Some(Formula{ inp_cell: cell2, expression: expr2.clone() }));
+        ss.call_formula(Some(Formula{ inp_cell: cell3, expression: expr3.clone() }));
+        ss.call_formula(Some(Formula{ inp_cell: cell4, expression: expr4.clone() }));
+        ss.call_formula(Some(Formula{ inp_cell: cell5, expression: expr5.clone() }));
+        ss.call_formula(Some(Formula{ inp_cell: cell6, expression: expr6.clone() }));
+        assert_eq!(ss.exprs.len(), 4);
+        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 4);
+        assert_eq!(ss.check_cycle(Formula{ inp_cell: cell4, expression: expr4 }), false);
+    }
+
+    #[test]
+    fn test_remove_children3() {
+        let mut ss = SpreadSheet::new(10, 10);
+        let cell = Cell { row: 1, col: 1 };
+        let cell2 = Cell { row: 2, col: 2 };
+        let expr = Expression::Add(Value::Num(5), Value::Ref(Cell { row: 2, col: 2 }));
+        let _expr2 = Expression::Avg(Cell { row: 2, col: 2 }, Cell { row: 3, col: 3 });
+        let expr3 = Expression::Sleep(Value::Num(1));
+        ss.call_formula(Some(Formula{ inp_cell: cell, expression: expr.clone() }));
+        ss.call_formula(Some(Formula{ inp_cell: cell2, expression: expr3.clone() }));
+        assert_eq!(ss.exprs.len(), 2);
+        // assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell {row:2, col:2})].children.len(), 1);
+        ss.remove_children(cell2);
+        assert_eq!(ss.spreadsheet[ss.get_pointer(&Cell{row : 2, col: 2})].children.len(), 1);
     }
    
    

@@ -497,6 +497,51 @@ mod formula_tests {
     }
 
     #[test]
+    fn test_get_formula() {
+        let input = "A1=B2";
+        let mut buf_inp = Cursor::new(input);
+        let form_out = get_formula(&mut buf_inp).expect("Incorrect Input");
+        let form_exp = Formula {
+            inp_cell: Cell { row: 1, col: 1 },
+            expression: Expression::Constant(Value::Ref(Cell { row: 2, col: 2 })),
+        };
+        assert_eq!(form_out, form_exp);
+        
+    }
+
+    #[test]
+    fn test_get_formula_invalid() {
+        let input = "A1=B2#C2";
+        let mut buf_inp = Cursor::new(input);
+        let form_out = get_formula(&mut buf_inp);
+        assert_eq!(form_out, None);
+    }
+
+    #[test]
+    fn test_get_formula_invalid2() {
+        let input = "A1=B2+";
+        let mut buf_inp = Cursor::new(input);
+        let form_out = get_formula(&mut buf_inp);
+        assert_eq!(form_out, None);
+    }
+    #[test]
+    fn test_range_invalid() {
+        let input = "A1=MAXin(A2:B3)";
+        let mut buf_inp = Cursor::new(input);
+        let form_out = get_formula(&mut buf_inp);
+        assert_eq!(form_out, None);
+    }
+
+    #[test]
+    // #[should_panic]
+    fn test_invalid_scroll() {
+        let input = "ww";
+        let mut buf_inp = Cursor::new(input);
+        let form_out = get_formula(&mut buf_inp);
+        assert_eq!(form_out, None);
+    }
+
+    #[test]
     fn range_op() {
         test_range_op(
             "A1",
@@ -901,6 +946,18 @@ mod col_tests {
     }
 
     #[test]
+    #[should_panic]
+    fn num_of_str_out_of_range() {
+        test_str_to_num("AAAA", 0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn num_of_str_invalid() {
+        test_str_to_num("A+", 0);
+    }
+
+    #[test]
     fn col_of_num() {
         test_col_of_num("A", 1);
         test_col_of_num("D", 4);
@@ -918,6 +975,14 @@ mod col_tests {
     fn num_of_col_of_num() {
         for i in 1..=18278 {
             test_num_of_col_of_num(i);
+        }
+    }
+
+    #[test]
+    fn test_from_num() {
+        for i in 18279..=100000 {
+            let col = Col::from_num(i);
+            assert_eq!(col, None);
         }
     }
 }
@@ -965,6 +1030,10 @@ mod parse_tests {
         let val_out = parse_val(val_str).expect("Invalid Value");
         assert_eq!(val_out, val);
     }
+    fn test_parse_val_is_none(val_str: &str) {
+        let val_out = parse_val(val_str);
+        assert_eq!(val_out, None);
+    }
 
     #[test]
     fn parse_cell_test() {
@@ -986,5 +1055,10 @@ mod parse_tests {
         test_parse_val("3", Value::Num(3));
         test_parse_val("0", Value::Num(0));
         test_parse_val("100", Value::Num(100));
+    }
+
+    #[test]
+    fn test_parse_val2() {
+        test_parse_val_is_none("A+A");
     }
 }

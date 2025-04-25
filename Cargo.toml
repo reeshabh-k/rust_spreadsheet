@@ -1,8 +1,8 @@
 [workspace]
-exclude = [
+members = [
     "backend",
-    "frontend"
 ]
+resolver = "2"
 
 [package]
 name = "rust_spreadsheet"

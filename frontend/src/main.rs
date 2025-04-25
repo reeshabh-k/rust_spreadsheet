@@ -844,21 +844,23 @@ async fn update_cell_logic(cell_id: &str, val: &str, formulas: Arc<Mutex<Vec<Str
 }
 
 async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>>) -> Result<String, String> {
-    // self.conversation.push(format!("User: {}", prompt));
-    // let full_prompt = self.conversation.join("\n");
-    // println!("Full prompt: {}", full_prompt);  // Print the full prompt
-    let mut formulas = formulas.lock().unwrap();
-    let client = reqwest::Client::new();
-    let api_key = "tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi"; // Replace with your actual API key
+    // Get data from the mutex before any async operations
     let default_prompt = "you are a math assistant, i will give you some formulas, and you have to predict the next formula. The formulas would contain a right hand side an equals sign and a left hand side, the formula could contain cell names as in excel sheet cell names, for example : A1, B3, etc.
     Formulas will be simple patterns for example: A1=B1, A2=B2, so next one you should predict A3=B3 and so on.
     The next formula should be of similar type and complexity as the previous ones. Each line would contain a different formula. Just give the formula, no explanation: \n".to_string();
-    let mut prompt_list = vec![];
-    let mut i = 0;
-    while !formulas.is_empty() && i < 5 {
-        prompt_list.push(formulas.pop().unwrap());
-        i += 1;
-    }
+    
+    // Extract data from the lock and then drop the guard before any await
+    let prompt_list = {
+        let mut formulas_guard = formulas.lock().unwrap();
+        let mut prompt_list = vec![];
+        let mut i = 0;
+        while !formulas_guard.is_empty() && i < 5 {
+            prompt_list.push(formulas_guard.pop().unwrap());
+            i += 1;
+        }
+        prompt_list // Return this from the block, dropping the guard
+    }; // MutexGuard is dropped here
+    
     let reverse_prompt_list = prompt_list.iter().rev().cloned().collect::<Vec<String>>();
     let mut prompt = default_prompt;
     let mut cnt = 1;
@@ -866,9 +868,12 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>>) -> Result<String, String>
         prompt.push_str(&format!("\n Formula {} : {}, ", cnt, formula));
         cnt += 1;
     }
-
-    let response = client
-        .post("https://api.cohere.ai/generate")
+    
+    // Now it's safe to await since the lock is no longer held
+    let client = reqwest::Client::new();
+    let api_key = "tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi";
+    
+    let response = client.post("https://api.cohere.ai/generate")
         .header("Authorization", format!("Bearer {}", api_key))
         .json(&json!({
             "prompt": prompt,
@@ -877,13 +882,15 @@ async fn ask_cohere(formulas: Arc<Mutex<Vec<String>>>) -> Result<String, String>
         }))
         .send()
         .await
-        .unwrap();
-    let json: serde_json::Value = response.json().await.unwrap();
+        .map_err(|e| format!("Failed to request: {:?}", e))?;
+        
+    let json: serde_json::Value = response.json().await
+        .map_err(|e| format!("Failed to parse response: {:?}", e))?;
+        
+    // Process result
     if let Some(text) = json["text"].as_str() {
-        // self.conversation.push(format!("Cohere: {}", text));
-        println!("Cohere: {}", text); // Print the response text
+        println!("Cohere: {}", text);
         let resp = text.to_string();
-        // resp.push_str(&format!("\nPrompt: {}", prompt));
         Ok(resp)
     } else {
         Err("Failed to extract response text".to_string())

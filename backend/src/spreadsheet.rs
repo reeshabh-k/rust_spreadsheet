@@ -480,8 +480,8 @@ impl SpreadSheet {
             );
             y.push_str((format!("{} ", i.col)).as_str());
             match num {
-                CellVal::IntC(v) => z.push_str((format!("{}|", v)).as_str()),
-                CellVal::StrC(s) => z.push_str((format!("{}|", s)).as_str()),
+                CellVal::IntC(v) => z.push_str((format!("{v}|")).as_str()),
+                CellVal::StrC(s) => z.push_str((format!("{s}|")).as_str()),
             }
         }
         (x, y, z)
@@ -560,8 +560,8 @@ impl SpreadSheet {
                     print!("{:<10}", "err");
                 } else {
                     match self.val[cell_pointer + j as usize].clone() {
-                        CellVal::IntC(i) => print!("{:<10}", i),
-                        CellVal::StrC(s) => print!("{:<10}", s),
+                        CellVal::IntC(i) => print!("{i:<10}"),
+                        CellVal::StrC(s) => print!("{s:<10}"),
                     }
                 }
             }

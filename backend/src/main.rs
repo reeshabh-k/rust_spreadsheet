@@ -55,9 +55,9 @@ async fn main() {
     // let spreadsheet: SharedSheet = Arc::new(Mutex::new(spreadsheet::SpreadSheet::new(100, 55)));
     // Create CORS middleware
     let cors = CorsLayer::very_permissive(); // or configure more strictly if needed
-                                             // let formula_stack: Formula_stack = Arc::new(Mutex::new(vec![]));
-                                             // let cohere = ai::CohereChat::new("tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi");
-                                             // Build app with CORS
+    // let formula_stack: Formula_stack = Arc::new(Mutex::new(vec![]));
+    // let cohere = ai::CohereChat::new("tyQev2QzfLWJpuhi041QeENIqhuI1rK1caEELTmi");
+    // Build app with CORS
 
     // let cors = CorsLayer::new()
     //     .allow_origin(Any)

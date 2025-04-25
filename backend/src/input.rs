@@ -85,10 +85,12 @@ impl Col {
 fn parse_cell(cell_str: &str) -> Option<Cell> {
     let cell_re = Lazy::new(|| Regex::new(r"(?P<col>[A-Z]+)(?P<row>[0-9]+)").unwrap());
     let caps = cell_re.captures(cell_str)?;
-
+    let col_str = &caps["col"];
+    let row_str = &caps["row"];
+    let temp = Col::from_str(col_str)?.num_of_col();
     Some(Cell {
-        col: Col::from_str(&caps["col"])?.num_of_col() as u16,
-        row: parse_row(&caps["row"])? as u16,
+        col: temp as u16,
+        row: parse_row(row_str)? as u16,
     })
 }
 
@@ -303,6 +305,7 @@ pub fn get_formula<R: BufRead>(reader: &mut R) -> Option<Formula> {
 #[cfg(test)]
 mod formula_tests {
     use super::*;
+    use std::io::Cursor;
 
     fn test_binary_op(inp_cell: &str, op: &str, val1: &str, val2: &str, form: Formula) {
         let input = format!("{inp_cell}={val1}{op}{val2}");

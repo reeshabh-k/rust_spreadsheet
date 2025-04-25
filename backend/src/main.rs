@@ -1,3 +1,9 @@
+//! # Spreadsheet API Server
+//!
+//! This crate provides a simple HTTP API for evaluating and retrieving values from a spreadsheet.
+//! It uses the Axum web framework and supports CORS. The backend maintains shared state
+//! including a spreadsheet and a stack of evaluated formulas.
+
 use axum::extract::State;
 use axum::routing::post;
 use axum::{Json, Router};
@@ -13,21 +19,46 @@ mod spreadsheet;
 
 use std::io::Cursor;
 
+/// A thread-safe shared spreadsheet instance.
 type SharedSheet = Arc<Mutex<spreadsheet::SpreadSheet>>;
 
+/// A thread-safe stack of evaluated formulas for bookkeeping or history.
 type FormulaStack = Arc<Mutex<Vec<String>>>;
 
+/// Shared application state injected into route handlers.
 #[derive(Clone)]
 pub struct AppState {
     sheet: SharedSheet,
     formula_stack: FormulaStack,
 }
 
+/// Request payload for evaluating a cell.
+///
+/// The client sends a `cell` identifier and a formula or value `val` to be assigned or evaluated.
 #[derive(Deserialize)]
 struct CellParams {
     cell: String,
     val: String,
 }
+
+/// Route handler for evaluating a formula and returning its resolved value.
+///
+/// This function:
+/// - Parses and stores the formula to a stack for record keeping.
+/// - Passes the formula to the spreadsheet engine.
+/// - Returns the resolved row, column, and value.
+///
+/// # Arguments
+///
+/// * `State(state)` - Shared application state.
+/// * `Json(params)` - JSON body with cell and formula information.
+///
+/// # Returns
+///
+/// JSON object containing:
+/// - `"row"`: Row index of the evaluated cell.
+/// - `"col"`: Column index of the evaluated cell.
+/// - `"val"`: Resolved value of the formula.
 async fn get_value(
     State(state): State<AppState>,
     Json(params): Json<CellParams>,
@@ -45,6 +76,19 @@ async fn get_value(
     Json(json!({ "row": x, "col": y, "val": z }))
 }
 
+/// Launches the Axum web server with the `/api/get_value` endpoint.
+///
+/// The server initializes:
+/// - A shared spreadsheet instance with dimensions 101x101.
+/// - A stack for storing formula history.
+/// - Very permissive CORS settings (suitable for development only).
+///
+/// The endpoint is available at:
+/// `POST http://localhost:8080/api/get_value`
+///
+/// # Panics
+///
+/// Panics if the TCP listener fails to bind or the Axum server fails to run.
 #[tokio::main]
 async fn main() {
     let state = AppState {

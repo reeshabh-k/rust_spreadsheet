@@ -70,6 +70,9 @@ clean:
 	@echo "Cleaning build artifacts..."
 	cargo clean
 	@rm -rf $(FRONTEND_DIR)/dist
+	cd frontend && cargo clean
+	cd backend && cargo clean
+	rm -rf main.pdf
 
 # Development mode: backend in release mode, frontend with hot reloading
 dev:
@@ -81,6 +84,12 @@ dev:
 	@wait
 
 docs:
-	
+	cd report && pdflatex main.tex
+	mv report/main.pdf main.pdf
+	cargo doc 
+	cd frontend && cargo doc 
+	cd backend && cargo doc
+
+
 
 .PHONY: all build build-backend build-frontend run run-backend run-frontend-dev open-browser clean dev

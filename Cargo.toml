@@ -1,6 +1,7 @@
 [workspace]
-members = [
+exclude = [
     "backend",
+    "frontend"
 ]
 
 [package]

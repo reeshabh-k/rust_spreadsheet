@@ -1,3 +1,28 @@
+//! A simple spreadsheet system where users can input formulas and track dependencies.
+//! 
+//! # Modules
+//! - `basic`: Contains common error handling and state definitions for the spreadsheet.
+//! - `input`: Handles input for formulas from stdin.
+//! - `spreadsheet`: Manages the creation, modification, and printing of the spreadsheet.
+//!
+//! The `main` function initializes the spreadsheet, handles user input, and manages the 
+//! processing of formulas within the spreadsheet.
+//!
+//! ## Arguments
+//! - If no command-line arguments are provided, the program initializes with a default size.
+//! - If two command-line arguments are provided, they are used to define the number of rows and columns in the spreadsheet.
+//! 
+//! # Example
+//! ```sh
+//! $ cargo run 100 100
+//! ```
+//! Will create a spreadsheet with 100 rows and 100 columns.
+//!
+//! ## Program Flow
+//! The program continuously accepts formulas as input, processes them, and updates the sheet.
+//! It will print the state of the spreadsheet after each formula is processed unless disabled.
+//! The user can also disable or enable sheet printing using specific commands in the input formula.
+ 
 mod basic;
 mod input;
 mod spreadsheet;
@@ -9,6 +34,20 @@ use std::time::Instant;
 use input::get_formula;
 use spreadsheet::SpreadSheet;
 
+
+/// Main entry point for the spreadsheet program.
+///
+/// Initializes the spreadsheet based on command-line arguments (if provided) and enters
+/// a loop to accept and process formulas from the user. It tracks the time taken to process
+/// each formula and updates the spreadsheet accordingly.
+///
+/// # Arguments
+/// - If no arguments are provided, the default row and column sizes are 999 and 18278 respectively.
+/// - If two arguments are provided, they are interpreted as the row and column sizes for the spreadsheet.
+///
+/// # Flow
+/// The program continuously asks for formulas and processes them, printing the current state
+/// of the spreadsheet. The user can disable or enable sheet printing during execution.
 fn main() {
     let args: Vec<String> = env::args().collect();
 

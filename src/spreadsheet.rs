@@ -344,7 +344,7 @@ impl SpreadSheet {
     }
 
     pub fn call_formula(&mut self, form: Option<Formula>) -> SpreadSheetError {
-        // println!("Constant Mode: {}", self.constant_mode);
+        println!("Constant Mode: {}", self.constant_mode);
         let form = match form {
             None => return SpreadSheetError::InvalidInput,
             Some(valid_form) => valid_form,
@@ -383,6 +383,7 @@ impl SpreadSheet {
                 if c1.row > c2.row || c1.col > c2.col { //comment
                     return SpreadSheetError::InvalidInput; 
                 }
+                self.constant_mode = 0;
             }
             | Expression::Constant(Value::Num(i)) => {
                 if self.constant_mode == 1 {
@@ -399,15 +400,11 @@ impl SpreadSheet {
             return SpreadSheetError::Cycle;
         }
 
-        
-
         self.remove_children(form.inp_cell);
 
         self.exprs.insert(form.inp_cell, form.expression.clone());
 
         self.add_children(form.inp_cell, form.expression);
-
-        
 
         // match form.expression {
         //     Expression::Add(Value::Num(_), Value::Num(_))
